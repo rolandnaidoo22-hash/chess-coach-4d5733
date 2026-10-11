@@ -1,0 +1,19 @@
+# Decodes the base64 icon files into real PNGs (the upload tool can only send text files).
+name: build-icons
+on:
+  push:
+    branches: [gh-pages]
+    paths: ["*.b64"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for f in *.png.b64; do base64 -d "$f" > "${f%.b64}"; done
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add *.png
+          git diff --cached --quiet || (git commit -m "Build PNG icons" && git push)
