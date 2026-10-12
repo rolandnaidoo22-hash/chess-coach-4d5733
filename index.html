@@ -1,1 +1,15 @@
-test
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Game review</title></head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f4f1ea;">
+<p>Loading chess review tool...</p>
+<script>
+fetch('https://raw.githubusercontent.com/rolandnaidoo22-hash/chess-review/f40248c3/index.html')
+  .then(r => { if(!r.ok) throw 0; return r.text(); })
+  .then(html => {
+    // Inject enhancements before </body>
+    html = html.replace('</body>', '<script src="enhancements.js"><\/script></body>');
+    document.open(); document.write(html); document.close();
+  })
+  .catch(e => { document.body.innerHTML = '<p style="color:red;">Failed to load. Please check your connection and refresh.</p>'; });
+</script>
+</body></html>
