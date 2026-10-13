@@ -556,11 +556,25 @@ function initInsightsTab(){
   }
 }
 
+function watchGamesList(){
+  const my = document.getElementById('mygames');
+  if(!my || my.dataset.enhWatch) return;
+  my.dataset.enhWatch = '1';
+  const obs = new MutationObserver(() => {
+    if(!document.getElementById('insights-tab-btn')) initInsightsTab();
+  });
+  obs.observe(my, {childList: true});
+}
+
 // Initialize when DOM is ready
+function bootInsights(){
+  initInsightsTab();
+  watchGamesList();
+}
 if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', ()=> setTimeout(initInsightsTab, 500));
+  document.addEventListener('DOMContentLoaded', ()=> setTimeout(bootInsights, 500));
 } else {
-  setTimeout(initInsightsTab, 500);
+  setTimeout(bootInsights, 500);
 }
 
 // Re-init when games list updates
@@ -568,7 +582,7 @@ const _renderGames = window.renderGames;
 if(typeof _renderGames === 'function'){
   window.renderGames = function(){
     const r = _renderGames.apply(this, arguments);
-    setTimeout(initInsightsTab, 100);
+    initInsightsTab();
     return r;
   };
 }
@@ -710,10 +724,11 @@ function reviewText(d){
 function relabelFlipped(){
   const board = document.getElementById('board');
   if(!board) return;
-  const texts = board.querySelectorAll('text');
+  const texts = Array.prototype.slice.call(board.querySelectorAll('text'));
   if(texts.length < 16) return;
-  const files = Array.prototype.slice.call(texts, 0, 8);
-  const ranks = Array.prototype.slice.call(texts, 8, 16);
+  // drawBoard emits file and rank labels as pairs: file, rank, file, rank...
+  const files = texts.filter((_, i) => i % 2 === 0).slice(0, 8);
+  const ranks = texts.filter((_, i) => i % 2 === 1).slice(0, 8);
   const fileLabels = files.map(t => t.textContent).reverse();
   const rankLabels = ranks.map(t => t.textContent).reverse();
   fileLabels.forEach((lab, i) => { files[i].textContent = lab; });
@@ -1028,6 +1043,8 @@ function initReviewTools(){
   window.ChessEnhancements.refreshGame = refreshGamePanels;
   setFlip(boardFlipped, boardFlipped);
   refreshGamePanels();
+  trackPatterns();
+  injectEnhancements();
 }
 
 if(document.readyState === 'loading'){
