@@ -1,6 +1,8 @@
-/* Chess Review Enhancements v1: Dark Mode, Key Moments, Blunder Patterns */
+/* Chess Review Enhancements: dark mode, key moments, patterns, insights, review tools */
 (function(){
 "use strict";
+if(window.__chessEnhancements) return;
+window.__chessEnhancements = true;
 
 /* ============ DARK MODE ============ */
 const DARK_KEY = 'chessReview.darkMode';
@@ -69,7 +71,7 @@ function renderKeyMoments(){
       'miss': 'var(--miss)', 'inaccuracy': 'var(--inaccuracy)'
     }[p.cls] || 'var(--mute)';
 
-    html += `<div class="jump" data-ply="${p.ply}" style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+    html += `<button type="button" class="jump" data-ply="${p.ply}" style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;text-align:left;">
       <div style="font-size:24px;font-weight:800;color:${clsColor};min-width:36px;text-align:center;">${i+1}</div>
       <div style="flex:1;">
         <div style="font-weight:700;">${p.label} <span style="font-size:12px;color:var(--mute);text-transform:capitalize;">(${p.cls})</span></div>
@@ -195,29 +197,24 @@ function injectEnhancements(){
     // Wire up key moment clicks to jump to moves
     container.querySelectorAll('[data-ply]').forEach(el => {
       el.addEventListener('click', ()=>{
-        const ply = parseInt(el.getAttribute('data-ply'));
-        // Try to find and click the corresponding move in the move list
-        const moveEls = document.querySelectorAll('[data-ply], .move');
-        // Fallback: dispatch custom event
-        window.dispatchEvent(new CustomEvent('jumpToPly', {detail: {ply}}));
-        // Try clicking move list items
-        document.querySelectorAll('.toplist .jump').forEach(j => {
-          if(j.textContent.includes(el.querySelector('div').textContent.split(' ')[0]))
-            j.click();
-        });
+        const ply = parseInt(el.getAttribute('data-ply'), 10);
+        if(typeof window.go === 'function') window.go(ply, true);
       });
     });
   }
 }
 
 // Track patterns after analysis
+if(!window.DATA && window.EXAMPLE_DATA) window.DATA = window.EXAMPLE_DATA;
 const originalSetData = window.setData;
 if(typeof window.setData === 'function'){
   window.setData = function(d){
+    window.DATA = d;
     const result = originalSetData.apply(this, arguments);
     setTimeout(()=>{
       trackPatterns();
       injectEnhancements();
+      if(typeof window.ChessEnhancements.refreshGame === 'function') window.ChessEnhancements.refreshGame();
     }, 100);
     return result;
   };
@@ -246,7 +243,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 // Expose for debugging
-window.ChessEnhancements = { getKeyMoments, renderKeyMoments, renderPatterns, trackPatterns };
+window.ChessEnhancements = { getKeyMoments, renderKeyMoments, renderPatterns, trackPatterns, refreshGame: function(){} };
 
 /* ============ INSIGHTS DASHBOARD ============ */
 const GAMES_KEY = 'chessReview.games.v1';
@@ -336,12 +333,15 @@ function generateInsights(stats){
   if(stats.total >= 3){
     if(stats.winRate >= 60) insights.push({icon:'🏆', text:`Strong win rate at ${stats.winRate}%! Keep doing what you're doing.`});
     else if(stats.winRate >= 40) insights.push({icon:'📊', text:`Win rate is ${stats.winRate}%. Focus on reducing blunders to push it higher.`});
-    else insights.push({icon:'🎯', text:`Win rate is ${stats.winRate}%. Your biggest leak is likely ${getBiggestMistake(stats)}. Drill that first.`});
+    else {
+      const leak = getBiggestMistake(stats);
+      insights.push({icon:'🎯', text:`Win rate is ${stats.winRate}%. Your biggest leak is likely ${leak ? leak.label.toLowerCase() : 'blunders'}. Drill that first.`});
+    }
   }
 
   // Biggest mistake type
   const biggest = getBiggestMistake(stats);
-  if(biggest) insights.push({icon:'⚠️', text:`Your most common issue: <strong>${biggest}</strong> (${stats.mistakes[biggest.toLowerCase().replace(' ','')] || 0} times).`});
+  if(biggest) insights.push({icon:'⚠️', text:`Your most common issue: <strong>${biggest.label}</strong> (${biggest.count} times).`});
 
   // Phase weakness
   const phases = stats.byPhase;
@@ -383,9 +383,9 @@ function generateInsights(stats){
 function getBiggestMistake(stats){
   const m = stats.mistakes;
   const sorted = Object.entries(m).sort((a,b) => b[1] - a[1]);
-  if(sorted[0][1] === 0) return null;
+  if(!sorted.length || sorted[0][1] === 0) return null;
   const names = {blunder:'Blunders', mistake:'Mistakes', miss:'Missed wins', inaccuracy:'Inaccuracies'};
-  return names[sorted[0][0]] || sorted[0][0];
+  return {key:sorted[0][0], label:names[sorted[0][0]] || sorted[0][0], count:sorted[0][1]};
 }
 
 function renderInsightsTab(){
@@ -477,6 +477,26 @@ function renderInsightsTab(){
     html += '</div>';
   }
 
+  if(games.length >= 2){
+    const recent = games.slice(0, 8).slice().reverse();
+    html += '<h4 style="margin:16px 0 8px;font-size:14px;">Recent form:</h4>';
+    html += '<div style="display:flex;gap:6px;align-items:flex-end;height:72px;margin-bottom:6px;">';
+    recent.forEach(g => {
+      const meta = g.data && g.data.meta ? g.data.meta : {};
+      const acc = (g.data && g.data.summary && g.data.summary.accuracy != null) ? g.data.summary.accuracy : (g.acc || 0);
+      const uc = meta.user_color || g.user;
+      const result = meta.result || g.result;
+      const won = (result === '1-0' && uc === 'w') || (result === '0-1' && uc === 'b');
+      const lost = (result === '1-0' && uc === 'b') || (result === '0-1' && uc === 'w');
+      const color = won ? 'var(--best)' : lost ? 'var(--blunder)' : 'var(--great)';
+      const h = Math.max(8, Math.round((acc || 0) * 0.64));
+      const title = (g.title || 'Game') + ' · ' + acc + '%';
+      html += `<div title="${title.replace(/"/g,'')}" style="flex:1;height:${h}px;background:${color};border-radius:4px 4px 0 0;"></div>`;
+    });
+    html += '</div>';
+    html += '<p style="font-size:12px;color:var(--mute);margin:0 0 8px;">Oldest of your last games is on the left. Green is a win, red a loss, blue a draw. Taller means higher accuracy.</p>';
+  }
+
   html += `<p style="font-size:12px;color:var(--mute);margin-top:12px;">Based on ${stats.total} analyzed game${stats.total===1?'':'s'}. Analyze more games for deeper insights.</p>`;
   html += '</div>';
   return html;
@@ -552,5 +572,469 @@ if(typeof _renderGames === 'function'){
     return r;
   };
 }
+
+/* ============ REVIEW TOOLS ============ */
+const FLIP_KEY = 'chessReview.flipBoard';
+const NOTES_KEY = 'chessReview.notes.v1';
+const MARKS_KEY = 'chessReview.bookmarks.v1';
+const SPEED_KEY = 'chessReview.playMs';
+const BAD_CLS = ['blunder','mistake','miss','inaccuracy'];
+
+let boardFlipped = false;
+let plyIndex = 0;
+let playTimer = null;
+let playMs = 800;
+
+function currentData(){
+  return window.DATA || window.EXAMPLE_DATA || null;
+}
+function gameKey(d){
+  if(!d || !d.meta) return 'unknown';
+  const m = d.meta;
+  return [m.link || '', m.white || '', m.black || '', m.date || ''].join('|');
+}
+function readJson(key, fallback){
+  try {
+    const raw = localStorage.getItem(key);
+    if(!raw) return fallback;
+    return JSON.parse(raw);
+  } catch(e){ return fallback; }
+}
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function materialText(fen){
+  const board = String(fen || '').split(' ')[0];
+  const val = {p:1, n:3, b:3, r:5, q:9};
+  let w = 0, b = 0;
+  for(const ch of board){
+    const p = ch.toLowerCase();
+    if(!val[p]) continue;
+    if(ch === ch.toUpperCase()) w += val[p];
+    else b += val[p];
+  }
+  const diff = w - b;
+  if(!board) return 'Material –';
+  if(diff === 0) return 'Material is level';
+  return (diff > 0 ? 'White' : 'Black') + ' is ahead by ' + Math.abs(diff);
+}
+function fenAt(d, i){
+  if(!d) return '';
+  if(!i) return d.start_fen || '';
+  const p = d.plies && d.plies[i - 1];
+  return p ? (p.fen || '') : (d.start_fen || '');
+}
+function userLeaks(d){
+  if(!d || !d.plies || !d.meta) return [];
+  const uc = d.meta.user_color;
+  return d.plies.filter(p => p.color === uc && BAD_CLS.indexOf(p.cls) >= 0);
+}
+function toast(msg){
+  let t = document.getElementById('enh-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'enh-toast';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#262421;color:#fff;padding:8px 14px;border-radius:999px;font-size:14px;z-index:80;box-shadow:0 4px 16px rgba(0,0,0,.25);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.style.display = 'none'; }, 1400);
+}
+function copyText(text, okMsg){
+  const done = () => toast(okMsg || 'Copied');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); }
+  catch(e){ toast('Could not copy'); }
+  ta.remove();
+}
+function buildPgn(d){
+  const m = d.meta || {};
+  const headers = [
+    ['Event', 'Chess Review'],
+    ['Site', m.link || 'local'],
+    ['Date', (m.date || '????.??.??').replace(/-/g, '.')],
+    ['White', m.white || '?'],
+    ['Black', m.black || '?'],
+    ['Result', m.result || '*'],
+    ['WhiteElo', m.white_elo || ''],
+    ['BlackElo', m.black_elo || ''],
+    ['ECO', m.eco || ''],
+    ['Opening', m.opening || ''],
+    ['TimeControl', m.time_control || '']
+  ].filter((pair) => pair[1]).map((pair) => '[' + pair[0] + ' "' + String(pair[1]).replace(/"/g, '') + '"]').join('\n');
+  let moves = '';
+  let num = 0;
+  (d.plies || []).forEach(p => {
+    if(p.color === 'w'){
+      num += 1;
+      moves += (moves ? ' ' : '') + num + '. ' + p.san;
+    } else {
+      moves += ' ' + p.san;
+    }
+  });
+  return headers + '\n\n' + moves.trim() + ' ' + (m.result || '*') + '\n';
+}
+function reviewText(d){
+  const m = d.meta || {};
+  const s = d.summary || {};
+  const lines = [
+    (m.white || '?') + ' vs ' + (m.black || '?'),
+    [m.date, m.opening ? (m.opening + (m.eco ? ' (' + m.eco + ')' : '')) : '', 'Result ' + (m.result || '?')].filter(Boolean).join(' · '),
+    'Your accuracy: ' + (s.accuracy != null ? s.accuracy + '%' : '–') + ' · Opponent: ' + (s.opp_accuracy != null ? s.opp_accuracy + '%' : '–'),
+    ''
+  ];
+  if(s.top && s.top.length){
+    lines.push('Biggest mistakes:');
+    s.top.forEach(t => lines.push('- ' + t.label + ' (' + t.cls + '), better: ' + t.best));
+    lines.push('');
+  }
+  if(s.work_on && s.work_on.length){
+    lines.push('Work on next:');
+    s.work_on.forEach(w => lines.push('- ' + w));
+  }
+  return lines.join('\n').trim() + '\n';
+}
+function relabelFlipped(){
+  const board = document.getElementById('board');
+  if(!board) return;
+  const texts = board.querySelectorAll('text');
+  if(texts.length < 16) return;
+  const files = Array.prototype.slice.call(texts, 0, 8);
+  const ranks = Array.prototype.slice.call(texts, 8, 16);
+  const fileLabels = files.map(t => t.textContent).reverse();
+  const rankLabels = ranks.map(t => t.textContent).reverse();
+  fileLabels.forEach((lab, i) => { files[i].textContent = lab; });
+  rankLabels.forEach((lab, i) => { ranks[i].textContent = lab; });
+}
+function installBoardHooks(){
+  if(typeof window.xy === 'function' && !window.xy.__enh){
+    const orig = window.xy;
+    const wrapped = function(sq){
+      const pt = orig(sq);
+      if(!boardFlipped) return pt;
+      return [315 - pt[0], 315 - pt[1]];
+    };
+    wrapped.__enh = true;
+    window.xy = wrapped;
+  }
+  if(typeof window.drawBoard === 'function' && !window.drawBoard.__enh){
+    const orig = window.drawBoard;
+    const wrapped = function(){
+      const r = orig.apply(this, arguments);
+      if(boardFlipped) relabelFlipped();
+      return r;
+    };
+    wrapped.__enh = true;
+    window.drawBoard = wrapped;
+  }
+  if(typeof window.go === 'function' && !window.go.__enh){
+    const orig = window.go;
+    const wrapped = function(i){
+      const d = currentData();
+      const n = d && d.plies ? d.plies.length : i;
+      plyIndex = Math.max(0, Math.min(n, i));
+      return orig.apply(this, arguments);
+    };
+    wrapped.__enh = true;
+    window.go = wrapped;
+  }
+  if(typeof window.show === 'function' && !window.show.__enh){
+    const orig = window.show;
+    const wrapped = function(){
+      const r = orig.apply(this, arguments);
+      refreshPosition();
+      return r;
+    };
+    wrapped.__enh = true;
+    window.show = wrapped;
+  }
+  if(typeof window.loadData === 'function' && !window.loadData.__enh){
+    const orig = window.loadData;
+    const wrapped = function(){
+      plyIndex = 0;
+      stopPlay();
+      const r = orig.apply(this, arguments);
+      refreshGamePanels();
+      return r;
+    };
+    wrapped.__enh = true;
+    window.loadData = wrapped;
+  }
+}
+function setFlip(on, redraw){
+  boardFlipped = !!on;
+  try { localStorage.setItem(FLIP_KEY, boardFlipped ? '1' : '0'); } catch(e){}
+  const btn = document.getElementById('enh-flip');
+  if(btn){
+    btn.textContent = boardFlipped ? 'Flip board (on)' : 'Flip board';
+    btn.setAttribute('aria-pressed', boardFlipped ? 'true' : 'false');
+  }
+  if(redraw && typeof window.show === 'function') window.show();
+}
+function stopPlay(){
+  if(playTimer){ clearInterval(playTimer); playTimer = null; }
+  const btn = document.getElementById('enh-play');
+  if(btn){ btn.textContent = 'Play'; btn.setAttribute('aria-pressed', 'false'); }
+}
+function playStep(){
+  const d = currentData();
+  if(!d || !d.plies || plyIndex >= d.plies.length){ stopPlay(); return; }
+  if(typeof window.go === 'function') window.go(plyIndex + 1);
+}
+function startPlay(){
+  stopPlay();
+  const btn = document.getElementById('enh-play');
+  if(btn){ btn.textContent = 'Pause'; btn.setAttribute('aria-pressed', 'true'); }
+  playStep();
+  playTimer = setInterval(playStep, playMs);
+}
+function togglePlay(){
+  if(playTimer) stopPlay();
+  else startPlay();
+}
+function jumpLeak(dir){
+  const leaks = userLeaks(currentData());
+  if(!leaks.length || typeof window.go !== 'function'){
+    toast('No mistakes to jump to');
+    return;
+  }
+  stopPlay();
+  let target = null;
+  if(dir > 0) target = leaks.find(p => p.ply > plyIndex) || leaks[0];
+  else {
+    for(let i = leaks.length - 1; i >= 0; i--){
+      if(leaks[i].ply < plyIndex){ target = leaks[i]; break; }
+    }
+    if(!target) target = leaks[leaks.length - 1];
+  }
+  window.go(target.ply, true);
+}
+function refreshPosition(){
+  const el = document.getElementById('enh-pos');
+  const d = currentData();
+  if(!el || !d) return;
+  const fen = fenAt(d, plyIndex);
+  const move = plyIndex === 0 ? 'Starting position' : ((d.plies[plyIndex - 1] && d.plies[plyIndex - 1].label) || ('Move ' + plyIndex));
+  el.textContent = move + ' · ' + materialText(fen);
+  el.dataset.fen = fen;
+}
+function refreshGamePanels(){
+  const d = currentData();
+  const notes = document.getElementById('enh-notes');
+  if(notes && d){
+    const all = readJson(NOTES_KEY, {}) || {};
+    notes.value = all[gameKey(d)] || '';
+  }
+  const focus = document.getElementById('enh-focus');
+  if(focus){
+    const leaks = userLeaks(d);
+    if(!leaks.length){
+      focus.innerHTML = '<p class="enh-meta">No inaccuracies or mistakes on your moves in this game.</p>';
+    } else {
+      focus.innerHTML = leaks.map(p => {
+        const color = {blunder:'var(--blunder)', mistake:'var(--mistake)', miss:'var(--miss)', inaccuracy:'var(--inaccuracy)'}[p.cls] || 'var(--mute)';
+        return '<button type="button" class="jump" data-ply="' + p.ply + '" style="border-left:4px solid ' + color + '"><b>' +
+          escHtml(p.label) + '</b> <small>' + escHtml(p.cls) + ' · best ' + escHtml(p.best_san || '?') + '</small></button>';
+      }).join('');
+      focus.querySelectorAll('[data-ply]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          stopPlay();
+          const n = parseInt(btn.getAttribute('data-ply'), 10);
+          if(typeof window.go === 'function') window.go(n, true);
+        });
+      });
+    }
+  }
+  renderBookmarks();
+  refreshPosition();
+}
+function renderBookmarks(){
+  const box = document.getElementById('enh-marks');
+  if(!box) return;
+  const key = gameKey(currentData());
+  const marks = (readJson(MARKS_KEY, []) || []).filter(m => m && m.game === key);
+  if(!marks.length){
+    box.innerHTML = '<p class="enh-meta">Save a position to come back to it on this game.</p>';
+    return;
+  }
+  box.innerHTML = marks.map(m => '<div class="enh-mark"><button type="button" class="jump" data-id="' + escHtml(m.id) + '"><b>' +
+    escHtml(m.label) + '</b></button><button type="button" class="btn" data-del="' + escHtml(m.id) + '" title="Remove">✕</button></div>').join('');
+  box.querySelectorAll('[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const m = (readJson(MARKS_KEY, []) || []).find(x => x.id === id);
+      if(m && typeof window.go === 'function'){ stopPlay(); window.go(m.ply, true); }
+    });
+  });
+  box.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-del');
+      const next = (readJson(MARKS_KEY, []) || []).filter(x => x.id !== id);
+      try { localStorage.setItem(MARKS_KEY, JSON.stringify(next)); } catch(e){}
+      renderBookmarks();
+    });
+  });
+}
+function saveBookmark(){
+  const d = currentData();
+  if(!d) return;
+  const label = plyIndex === 0 ? 'Start' : ((d.plies[plyIndex - 1] && d.plies[plyIndex - 1].label) || ('Ply ' + plyIndex));
+  const marks = readJson(MARKS_KEY, []) || [];
+  const id = gameKey(d) + '#' + plyIndex;
+  if(marks.some(m => m.id === id)){ toast('Already saved'); return; }
+  marks.unshift({id:id, game:gameKey(d), ply:plyIndex, label:label, saved:Date.now()});
+  try { localStorage.setItem(MARKS_KEY, JSON.stringify(marks.slice(0, 40))); }
+  catch(e){ toast('Could not save'); return; }
+  renderBookmarks();
+  toast('Position saved');
+}
+function saveNotes(){
+  const d = currentData();
+  const notes = document.getElementById('enh-notes');
+  if(!d || !notes) return;
+  const all = readJson(NOTES_KEY, {}) || {};
+  const key = gameKey(d);
+  if(notes.value.trim()) all[key] = notes.value.slice(0, 2000);
+  else delete all[key];
+  try { localStorage.setItem(NOTES_KEY, JSON.stringify(all)); } catch(e){}
+}
+function initReviewTools(){
+  if(document.getElementById('enh-tools')) return;
+  if(!document.querySelector('.side')) return;
+  installBoardHooks();
+  try { boardFlipped = localStorage.getItem(FLIP_KEY) === '1'; } catch(e){}
+  try {
+    const s = parseInt(localStorage.getItem(SPEED_KEY) || '', 10);
+    if(s === 400 || s === 800 || s === 1400) playMs = s;
+  } catch(e){}
+  const hm = location.hash.match(/ply=(\d+)/);
+  if(hm) plyIndex = +hm[1];
+
+  const style = document.createElement('style');
+  style.id = 'enh-tools-css';
+  style.textContent = [
+    '.enh-tools h3{margin:12px 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}',
+    '.enh-tools h3:first-child{margin-top:0}',
+    '.enh-row{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}',
+    '.enh-tools .btn{font-size:13px;padding:7px 10px}',
+    '.enh-meta{font-size:13px;color:var(--mute);margin:0 0 8px}',
+    '.enh-focus{display:grid;gap:4px}',
+    '.enh-focus .jump small{margin-left:auto}',
+    '.enh-note{width:100%;min-height:68px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--ink)}',
+    '.enh-mark{display:flex;gap:6px;align-items:center;margin-bottom:4px}',
+    '.enh-mark .jump{flex:1}',
+    '.enh-speed{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}',
+    'html.dark-mode .enh-note, html.dark-mode .enh-speed{background:#333;color:#e8e8e8;border-color:#555}'
+  ].join('');
+  document.head.appendChild(style);
+
+  const card = document.createElement('section');
+  card.className = 'card enh-tools';
+  card.id = 'enh-tools';
+  card.innerHTML = [
+    '<h3>Review tools</h3>',
+    '<p class="enh-meta" id="enh-pos"></p>',
+    '<div class="enh-row">',
+    '<button type="button" class="btn" id="enh-flip" aria-pressed="false">Flip board</button>',
+    '<button type="button" class="btn" id="enh-play" aria-pressed="false">Play</button>',
+    '<select id="enh-speed" class="enh-speed" aria-label="Autoplay speed">',
+    '<option value="1400">Slow</option><option value="800">Normal</option><option value="400">Fast</option>',
+    '</select>',
+    '<button type="button" class="btn" id="enh-prev">Previous mistake</button>',
+    '<button type="button" class="btn" id="enh-next">Next mistake</button>',
+    '</div>',
+    '<div class="enh-row">',
+    '<button type="button" class="btn" id="enh-fen">Copy FEN</button>',
+    '<button type="button" class="btn" id="enh-share">Copy summary</button>',
+    '<button type="button" class="btn" id="enh-pgn">Download PGN</button>',
+    '<button type="button" class="btn" id="enh-save">Save position</button>',
+    '</div>',
+    '<p class="enh-meta">Keys: F flip, space play or pause, J next mistake, K previous mistake.</p>',
+    '<h3>Your mistakes</h3><div id="enh-focus"></div>',
+    '<h3>Saved positions</h3><div id="enh-marks"></div>',
+    '<h3>Notes for this game</h3>',
+    '<textarea id="enh-notes" class="enh-note" maxlength="2000" placeholder="What do you want to remember about this game?"></textarea>'
+  ].join('');
+  const side = document.querySelector('.side');
+  const movecard = document.getElementById('movecard');
+  if(movecard) side.insertBefore(card, movecard);
+  else side.prepend(card);
+
+  document.getElementById('enh-flip').onclick = () => setFlip(!boardFlipped, true);
+  document.getElementById('enh-play').onclick = togglePlay;
+  document.getElementById('enh-prev').onclick = () => jumpLeak(-1);
+  document.getElementById('enh-next').onclick = () => jumpLeak(1);
+  document.getElementById('enh-fen').onclick = () => {
+    const fen = (document.getElementById('enh-pos') || {}).dataset && document.getElementById('enh-pos').dataset.fen || fenAt(currentData(), plyIndex);
+    if(fen) copyText(fen, 'FEN copied');
+  };
+  document.getElementById('enh-share').onclick = () => {
+    const d = currentData();
+    if(d) copyText(reviewText(d), 'Summary copied');
+  };
+  document.getElementById('enh-pgn').onclick = () => {
+    const d = currentData();
+    if(!d) return;
+    const blob = new Blob([buildPgn(d)], {type:'application/x-chess-pgn'});
+    const a = document.createElement('a');
+    const m = d.meta || {};
+    a.href = URL.createObjectURL(blob);
+    a.download = ((m.white || 'white') + ' vs ' + (m.black || 'black') + '.pgn').replace(/\s+/g, '-');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    toast('PGN downloaded');
+  };
+  document.getElementById('enh-save').onclick = saveBookmark;
+  const speed = document.getElementById('enh-speed');
+  speed.value = String(playMs);
+  speed.onchange = () => {
+    playMs = parseInt(speed.value, 10) || 800;
+    try { localStorage.setItem(SPEED_KEY, String(playMs)); } catch(e){}
+    if(playTimer){
+      clearInterval(playTimer);
+      playTimer = setInterval(playStep, playMs);
+    }
+  };
+  document.getElementById('enh-notes').addEventListener('input', saveNotes);
+  document.addEventListener('keydown', e => {
+    const tag = (e.target && e.target.tagName) || '';
+    if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || (e.target && e.target.isContentEditable)) return;
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    if(e.key === 'f' || e.key === 'F'){ e.preventDefault(); setFlip(!boardFlipped, true); }
+    else if(e.key === ' '){ e.preventDefault(); togglePlay(); }
+    else if(e.key === 'j' || e.key === 'J'){ e.preventDefault(); jumpLeak(1); }
+    else if(e.key === 'k' || e.key === 'K'){ e.preventDefault(); jumpLeak(-1); }
+  });
+  document.addEventListener('click', e => {
+    if(e.target.closest && e.target.closest('.mcell, #bNext, #bPrev, #bFirst, #bLast, #evgraph')) stopPlay();
+  }, true);
+
+  if(!window.DATA && window.EXAMPLE_DATA) window.DATA = window.EXAMPLE_DATA;
+  window.ChessEnhancements.refreshGame = refreshGamePanels;
+  setFlip(boardFlipped, boardFlipped);
+  refreshGamePanels();
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', initReviewTools);
+} else {
+  initReviewTools();
+}
+setTimeout(() => { if(!document.getElementById('enh-tools')) initReviewTools(); }, 0);
 
 })();
