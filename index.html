@@ -9110,7 +9110,7 @@ let pv=null; // preview state
 function stopPreview(){ if(pv){ clearInterval(pv.timer); pv=null; const b=$("pv16"); if(b) b.remove(); } }
 function previewSteps(steps,startFen){ stopPreview(); if(!steps.length) return; pv={steps,k:0,timer:null,start:startFen};
   const bar=document.createElement("div"); bar.id="pv16"; bar.className="pv16"; bar.innerHTML=`<span>👀 Preview (not the game)</span><button class="btn" data-a="-1">◀</button><button class="btn" data-a="1">▶</button><button class="btn" data-a="x">✕ Back to game</button>`;
-  const host=$("board").closest(".boardbox")||$("board").parentNode; host.parentNode.insertBefore(bar,host.nextSibling);
+  const host=$("board").closest(".boardbox")||$("board").parentNode; const row=host.parentNode; row.parentNode.insertBefore(bar,row.nextSibling);
   const drawK=()=>{ const s=pv.steps[pv.k]; drawBoard(s.fen,[s.uci.slice(0,2),s.uci.slice(2,4)],[],null,null); const hs=heatSvg(); if(hs) $("board").insertAdjacentHTML("beforeend",hs); bar.querySelector("span").textContent=`👀 Preview: ${pv.k+1}/${pv.steps.length} ${s.san}`; };
   bar.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{ if(!pv) return; const a=b.dataset.a; clearInterval(pv.timer); if(a==="x"){ stopPreview(); show(); return; } pv.k=Math.max(0,Math.min(pv.steps.length-1,pv.k+(+a))); drawK(); });
   drawK(); pv.timer=setInterval(()=>{ if(!pv) return; if(pv.k>=pv.steps.length-1){ clearInterval(pv.timer); return; } pv.k++; drawK(); },900); }
