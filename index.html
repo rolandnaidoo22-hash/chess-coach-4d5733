@@ -9315,7 +9315,8 @@ const css=`.co17{display:none}.co17.on{display:block}.co17hid{display:none!impor
 .co17gr h2{font-size:19px;margin:16px 0 6px;padding:6px 10px;border-radius:10px;background:#3b3b52;color:#fff}.co17gr h2:first-child{margin-top:0}
 .co17gr h3{font-size:17px;margin:14px 0 4px;color:#3b6fb6}.co17gr ul{padding-left:20px;margin:6px 0}.co17gr li{margin:6px 0}.co17gr p{margin:6px 0}
 .co17gr .rt{background:#fff3cd;border-radius:10px;padding:6px 8px;list-style:none;margin-left:-20px}
-.co17gr .meta{font-size:12px;color:#667;margin-top:10px}`;
+.co17gr .meta{font-size:12px;color:#667;margin-top:10px}.co17gr .who{display:inline-block;font-size:13px;font-weight:800;padding:3px 10px;border-radius:20px;background:#e8f5e9;color:#2f7d32;margin-top:10px}.co17gr .who.gk{background:#ececf4;color:#3b3b52}
+.co17lnk{background:none;border:none;color:#3b6fb6;text-decoration:underline;font-size:15px;padding:10px 4px;min-height:44px;cursor:pointer;text-align:left}`;
 
 /* ---------------- section + entry point ---------------- */
 let sec=null, view="home";
@@ -9486,7 +9487,7 @@ function review(){ const L=lastGame(); let h=head("🔎 Your last game");
       ${p.best_san?`<span class="lab">Better move</span><p><b>${e_(p.best_san)}</b> (green arrow)${words?` — ${e_(words)}`:""}.</p>`:""}
       <div class="rule">📌 <b>One rule:</b> ${e_(rule||"Before you move, ask: what does my opponent want to do next?")}</div>`;
     h+=n===0?`<div class="co17mis"><h4>❗ Biggest mistake · move ${moveNo}</h4>${body}</div>`:`${n===1?`<h3>Next mistakes</h3>`:""}<div class="co17mis"><button class="cbtn full" data-mx="${n}">${n+1}. Move ${moveNo}: you played ${e_(p.san)} ▾</button><div class="co17hint" id="co17mx${n}">${body}</div></div>`; });
-  h+=`${GROK_URL()?`<button class="cbtn full" id="co17grk" style="background:#2b2b3d;color:#fff;border-color:#2b2b3d">🤖 Ask Grok coach about this game</button>`:""}<button class="cbtn full pri" data-co="gm">🎓 GM Coach Report (deeper)</button><button class="cbtn full blue" id="co17full">📋 Open the full review (more details)</button><p class="co17sm">My Coach shows plain words only, no engine numbers.</p>`;
+  h+=`${GROK_URL()?`<button class="cbtn full" id="co17grk" style="background:#2b2b3d;color:#fff;border-color:#2b2b3d">🤖 Ask AI coach (free) about this game</button>`:""}<button class="cbtn full pri" data-co="gm">🎓 GM Coach Report (deeper)</button><button class="cbtn full blue" id="co17full">📋 Open the full review (more details)</button><p class="co17sm">My Coach shows plain words only, no engine numbers.</p>`;
   sec.innerHTML=h; wire(); const gk=$("co17grk"); if(gk) gk.onclick=()=>open("gm",{k:0,grok:true}); sec.querySelectorAll("[data-mx]").forEach(b=>b.onclick=()=>$("co17mx"+b.dataset.mx).classList.toggle("on"));
   $("co17full").onclick=()=>{ hide(); try{ loadData(d); }catch(e){ console.error(e); } const sm=$("summary"); if(sm) setTimeout(()=>sm.scrollIntoView({block:"start"}),50); }; }
 
@@ -9851,7 +9852,7 @@ function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.l
   const s=S(); const H=history(G); const kc={}; G.errs.forEach(e=>kc[e.kind]=(kc[e.kind]||0)+(e.kind==="general"?0.5:1)); const tk=Object.entries(kc).sort((a,b)=>b[1]-a[1])[0]; const top=tk?{kind:tk[0]}:null; const theme=top?(THEME[top.kind]||THEME.general)+(tk[1]>=2?` (${Math.round(tk[1])} of your ${G.errs.length} key mistakes)`:""):"Clean play: no big mistakes";
   const phN=["Opening","Middlegame","Endgame"], phW=x=>!x?"not reached":x.bad===0?(x.a>=75?"Strong":"Solid"):x.bad===1?"One slip":"Shaky ("+x.bad+" big mistakes)";
   h+=`<div class="co17row"><select id="gmPick" style="font-size:16px;min-height:48px;border-radius:10px;max-width:100%">${L.slice(0,15).map((g,j)=>`<option value="${j}" ${j===k?"selected":""}>${e_(g.date)} · vs ${e_(g.d.meta.user_color==="w"?g.d.meta.black:g.d.meta.white)}</option>`).join("")}</select></div>
-   ${GROK_URL()?`<button class="co17grokB" id="gmGrok">🤖 Ask Grok coach</button><div id="gmGrokBox"></div><p class="co17sm" id="gmRuleHead">Below: the app's own quick report (no internet needed).</p>`:""}
+   ${GROK_URL()?`<button class="co17grokB" id="gmGrok">🤖 Ask AI coach (free)</button><div id="gmGrokBox"></div><p class="co17sm" id="gmRuleHead">Below: the app's own quick report (no internet needed).</p>`:""}
    <h3>1️⃣ Executive Summary</h3><div class="co17mis"><p>vs <b>${e_(opp)}</b> · ${e_(m.date)} · you were ${me==="w"?"White":"Black"} · <b>${res}</b></p>
    <p style="font-size:20px">Overall grade: <b>${grade(G.acc==null?null:G.acc-3*G.counts.b-1.5*G.counts.m)}</b> <span class="co17sm">(accuracy ${G.acc==null?"–":Math.round(G.acc)+"%"}, lowered for each blunder and mistake)</span></p>
    <p>${G.counts.b} blunder${G.counts.b===1?"":"s"}, ${G.counts.m} mistake${G.counts.m===1?"":"s"}, ${G.counts.x} missed chance${G.counts.x===1?"":"s"}.</p>
@@ -9921,25 +9922,31 @@ function mdHtml(t){ const L=String(t||"").replace(/\r/g,"").split("\n"); let h="
     else if((mm=x.match(/^(?:[-*•]|\d+[.)])\s+(.*)/))){ if(!inL){ h+="<ul>"; inL=true; } h+=`<li${/rule of thumb/i.test(mm[1])?' class="rt"':""}>${/rule of thumb/i.test(mm[1])?"📌 ":""}${inl(mm[1])}</li>`; }
     else if(/^(-{3,}|\*{3,})$/.test(x)){ close(); }
     else { close(); h+=`<p>${inl(x)}</p>`; } }); close(); return h; }
-function grokShow(c,G){ const box=$("gmGrokBox"); if(!box) return; const u=c.usage||{};
-  box.innerHTML=`<div class="co17gr">${mdHtml(c.text)}<p class="meta">🤖 Written by Grok from this game's moves and the app's Stockfish check · ${e_(new Date(c.t).toLocaleString())}</p></div><button class="cbtn full" id="gmGrokRe" style="text-align:center">🔄 Ask Grok again (new report)</button>`;
-  $("gmGrokRe").onclick=()=>grokAsk(G,null,true); const b=$("gmGrok"); if(b) b.style.display="none"; }
-function grokCache(){ const c=LS.get(CGR,{}); return c&&typeof c==="object"?c:{}; }
+const PVN={gemini:"Gemini (free)",grok:"Grok"};
+function grokShow(c,G){ const box=$("gmGrokBox"); if(!box) return; const pv=c.pv==="gemini"?"gemini":"grok", C=grokCache(), id=grokId(G), other=pv==="gemini"?C[id+"|grok"]:C[id+"|gemini"];
+  box.innerHTML=`<div class="co17gr">${mdHtml(c.text)}<span class="who ${pv==="grok"?"gk":""}">🤖 Written by ${PVN[pv]}</span>${c.fb?`<p class="meta">The free coach (Gemini) was busy, so Grok answered. That used your paid Grok credit (about half a cent).</p>`:""}<p class="meta">Made from this game's moves and the app's Stockfish check · ${e_(new Date(c.t).toLocaleString())}</p></div>
+   <button class="cbtn full" id="gmGrokRe" style="text-align:center">🔄 Ask again (free)</button>
+   ${pv==="gemini"?`<button class="co17lnk" id="gmGrokG">Ask Grok instead</button><span class="co17sm"> uses your paid Grok credit, about half a cent</span>`:""}
+   ${other&&other.text?`<br><button class="co17lnk" id="gmGrokO">Show the ${PVN[other.pv==="gemini"?"gemini":"grok"]} report for this game</button>`:""}`;
+  $("gmGrokRe").onclick=()=>grokAsk(G,null,"gemini"); const gg=$("gmGrokG"); if(gg) gg.onclick=()=>{ const g2=C[id+"|grok"]; if(g2&&g2.text) grokShow(g2,G); else grokAsk(G,null,"grok"); };
+  const go=$("gmGrokO"); if(go) go.onclick=()=>grokShow(other,G); const b=$("gmGrok"); if(b) b.style.display="none"; }
+function grokCache(){ const c=LS.get(CGR,{}); if(!c||typeof c!=="object") return {}; Object.keys(c).forEach(k=>{ if(!k.includes("|grok")&&!k.includes("|gemini")&&c[k]&&c[k].text){ const v=c[k]; v.pv="grok"; if(!c[k+"|grok"]) c[k+"|grok"]=v; delete c[k]; } }); return c; }
 function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
-async function grokAsk(G,H,force){ const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
-  if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`<span class="co17spin"></span> Grok is studying your game…`; }
+async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
+  if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`<span class="co17spin"></span> ${prov==="grok"?"Grok":"Your AI coach"} is studying your game…`; }
   box.innerHTML=`<div class="co17note">⏳ This takes about 10–30 seconds. Keep this screen open.</div>`;
-  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),95000);
-    const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(grokPayload(G,H||history(G))),signal:ctl.signal}); clearTimeout(to);
+  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),110000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok";
+    const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal}); clearTimeout(to);
     const d=await r.json().catch(()=>({})); if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
-    const C=grokCache(), c={text:d.report,t:Date.now(),model:d.model,usage:d.usage}; C[id]=c; const ks=Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)); ks.slice(15).forEach(k=>delete C[k]); LS.set(CGR,C);
+    const pv=d.provider==="gemini"?"gemini":"grok", C=grokCache(), c={text:d.report,t:Date.now(),pv,model:d.model,usage:d.usage,fb:prov==="gemini"&&pv==="grok"}; C[id+"|"+pv]=c;
+    Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)).slice(30).forEach(k=>delete C[k]); LS.set(CGR,C); const st=S(); st.aiLast=Object.assign({},st.aiLast||{},{[id]:pv}); save(st);
     if($("gmGrokBox")===box) grokShow(c,G); }
-  catch(e){ if($("gmGrokBox")!==box) return; if(b){ b.disabled=false; b.innerHTML="🤖 Try Grok coach again"; }
-    box.innerHTML=`<div class="co17note">😕 Grok couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try Grok again later.<br><span class="co17sm">${e_(String(e.message||e).slice(0,80))}</span></div>`;
+  catch(e){ if($("gmGrokBox")!==box) return; if(b){ b.disabled=false; b.innerHTML="🤖 Try the AI coach again"; }
+    box.innerHTML=`<div class="co17note">😕 The AI coach couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try again later.<br><span class="co17sm">${e_(String(e.message||e).slice(0,80))}</span></div>`;
     const rh=$("gmRuleHead"); if(rh) setTimeout(()=>rh.scrollIntoView({block:"start",behavior:"smooth"}),300); } }
-function grokWire(G,H,arg){ const b=$("gmGrok"); if(!b) return; const c=grokCache()[grokId(G)];
-  if(c&&c.text){ grokShow(c,G); } b.onclick=()=>grokAsk(G,H,false);
-  if(arg&&arg.grok&&!(c&&c.text)) grokAsk(G,H,false); }
+function grokWire(G,H,arg){ const b=$("gmGrok"); if(!b) return; const C=grokCache(), id=grokId(G), last=(S().aiLast||{})[id]; const c=C[id+"|"+(last||"gemini")]||C[id+"|gemini"]||C[id+"|grok"];
+  if(c&&c.text){ grokShow(c,G); } b.onclick=()=>grokAsk(G,H,"gemini");
+  if(arg&&arg.grok&&!(c&&c.text)) grokAsk(G,H,"gemini"); }
 
 /* ---------------- views ---------------- */
 function today(arg){ const s=S(), t=todayState(s), P=plan(), d=new Date();
