@@ -9308,7 +9308,14 @@ const css=`.co17{display:none}.co17.on{display:block}.co17hid{display:none!impor
 .co17card .ic{font-size:32px}.co17card b{font-size:18px;display:block}.co17card small{opacity:.92;display:block}.co17card .ar{font-size:26px;margin-left:auto}
 .co17sm{font-size:13px;color:#556}.co17hint{display:none}.co17hint.on{display:block}
 .co17ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
-.co17ov>div{background:#fff;border-radius:16px;padding:16px;max-width:360px;width:100%;text-align:center}`;
+.co17ov>div{background:#fff;border-radius:16px;padding:16px;max-width:360px;width:100%;text-align:center}
+.co17grokB{width:100%;min-height:58px;border-radius:14px;border:none;background:linear-gradient(135deg,#111,#3b3b52);color:#fff;font-size:18px;font-weight:800;cursor:pointer;margin:8px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+.co17grokB:disabled{opacity:.75}.co17spin{width:20px;height:20px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:co17r 1s linear infinite}@keyframes co17r{to{transform:rotate(360deg)}}
+.co17gr{border:2px solid #3b3b52;border-radius:16px;padding:12px;margin:10px 0;background:#fbfbff;font-size:16px;line-height:1.5;overflow-wrap:anywhere}
+.co17gr h2{font-size:19px;margin:16px 0 6px;padding:6px 10px;border-radius:10px;background:#3b3b52;color:#fff}.co17gr h2:first-child{margin-top:0}
+.co17gr h3{font-size:17px;margin:14px 0 4px;color:#3b6fb6}.co17gr ul{padding-left:20px;margin:6px 0}.co17gr li{margin:6px 0}.co17gr p{margin:6px 0}
+.co17gr .rt{background:#fff3cd;border-radius:10px;padding:6px 8px;list-style:none;margin-left:-20px}
+.co17gr .meta{font-size:12px;color:#667;margin-top:10px}`;
 
 /* ---------------- section + entry point ---------------- */
 let sec=null, view="home";
@@ -9479,8 +9486,8 @@ function review(){ const L=lastGame(); let h=head("🔎 Your last game");
       ${p.best_san?`<span class="lab">Better move</span><p><b>${e_(p.best_san)}</b> (green arrow)${words?` — ${e_(words)}`:""}.</p>`:""}
       <div class="rule">📌 <b>One rule:</b> ${e_(rule||"Before you move, ask: what does my opponent want to do next?")}</div>`;
     h+=n===0?`<div class="co17mis"><h4>❗ Biggest mistake · move ${moveNo}</h4>${body}</div>`:`${n===1?`<h3>Next mistakes</h3>`:""}<div class="co17mis"><button class="cbtn full" data-mx="${n}">${n+1}. Move ${moveNo}: you played ${e_(p.san)} ▾</button><div class="co17hint" id="co17mx${n}">${body}</div></div>`; });
-  h+=`<button class="cbtn full pri" data-co="gm">🎓 GM Coach Report (deeper)</button><button class="cbtn full blue" id="co17full">📋 Open the full review (more details)</button><p class="co17sm">My Coach shows plain words only, no engine numbers.</p>`;
-  sec.innerHTML=h; wire(); sec.querySelectorAll("[data-mx]").forEach(b=>b.onclick=()=>$("co17mx"+b.dataset.mx).classList.toggle("on"));
+  h+=`${GROK_URL()?`<button class="cbtn full" id="co17grk" style="background:#2b2b3d;color:#fff;border-color:#2b2b3d">🤖 Ask Grok coach about this game</button>`:""}<button class="cbtn full pri" data-co="gm">🎓 GM Coach Report (deeper)</button><button class="cbtn full blue" id="co17full">📋 Open the full review (more details)</button><p class="co17sm">My Coach shows plain words only, no engine numbers.</p>`;
+  sec.innerHTML=h; wire(); const gk=$("co17grk"); if(gk) gk.onclick=()=>open("gm",{k:0,grok:true}); sec.querySelectorAll("[data-mx]").forEach(b=>b.onclick=()=>$("co17mx"+b.dataset.mx).classList.toggle("on"));
   $("co17full").onclick=()=>{ hide(); try{ loadData(d); }catch(e){ console.error(e); } const sm=$("summary"); if(sm) setTimeout(()=>sm.scrollIntoView({block:"start"}),50); }; }
 
 /* ---------------- Road to 800 + weekly report card ---------------- */
@@ -9844,6 +9851,7 @@ function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.l
   const s=S(); const H=history(G); const kc={}; G.errs.forEach(e=>kc[e.kind]=(kc[e.kind]||0)+(e.kind==="general"?0.5:1)); const tk=Object.entries(kc).sort((a,b)=>b[1]-a[1])[0]; const top=tk?{kind:tk[0]}:null; const theme=top?(THEME[top.kind]||THEME.general)+(tk[1]>=2?` (${Math.round(tk[1])} of your ${G.errs.length} key mistakes)`:""):"Clean play: no big mistakes";
   const phN=["Opening","Middlegame","Endgame"], phW=x=>!x?"not reached":x.bad===0?(x.a>=75?"Strong":"Solid"):x.bad===1?"One slip":"Shaky ("+x.bad+" big mistakes)";
   h+=`<div class="co17row"><select id="gmPick" style="font-size:16px;min-height:48px;border-radius:10px;max-width:100%">${L.slice(0,15).map((g,j)=>`<option value="${j}" ${j===k?"selected":""}>${e_(g.date)} · vs ${e_(g.d.meta.user_color==="w"?g.d.meta.black:g.d.meta.white)}</option>`).join("")}</select></div>
+   ${GROK_URL()?`<button class="co17grokB" id="gmGrok">🤖 Ask Grok coach</button><div id="gmGrokBox"></div><p class="co17sm" id="gmRuleHead">Below: the app's own quick report (no internet needed).</p>`:""}
    <h3>1️⃣ Executive Summary</h3><div class="co17mis"><p>vs <b>${e_(opp)}</b> · ${e_(m.date)} · you were ${me==="w"?"White":"Black"} · <b>${res}</b></p>
    <p style="font-size:20px">Overall grade: <b>${grade(G.acc==null?null:G.acc-3*G.counts.b-1.5*G.counts.m)}</b> <span class="co17sm">(accuracy ${G.acc==null?"–":Math.round(G.acc)+"%"}, lowered for each blunder and mistake)</span></p>
    <p>${G.counts.b} blunder${G.counts.b===1?"":"s"}, ${G.counts.m} mistake${G.counts.m===1?"":"s"}, ${G.counts.x} missed chance${G.counts.x===1?"":"s"}.</p>
@@ -9866,7 +9874,7 @@ function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.l
    <button class="cbtn full blue" id="gmAI" style="text-align:center">🤖 Ask an AI coach about this game</button><div id="gmAIbox"></div>`;
   sec.innerHTML=h; wire(); $("gmPick").onchange=()=>gm({k:+$("gmPick").value});
   const eb=$("gmEx"); if(eb) eb.onclick=()=>{ const s2=S(); s2.ex={k:ex.k,t:ex.t,kinds:ex.kinds,from:dkey(),base}; save(s2); gm({k}); };
-  $("gmAI").onclick=()=>aiBox(G); }
+  $("gmAI").onclick=()=>aiBox(G); grokWire(G,H,arg); }
 const AIPROMPT="You are an elite, adaptive Grandmaster Chess Coach. Your mission is to provide deep, educational, and actionable post-mortem analysis for the player. Rather than giving simple or surface-level feedback, you explain the strategic, tactical, and psychological reasoning behind moves to help the player genuinely learn and improve. YOUR COACHING METHODOLOGY: 1. DEEP EDUCATIONAL DIAGNOSIS: Explain WHY a move was bad and the thought process that likely led to it. 2. POSITIONAL & STRATEGIC PRINCIPLES: Connect specific moves to broader chess principles (e.g., King Safety, Pawn Structure, Weak Squares, Piece Coordination, Overloaded Defenders). 3. WHY THE BEST MOVE WORKS: Clearly articulate what the engine's recommended move achieves. 4. PATTERN & WEAKNESS RECOGNITION: Compare current mistakes to the player's historical habits and recurring blunder themes. 5. CONCRETE ACTIONABLE RULES: End every major breakdown with a simple Rule of Thumb. RESPONSE FORMAT: Section 1: Executive Summary & Performance Breakdown (Overall Game Grade & Phase Assessment; Primary Tactical/Strategic Theme). Section 2: Deep Critical Moment Analysis, for each critical error: The Diagnosis; The GM Solution; The Underlying Principle. Section 3: Adaptive Coach Insights & Historical Pattern Alert, plus 1 targeted exercise/mindset rule for the next 5 games. TONE: Encouraging, insightful, structured, instructive. Use clear chess notation. Translate engine numbers into natural human explanations.";
 const CLSW={blunder:"Blunder",mistake:"Mistake",miss:"Missed chance",inaccuracy:"Inaccuracy",best:"Best",excellent:"Excellent",good:"Good",book:"Book",great:"Great move",brilliant:"Brilliant"};
 function aiText(G){ const m=G.d.meta, me=G.me, info=(window.CRUser&&CRUser.info())||{}; const L=[];
@@ -9889,6 +9897,49 @@ function aiBox(G){ const t=aiText(G), box=$("gmAIbox");
   $("gmCopy").onclick=async()=>{ let ok=false; try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){ try{ const a=$("gmAIt"); a.focus(); a.select(); ok=document.execCommand("copy"); }catch(x){} } $("gmAIm").textContent=ok?"Copied ✓ Now paste it into your AI chat.":"Select the text above and copy it."; };
   const sh=$("gmShare"); if(sh) sh.onclick=()=>{ navigator.share({title:"Chess game for my AI coach",text:t}).catch(()=>{}); };
   box.scrollIntoView({block:"start"}); }
+
+/* ---------------- Ask Grok coach (real AI report via a small server; key never in the app) ---------------- */
+const GROK_DEFAULT="https://chess-coach-grok.chess-review.workers.dev";
+const GROK_URL=()=>window.CR_GROK_URL||GROK_DEFAULT;
+const CGR="chessReview.coach.grok.v1";
+const strip=x=>String(x==null?"":x).replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
+function grokPayload(G,H){ const m=G.d.meta, me=G.me, info=(window.CRUser&&CRUser.info())||{}, res=m.result==="1/2-1/2"?"Draw":(m.result==="1-0")===(me==="w")?"Win":"Loss";
+  const mvl=(p,i,san)=>`${Math.ceil((+p.ply||i+1)/2)}${p.color==="w"?".":"..."}${san}`;
+  let pgn=""; G.P.forEach((p,i)=>{ pgn+=(p.color==="w"?`${Math.ceil((+p.ply||i+1)/2)}. `:(i===0?`${Math.ceil((+p.ply||1)/2)}... `:""))+p.san+" "; });
+  const phN=["Opening","Middlegame","Endgame"], phW=x=>!x?"not reached":x.bad===0?(x.a>=75?"strong, no big mistakes":"solid, no big mistakes"):`${x.bad} big mistake${x.bad>1?"s":""}`+(x.a!=null&&!isNaN(x.a)?`, accuracy ${Math.round(x.a)}%`:"");
+  const mistakes=G.errs.map(e=>{ const p=e.p; let bd=[]; try{ bd=duties(p,me,+p.phase===0).map(strip); }catch(x){}
+    return {move:mvl(p,e.i,p.san),cls:p.cls,before:evWords(p.eval_before),after:evWords(p.eval),best:p.best_san?mvl(p,e.i,p.best_san):"",line:p.best_line||"",secs:p.spent_s!=null&&p.spent_s!==""?Math.round(+p.spent_s):"",what:strip(e.what.join(" ")+" Likely reason: "+e.think),bestDoes:bd.length?"It "+bd.join("; it ")+".":"",principle:e.prin}; });
+  const R=recs().slice(0,20), patterns=[]; if(R.length){ const cnt={}; R.forEach(r=>toArr(r.ev).forEach(x=>cnt[x.k]=(cnt[x.k]||0)+1)); Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([k,n])=>patterns.push(`${KIND[k]||k}: ${n} times in his last ${R.length} games`)); const acc=avg(R.map(r=>+r.acc).filter(x=>!isNaN(x))); if(acc) patterns.push(`average accuracy ${Math.round(acc)}% over the last ${R.length} games`); const tt=R.filter(r=>r.timeTrouble).length; if(tt) patterns.push(`short of time (under 1 minute) in ${tt} of ${R.length} games`); }
+  const openings=[]; try{ const C=LS.get(OK_,null); if(C&&C.g){ const T=trackerData(C), grp={}; T.forEach(g=>{ const k=(g.me==="w"?"As White: ":"As Black: ")+fam(g.mine); (grp[k]=grp[k]||[]).push(g); }); Object.entries(grp).filter(([,a])=>a.length>=3).sort((a,b)=>b[1].length-a[1].length).slice(0,6).forEach(([k,a])=>{ const st=groupStats(a,a[0].me); openings.push(`${k}: ${a.length} games, ${st.W} won / ${st.D} drawn / ${st.L} lost`); }); } }catch(x){}
+  const on=strip(openingNote(G)); if(on) openings.unshift("This game: "+on);
+  return {v:1,user:info.cc||(me==="w"?m.white:m.black),colour:me,rating:(me==="w"?m.white_elo:m.black_elo)||"",opponent:me==="w"?m.black:m.white,result:res+" ("+m.result+")",date:m.date||"",timeControl:m.time_control||"",opening:m.opening||"",pgn:pgn.trim(),accuracy:G.acc==null?null:Math.round(G.acc),counts:G.counts,phases:G.ph.map((x,j)=>({name:phN[j],words:phW(x)})),mistakes,patterns,alerts:(H&&H.out||[]).map(strip),openings}; }
+function mdHtml(t){ const L=String(t||"").replace(/\r/g,"").split("\n"); let h="", inL=false; const inl=x=>e_(x).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g,"$1<i>$2</i>");
+  const close=()=>{ if(inL){ h+="</ul>"; inL=false; } };
+  L.forEach(raw=>{ let x=raw.trim(); if(!x){ close(); return; } let mm; x=x.replace(/^\*\*(#{1,6}\s+.*?)\*\*$/,"$1");
+    if((mm=x.match(/^#{1,2}\s+(.*)/))&&!/^###/.test(x)){ close(); h+=`<h2>${inl(mm[1])}</h2>`; }
+    else if((mm=x.match(/^#{3,6}\s+(.*)/))){ close(); h+=`<h3>${inl(mm[1])}</h3>`; }
+    else if((mm=x.match(/^(?:[-*•]|\d+[.)])\s+(.*)/))){ if(!inL){ h+="<ul>"; inL=true; } h+=`<li${/rule of thumb/i.test(mm[1])?' class="rt"':""}>${/rule of thumb/i.test(mm[1])?"📌 ":""}${inl(mm[1])}</li>`; }
+    else if(/^(-{3,}|\*{3,})$/.test(x)){ close(); }
+    else { close(); h+=`<p>${inl(x)}</p>`; } }); close(); return h; }
+function grokShow(c,G){ const box=$("gmGrokBox"); if(!box) return; const u=c.usage||{};
+  box.innerHTML=`<div class="co17gr">${mdHtml(c.text)}<p class="meta">🤖 Written by Grok from this game's moves and the app's Stockfish check · ${e_(new Date(c.t).toLocaleString())}</p></div><button class="cbtn full" id="gmGrokRe" style="text-align:center">🔄 Ask Grok again (new report)</button>`;
+  $("gmGrokRe").onclick=()=>grokAsk(G,null,true); const b=$("gmGrok"); if(b) b.style.display="none"; }
+function grokCache(){ const c=LS.get(CGR,{}); return c&&typeof c==="object"?c:{}; }
+function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
+async function grokAsk(G,H,force){ const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
+  if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`<span class="co17spin"></span> Grok is studying your game…`; }
+  box.innerHTML=`<div class="co17note">⏳ This takes about 10–30 seconds. Keep this screen open.</div>`;
+  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),95000);
+    const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(grokPayload(G,H||history(G))),signal:ctl.signal}); clearTimeout(to);
+    const d=await r.json().catch(()=>({})); if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
+    const C=grokCache(), c={text:d.report,t:Date.now(),model:d.model,usage:d.usage}; C[id]=c; const ks=Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)); ks.slice(15).forEach(k=>delete C[k]); LS.set(CGR,C);
+    if($("gmGrokBox")===box) grokShow(c,G); }
+  catch(e){ if($("gmGrokBox")!==box) return; if(b){ b.disabled=false; b.innerHTML="🤖 Try Grok coach again"; }
+    box.innerHTML=`<div class="co17note">😕 Grok couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try Grok again later.<br><span class="co17sm">${e_(String(e.message||e).slice(0,80))}</span></div>`;
+    const rh=$("gmRuleHead"); if(rh) setTimeout(()=>rh.scrollIntoView({block:"start",behavior:"smooth"}),300); } }
+function grokWire(G,H,arg){ const b=$("gmGrok"); if(!b) return; const c=grokCache()[grokId(G)];
+  if(c&&c.text){ grokShow(c,G); } b.onclick=()=>grokAsk(G,H,false);
+  if(arg&&arg.grok&&!(c&&c.text)) grokAsk(G,H,false); }
 
 /* ---------------- views ---------------- */
 function today(arg){ const s=S(), t=todayState(s), P=plan(), d=new Date();
@@ -9926,7 +9977,7 @@ function init(){ if(!$("home")||!window.Trainer) return; ensure();
   const s=S(); if(s.auto) setTimeout(()=>autoImport(false),2500);
   if(location.hash==="#coach") setTimeout(()=>open("home"),200);
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ bar(); remCheck(); } }); }
-window.Coach17={open,hide,plan,PAWN,REP,autoImport,_state:S,_imp:IMP,_stages:()=>stages(recs(),S(),S().rating),_week:o=>week(recs(),S(),o),_lastGame:lastGame,_icsText:icsText,_pz:()=>pzCur,_classify:s=>classify(s.split(" ")),_track:()=>trackerData(LS.get(OK_,null)),_gm:k=>{ const G=gmData(gmGames()[k||0].d); return {acc:G.acc,errs:G.errs.map(e=>({kind:e.kind,what:e.what,think:e.think,prin:e.prin,duties:duties(e.p,G.me,+e.p.phase===0)}))}; },_ai:k=>aiText(gmData(gmGames()[k||0].d))};
+window.Coach17={open,hide,plan,PAWN,REP,autoImport,_state:S,_imp:IMP,_stages:()=>stages(recs(),S(),S().rating),_week:o=>week(recs(),S(),o),_lastGame:lastGame,_icsText:icsText,_pz:()=>pzCur,_classify:s=>classify(s.split(" ")),_track:()=>trackerData(LS.get(OK_,null)),_gm:k=>{ const G=gmData(gmGames()[k||0].d); return {acc:G.acc,errs:G.errs.map(e=>({kind:e.kind,what:e.what,think:e.think,prin:e.prin,duties:duties(e.p,G.me,+e.p.phase===0)}))}; },_ai:k=>aiText(gmData(gmGames()[k||0].d)),_grokPayload:k=>{ const G=gmData(gmGames()[k||0].d); return grokPayload(G,history(G)); },_md:mdHtml};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else setTimeout(init,0);
 })();
 </script>
