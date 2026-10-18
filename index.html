@@ -9934,8 +9934,8 @@ function grokCache(){ const c=LS.get(CGR,{}); if(!c||typeof c!=="object") return
 function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
 async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
   if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`<span class="co17spin"></span> ${prov==="grok"?"Grok":"Your AI coach"} is studying your game…`; }
-  box.innerHTML=`<div class="co17note">⏳ This takes about 10–30 seconds. Keep this screen open.</div>`;
-  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),110000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok";
+  box.innerHTML=`<div class="co17note">⏳ This usually takes 10–40 seconds (up to a minute when the free coach is busy). Keep this screen open.</div>`;
+  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),150000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok";
     const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal}); clearTimeout(to);
     const d=await r.json().catch(()=>({})); if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
     const pv=d.provider==="gemini"?"gemini":"grok", C=grokCache(), c={text:d.report,t:Date.now(),pv,model:d.model,usage:d.usage,fb:prov==="gemini"&&pv==="grok"}; C[id+"|"+pv]=c;
