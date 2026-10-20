@@ -10033,5 +10033,6 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
  navigator.serviceWorker.register("sw.js").then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});}
 </script>
 
+<script src="traps.js"></script>
 </body>
 </html>
