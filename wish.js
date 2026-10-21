@@ -94,6 +94,44 @@ function whyPage(s){ const recs=I.recsSorted().slice(0,40), L=recs.filter(r=>r.r
 I.addTile("why","🔍","Why I lose","Losses by cause + this week's plan",whyPage);
 W.why={lossCause};
 
+/* ================= Rook endgames: Lucena + Philidor (guided, you play the key moves) ================= */
+const RK="chessReview.wish.rookend.v1";
+const LESSONS=[
+ {id:"lucena",t:"Lucena: build a bridge (to WIN)",side:"w",fen:"1K6/1P1k4/8/8/8/8/r7/7R w - - 0 1",
+  intro:"You have a rook and a pawn on the 7th rank, but your own king is stuck in front of it. Plan: push their king away with a check, put your rook on the 4th rank, walk your king out, and block the checks with your rook (the 'bridge').",
+  steps:[{u:["Rd1+"],h:"Give a check on the d-file to push their king one more file away.",say:"Their king has to step away from your pawn.",r:"Ke7"},
+   {u:["Rd4"],h:"Rook to the 4th rank. This is the key move!",say:"The rook on the 4th rank will later block the checks.",r:"Ra1"},
+   {u:["Kc7"],h:"Now walk your king out, next to the pawn.",say:"They start checking your king.",r:"Rc1+"},
+   {u:["Kb6"],h:"Step towards your rook.",say:"Another check…",r:"Rb1+"},
+   {u:["Kc6","Ka6"],h:"Keep stepping, staying close to the pawn.",say:"Still checking…",r:"Rc1+"},
+   {u:["Kb5"],h:"Walk towards your rook on the 4th rank.",say:"One last check:",r:"Rb1+"},
+   {u:["Rb4"],h:"Block the check with your rook: the bridge!",say:"🎉 The bridge is built. No more checks, and the pawn will become a queen. That's the Lucena method."}]},
+ {id:"philidor",t:"Philidor: 3rd-rank defence (to DRAW)",side:"b",fen:"4k3/7R/8/3KP3/8/8/8/1r6 b - - 0 1",
+  intro:"You only have a rook against rook + pawn. Your king is in front of the pawn (good!). Plan: keep your rook on your 3rd rank (the 6th rank) so their king can't come forward. When the pawn steps onto that rank, drop your rook to the back and check from behind.",
+  steps:[{u:["Rb6","Ra6","Rc6"],h:"Put your rook on the 6th rank (your 3rd rank).",say:"Their king can't go to the 6th rank now. So they push the pawn…",r:"e6"},
+   {u:["Rb1","Ra1","Rc1","Rd1","Rf1","Rg1"],h:"The pawn is on your 3rd rank now, so their king has no shelter. Drop your rook to the 1st rank to check from behind.",say:"Now their king has nowhere to hide from your checks.",r:"Kd6"},
+   {u:["Rd1+"],h:"Check the king from behind!",say:"Keep checking…",r:"Ke5"},
+   {u:["Re1+"],h:"Check again from behind.",say:"…and again.",r:"Kd6"},
+   {u:["Rd1+"],h:"Keep checking. There's no escape for their king.",say:"🎉 They can't escape the checks: it's a draw. That's the Philidor defence."}]}];
+let RS=null;
+function rookPage(s,arg){ const done=LSg(RK,{});
+  if(!RS||arg==="menu"){ let h=I.pageHead("♜ Rook endgames")+`<p class="co17sm">The two most important rook endgames. You play the key moves; I play the other side. (Pawn endgames and opposition are in <b>👑 Pawn endgames</b>.)</p>`;
+    LESSONS.forEach((L,i)=>{ const d=done[L.id]; h+=`<div class="box ${d?"good":""}"><b>${E(L.t)}</b><br><small>${d?`✅ Done ${d.n}× · last ${new Date(d.at).toLocaleDateString()}`:"Not done yet"}</small><button class="cbtn full pri" data-les="${i}" style="text-align:center;margin-top:8px">▶ ${d?"Practise again":"Start"}</button></div>`; });
+    s.innerHTML=h; I.wireBack(s); s.querySelectorAll("[data-les]").forEach(b=>b.onclick=()=>{ RS={L:LESSONS[+b.dataset.les],k:0,miss:0}; rookPage(s); }); return; }
+  const L=RS.L, G=new ChessLib.Chess(L.fen); let k=0, hint=false, last=null, fin=false;
+  let h=I.pageHead("♜ "+E(L.t.split(":")[0]))+`<div class="box"><small>${E(L.intro)}</small></div><div class="co17msg" id="wrM">You play <b>${L.side==="w"?"White":"Black"}</b>. Your move!</div><div class="co17board" id="wrB"></div>
+    <div class="co17pz"><button class="cbtn" id="wrH">💡 Hint</button><button class="cbtn" id="wrL">‹ Lessons</button></div>`;
+  s.innerHTML=h; I.wireBack(s); const msg=t=>{ $("wrM").innerHTML=t; };
+  const extra=()=>({hl:(last?[{sq:last.from,c:"#cdd26a",o:.55},{sq:last.to,c:"#cdd26a",o:.55}]:[]).concat(hint&&!fin?[{sq:(()=>{ const c=new ChessLib.Chess(G.fen()); const m=c.move(L.steps[k].u[0]); return m.from; })(),c:"#3b6fb6",o:.55}]:[])});
+  const redraw=Coach17._tapBoard($("wrB"),G,L.side,(f,t)=>{ if(fin) return; const st=L.steps[k]; const c=new ChessLib.Chess(G.fen()); let m=null; try{ m=c.move({from:f,to:t,promotion:"q"}); }catch(e){} if(!m) return;
+      if(!st.u.some(u=>u.replace(/[+#]/g,"")===m.san.replace(/[+#]/g,""))){ RS.miss++; msg(`❌ ${E(m.san)} isn't the plan here. ${E(st.h)}`); return; }
+      G.move(m); last=m; hint=false; k++;
+      if(!st.r){ fin=true; redraw(); msg(`✅ ${E(st.say)}`); const D=LSg(RK,{}); const x=D[L.id]||{n:0}; x.n++; x.at=Date.now(); x.miss=RS.miss; D[L.id]=x; LSs(RK,D); $("wrH").style.display="none"; return; }
+      msg(`✅ ${E(st.say)}`); redraw(); setTimeout(()=>{ const rm=G.move(st.r); last=rm; redraw(); msg(`They play <b>${E(rm.san)}</b>. Your move!`); },700); },extra);
+  $("wrH").onclick=()=>{ hint=true; redraw(); msg(`💡 ${E(L.steps[k].h)}`); };
+  $("wrL").onclick=()=>rookPage(s,"menu"); }
+I.addTile("rookend","♜","Rook endgames","Lucena (win) + Philidor (draw)",s=>{ RS=null; rookPage(s,"menu"); });
+
 /* ================= boot ================= */
 window.CRWish=W;
 function init(){ injectGoal(); const h=$("home"); if(h) new MutationObserver(()=>injectGoal()).observe(h,{childList:true}); (W._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
