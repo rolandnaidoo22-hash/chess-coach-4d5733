@@ -339,7 +339,7 @@ addTile("clean","🧼","Am I getting cleaner?",cleanSub,s=>{ paintClean(); refre
 function autoGrade(){ setTimeout(()=>{ if(document.hidden) return; gradeSome(PER_OPEN); },20000); }
 
 /* ================= boot ================= */
-const API={_tp:turningPoint,_clean:cleanStats,gradeSome,_cl:CL,_plan:planFor,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
+const API={addTile,miniBoard,pageHead,wireBack,recsSorted,sansOf,sanOf,after,coachSec,LSg,LSs,E,_tiles:TILES,_cur:()=>curPage,_setCur:v=>{curPage=v;},_tapBoard:()=>Coach17._tapBoard,_tp:turningPoint,_clean:cleanStats,gradeSome,_cl:CL,_plan:planFor,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
 window.CRImp=API;
 function init(){ initHeadline(); initTiles(); try{ snapshot(); }catch(e){} autoGrade(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(init,350)); else setTimeout(init,350);
