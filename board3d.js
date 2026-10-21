@@ -42,8 +42,8 @@ function init(){
   R.outputColorSpace=T.SRGBColorSpace; R.toneMapping=T.ACESFilmicToneMapping; R.toneMappingExposure=.9;
   R.shadowMap.enabled=true; R.shadowMap.type=T.PCFSoftShadowMap;
   const pm=new T.PMREMGenerator(R); ENV=pm.fromScene(roomEnv(),0.04).texture; pm.dispose();
-  G.ivory=new T.MeshPhysicalMaterial({color:0xe2cc9f,roughness:.3,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:.85});
-  G.ebony=new T.MeshPhysicalMaterial({color:0x221a16,roughness:.3,clearcoat:1,clearcoatRoughness:.07,envMapIntensity:1.1});
+  G.ivory=new T.MeshPhysicalMaterial({color:0xf8f8f8,roughness:.35,clearcoat:.6,clearcoatRoughness:.2,envMapIntensity:.55});
+  G.ebony=new T.MeshPhysicalMaterial({color:0x0a0a0a,roughness:.45,metalness:0,clearcoat:.55,clearcoatRoughness:.18,envMapIntensity:.35,specularIntensity:.4});
   G.groove=new T.MeshStandardMaterial({color:0x140c08,roughness:.6}); G.geo={}; "PNBRQK".split("").forEach(t=>G.geo[t]=pieceParts(t));
   G.blob=new T.CanvasTexture(blobCanvas()); G.blob.colorSpace=T.SRGBColorSpace;
   G.glow=new T.CanvasTexture(blobCanvas("230,40,30")); 
