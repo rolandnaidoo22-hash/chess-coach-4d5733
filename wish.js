@@ -5,7 +5,7 @@ if(window.CRWish||!window.CRImp) return;
 const I=window.CRImp, $=id=>document.getElementById(id), E=I.E, LSg=I.LSg, LSs=I.LSs;
 const W={};
 /* ================= Rating goal ================= */
-const GK="chessReview.wish.goal.v1", TCS=[["rapid","chess_rapid","⏱ Rapid"],["blitz","chess_blitz","⚡ Blitz"],["bullet","chess_bullet","🔫 Bullet"],["daily","chess_daily","📅 Daily"]];
+const GK="chessReview.wish.goal.v1", TCS=[["rapid","chess_rapid","⏱ Rapid"],["blitz","chess_blitz","⚡ Blitz"],["bullet","chess_bullet","🔫 Bullet"]];
 const GCSS=`.wgoal{border-radius:16px;border:2px solid #3b6fb6;background:#f2f6fd;padding:12px 14px;margin:10px 0;color:#222;font-size:15px;line-height:1.45}
 .wgoal h3{margin:0 0 6px;font-size:18px}.wgoal .in{display:flex;gap:8px;margin:6px 0}.wgoal input{flex:1;min-height:46px;font-size:18px;border-radius:10px;border:1px solid #aab;padding:0 12px;min-width:0}
 .wgoal button{min-height:46px;border-radius:10px;border:none;background:#3b6fb6;color:#fff;font-weight:800;font-size:16px;padding:0 14px;cursor:pointer}

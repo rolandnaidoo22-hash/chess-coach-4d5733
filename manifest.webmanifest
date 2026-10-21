@@ -1,7 +1,7 @@
 {
- "name": "Chess Review",
- "short_name": "Chess Review",
- "description": "Review your Chess.com games: mistakes, best moves, practice lines and the BAD check. Works offline.",
+ "name": "Chess coach app",
+ "short_name": "Chess coach",
+ "description": "Review your Chess.com or Lichess games: mistakes, best moves, practice lines and the BAD check. Works offline.",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
