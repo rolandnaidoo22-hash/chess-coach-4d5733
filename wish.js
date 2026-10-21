@@ -43,6 +43,7 @@ function paintGoal(){ document.querySelectorAll(".wgoal").forEach(box=>{
   const t=LSg(GK,null), help=box.dataset.help==="1";
   let h=`<h3>🎯 Rating goal</h3><div class="in"><input inputmode="numeric" placeholder="Type a goal, e.g. 500" value="${t?t:""}" aria-label="Rating goal"><button type="button">Go</button></div>`;
   if(help) h+=`<div class="tc"><b>How this works:</b> I read your ratings from Chess.com and your last games. For each win you usually gain about the same points as you lose for a loss (against players near your level). So the gap ÷ points per game ≈ how many <b>more wins than losses</b> you need. It's only an <b>estimate</b>: your opponents and luck change it.</div>`;
+  if(t) h+=`<div class="wsaved" style="font-weight:800;color:#2f7d32;margin:2px 0 6px">✅ Your goal is saved: ${t}${box.dataset.saved==="1"?" — Road to "+t+" updated everywhere":""}</div>`;
   if(!t) h+=`<small>Type the rating you want (you can also type “500 help”).</small>`;
   else if(GS.loading&&!GS.data) h+=`<small>Getting your ratings from Chess.com…</small>`;
   else if(GS.err) h+=`<small>${E(GS.err)}</small>`;
@@ -58,12 +59,17 @@ function paintGoal(){ document.querySelectorAll(".wgoal").forEach(box=>{
     if(!any) h+=`<small>No rated games found on Chess.com.</small>`;
     const mt=Object.keys(GS.data).sort((a,b)=>((GS.data[b].h||{}).n||0)-((GS.data[a].h||{}).n||0))[0], mr=GS.data[mt].r; h+=`<small>Path to GM (your ${mt} rating ${mr}; green = done, yellow = next):</small>${milestones(mr)}`; }
   box.innerHTML=h; const inp=box.querySelector("input"), go=()=>{ const v=inp.value||"", m=v.match(/\d{3,4}/); box.dataset.help=/help|\?/i.test(v)?"1":"0";
-      if(m){ const n=Math.max(100,Math.min(3300,+m[0])); LSs(GK,n); } if(!GS.data&&!GS.loading) loadRatings(); else paintGoal(); };
+      if(m){ const n=Math.max(100,Math.min(3300,+m[0])); LSs(GK,n); box.dataset.saved="1"; goalSync(); } if(!GS.data&&!GS.loading) loadRatings(); else paintGoal(); };
   box.querySelector("button").onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter") go(); }; }); }
+function goalSync(){ const g=LSg(GK,null)||800;
+  document.querySelectorAll("[data-goal]").forEach(e=>{ if(e.textContent!==String(g)) e.textContent=g; });
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let x; while((x=w.nextNode())){ if(/Road to \d{3,4}\b/.test(x.nodeValue)) x.nodeValue=x.nodeValue.replace(/Road to \d{3,4}\b/g,"Road to "+g); }
+  window.dispatchEvent(new CustomEvent("crgoal",{detail:g})); }
+window.addEventListener("storage",e=>{ if(e.key&&e.key.indexOf("wish.goal")>=0){ paintGoal(); goalSync(); } });
 function injectGoal(){ const home=$("home"); if(!home||home.querySelector(".wgoal")) return; if(!document.getElementById("wgcss")){ const s=document.createElement("style"); s.id="wgcss"; s.textContent=GCSS; document.head.appendChild(s); }
   const d=document.createElement("div"); d.className="wgoal"; const anchor=$("co17go")||home.firstElementChild; home.insertBefore(d,anchor?anchor.nextSibling:null);
   paintGoal(); if(LSg(GK,null)&&!GS.data&&!GS.loading&&Date.now()-(GS.at||0)>60000) loadRatings(); }
-W.goal={load:loadRatings,est:estimate,state:GS};
+W.goal={sync:goalSync,load:loadRatings,est:estimate,state:GS};
 
 /* ================= Why I lose (loss causes + plan) ================= */
 const CAUSE={opening:{ic:"📖",t:"Early mistake (opening)",d:"Your biggest mistake came in the first 12 moves."},tactic:{ic:"💥",t:"Tactical blunder",d:"A piece or mate was missed in the middle of the game."},
