@@ -189,6 +189,39 @@ function D_idx(p){ return DATA.plies.indexOf(p); }
 W._inits=(W._inits||[]).concat(()=>{ const s=$("summary"); if(!s) return; new MutationObserver(()=>setTimeout(injectBurn,0)).observe(s,{childList:true}); setTimeout(injectBurn,600); });
 W.burn=burners;
 
+/* ================= Opening drill: your book-exit branches, with "you keep getting this wrong" ================= */
+const OK7="chessReview.wish.odrill.v1", OIV=[1,3,7];
+let OBK=null; function ob(){ if(!OBK){ try{ OBK=JSON.parse(($("obook-data")||{}).textContent||"{}").p||{}; }catch(e){ OBK={}; } } return OBK; }
+function branches(){ const B=ob(), m={}; I.recsSorted().slice(0,60).forEach(r=>{ const s=I.sansOf(r); if(!s) return; const c=new ChessLib.Chess();
+    for(let i=0;i<Math.min(s.length,24);i++){ const fen=c.fen(), key=fen.split(" ").slice(0,3).join(" "), L=B[key], mine=(i%2===0)===(r.me==="w"); let mv=null; try{ mv=c.move(s[i]); }catch(e){} if(!mv||!L) break;
+      if(L.some(x=>x[0]===mv.from+mv.to+(mv.promotion||""))) continue; if(!mine) break;
+      const tot=L.reduce((a,x)=>a+x[1],0), good=L.filter(x=>x[1]/tot>=0.1).map(x=>x[0]);
+      (m[key]=m[key]||{key,fen,me:r.me,ply:i,good,top:L[0][0],pct:Math.round(100*L[0][1]/tot),played:{},games:[]}); m[key].played[mv.san]=(m[key].played[mv.san]||0)+1; m[key].games.push(r); break; } });
+  return Object.values(m).sort((a,b)=>b.games.length-a.games.length||a.ply-b.ply); }
+function odStore(){ return LSg(OK7,{}); }
+let OD=null;
+function odPage(s,arg){ const all=branches(), S=odStore(), now=Date.now();
+  if(!OD||arg==="menu"){ const due=all.filter(b=>{ const x=S[b.key]; return !x||(!x.grad&&x.due<=now); });
+    let h=I.pageHead("📖 Opening drill")+`<p class="co17sm">These are the spots in <b>your own games</b> where you left the normal opening moves. Practise the move most players choose.</p>`;
+    if(!all.length){ h+=`<div class="box">No opening branches yet. Tap <b>📚 Study last 20 games</b> first.</div>`; s.innerHTML=h; I.wireBack(s); return; }
+    h+=`<button class="cbtn full pri" id="odGo" style="text-align:center;font-size:18px" ${due.length?"":"disabled"}>▶ Drill ${Math.min(6,due.length)} position${due.length===1?"":"s"}${due.length?"":" (none due today)"}</button>`;
+    all.slice(0,12).forEach(b=>{ const rep=b.games.length>=2, x=S[b.key], mv=Math.floor(b.ply/2)+1;
+      h+=`<div class="box ${rep?"bad":""}"><div class="row"><div><b>${rep?"🔁 You keep getting this position wrong":"Left the book here"}</b><br><small>${b.me==="w"?"White":"Black"}, move ${mv}${b.ply%2?"...":"."} · ${b.games.length} game${b.games.length>1?"s":""} · you played ${Object.keys(b.played).map(E).join(", ")}</small></div><div class="cnt">${b.games.length}×</div></div>
+        <small>${x?(x.grad?"✅ learned":`next review ${new Date(x.due).toLocaleDateString()}`):"not drilled yet"}</small></div>`; });
+    s.innerHTML=h; I.wireBack(s); const g=$("odGo"); if(g) g.onclick=()=>{ OD={q:due.slice(0,6),i:0,ok:0}; odPage(s); }; return; }
+  if(OD.i>=OD.q.length){ s.innerHTML=I.pageHead("📖 Opening drill")+`<div class="box good"><b>Done: ${OD.ok} of ${OD.q.length} right.</b><br>Missed ones come back tomorrow; right ones in 3, then 7 days.</div><button class="cbtn full" id="odM" style="text-align:center">‹ Back to the list</button>`; I.wireBack(s); $("odM").onclick=()=>{ OD=null; odPage(s,"menu"); }; return; }
+  const b=OD.q[OD.i], G=new ChessLib.Chess(b.fen), mv=Math.floor(b.ply/2)+1; let done=false;
+  s.innerHTML=I.pageHead("📖 Opening drill")+`<div class="co17msg" id="odMsg">${OD.i+1} of ${OD.q.length}: you're ${b.me==="w"?"White":"Black"}, move ${mv}. What's the normal move here?${b.games.length>=2?"<br><small style='color:#c62828'>🔁 You went wrong here in "+b.games.length+" games</small>":""}</div><div class="co17board" id="odB"></div><div id="odX"></div>`;
+  I.wireBack(s); let arrows=[];
+  const fin=(ok,san)=>{ done=true; const S2=odStore(), x=S2[b.key]||{box:-1}; if(ok){ x.box=x.box<0?1:x.box+1; if(x.box>=OIV.length){ x.grad=true; x.due=Infinity; } else x.due=Date.now()+OIV[x.box]*864e5; OD.ok++; } else { x.box=0; x.due=Date.now()+864e5; x.grad=false; } S2[b.key]=x; LSs(OK7,S2);
+    const best=I.sanOf(b.fen,b.top); arrows=[{u:b.top,c:"#2f7d32"}];
+    $("odX").innerHTML=`<div class="box ${ok?"good":"bad"}">${ok?`✅ Yes, ${E(san)} is a normal move here.`:`❌ ${E(san)} isn't what most players play.`} Most common: <b>${E(best)}</b> (${b.pct}% of games). In your game${b.games.length>1?"s":""} you played ${Object.keys(b.played).map(E).join(", ")}.</div><button class="cbtn full pri" id="odN" style="text-align:center">Next ▶</button>`;
+    $("odN").onclick=()=>{ OD.i++; odPage(s); }; redraw(); };
+  const redraw=Coach17._tapBoard($("odB"),G,b.me,(f,t)=>{ if(done) return; const c=new ChessLib.Chess(G.fen()); let m=null; try{ m=c.move({from:f,to:t,promotion:"q"}); }catch(e){} if(!m) return; G.move(m); fin(b.good.includes(m.from+m.to+(m.promotion||"")),m.san); },()=>({arrows}));
+}
+I.addTile("odrill","📖","Opening drill",()=>{ try{ const n=branches().filter(b=>b.games.length>=2).length; return n?`<b style="color:#c62828">${n} spot${n>1?"s":""} you keep getting wrong</b>`:"Practise where you leave the book"; }catch(e){ return "Practise where you leave the book"; } },s=>{ OD=null; odPage(s,"menu"); });
+W.odrill={branches};
+
 /* ================= boot ================= */
 window.CRWish=W;
 function init(){ injectGoal(); const h=$("home"); if(h) new MutationObserver(()=>injectGoal()).observe(h,{childList:true}); (W._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
