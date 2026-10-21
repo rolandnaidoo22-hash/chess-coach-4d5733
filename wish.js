@@ -167,6 +167,28 @@ function blindPage(s){ const st=LSg(BK,{lvl:3,ok:0,n:0,streak:0,best:0}); if(!BQ
 I.addTile("blind","🙈","Blindfold","Text-only moves: where is the piece?",s=>{ BQ=null; blindPage(s); });
 W.blind={q:()=>BQ};
 
+/* ================= Clock burners (in each review) ================= */
+const fmtS=x=>x>=60?`${Math.floor(x/60)}:${String(Math.round(x%60)).padStart(2,"0")} min`:`${Math.round(x)} s`;
+function burners(D){ if(String(D.meta.time_control||"").includes("/")) return null; const P=D.plies.filter(p=>p.user&&p.spent_s!=null); if(P.length<5) return null; const avgS=P.reduce((a,p)=>a+p.spent_s,0)/P.length, lim=Math.max(30,3*avgS);
+  const out=[]; P.forEach(p=>{ if(p.spent_s<lim) return; let why=null; const legal=(()=>{ try{ return new ChessLib.Chess(p.fen_before).moves().length; }catch(e){ return 9; } })();
+    if(legal<=2) why=`there ${legal===1?"was only 1 legal move":"were only 2 legal moves"}`;
+    else if(/mistake|blunder|miss/.test(p.cls)) why=`and it was still a ${p.cls}`;
+    else if(p.cls==="inaccuracy") why="and it was still an inaccuracy";
+    else if(p.cls==="book") why="on a normal opening move you could play quickly";
+    else if(/x/.test(p.san)&&/x/.test((D.plies[p.ply-2]||{}).san||"")&&p.uci&&(D.plies[p.ply-2]||{}).uci&&p.uci.slice(2,4)===(D.plies[p.ply-2]||{}).uci.slice(2,4)) why="on a simple take-back";
+    if(why) out.push({p,why}); });
+  return {list:out.sort((a,b)=>b.p.spent_s-a.p.spent_s).slice(0,3),avgS,lim,burnt:out.reduce((a,x)=>a+x.p.spent_s,0)}; }
+function injectBurn(){ const s=$("summary"); if(!s||typeof DATA==="undefined"||!DATA||!DATA.plies||s.querySelector(".wburn")) return; const B=burners(DATA); if(!B) return;
+  const d=document.createElement("div"); d.className="wburn imp1"+(B.list.length?"":" ok"); d.style.borderColor=B.list.length?"#90a4d4":""; d.style.background=B.list.length?"#f2f6fd":"";
+  d.innerHTML=`<b class="t" style="color:#3b6fb6">⏳ Clock burners</b>`+(B.list.length?`You used a lot of clock for little gain ${B.list.length===1?"once":B.list.length+" times"} (${fmtS(B.burnt)} in total; your normal move takes ${fmtS(B.avgS)}):`+
+     B.list.map(x=>`<div style="margin-top:4px">• <b>${E(x.p.label)}</b>: ${fmtS(x.p.spent_s)} ${E(x.why)}. <button type="button" data-bp="${D_idx(x.p)}" style="min-height:34px;margin:0 0 0 4px;padding:2px 8px">See</button></div>`).join("")+`<div style="margin-top:6px"><small>Tip: think long only when there's a capture, a check or a threat. Play forced and simple moves fast.</small></div>`
+     :`No long thinks wasted in this game. 👍 Your normal move took ${fmtS(B.avgS)}.`);
+  d.querySelectorAll("[data-bp]").forEach(b=>b.onclick=()=>{ try{ go(+b.dataset.bp+1,true); }catch(e){} });
+  const after=s.querySelector(".imp1"); s.insertBefore(d,after?after.nextSibling:s.firstChild); }
+function D_idx(p){ return DATA.plies.indexOf(p); }
+W._inits=(W._inits||[]).concat(()=>{ const s=$("summary"); if(!s) return; new MutationObserver(()=>setTimeout(injectBurn,0)).observe(s,{childList:true}); setTimeout(injectBurn,600); });
+W.burn=burners;
+
 /* ================= boot ================= */
 window.CRWish=W;
 function init(){ injectGoal(); const h=$("home"); if(h) new MutationObserver(()=>injectGoal()).observe(h,{childList:true}); (W._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
