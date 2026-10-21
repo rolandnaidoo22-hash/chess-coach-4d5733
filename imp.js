@@ -233,8 +233,58 @@ function dueBanner(){ const s=coachSec(); if(!s) return; const g=s.querySelector
   const d=document.createElement("button"); d.id="impDue"; d.className="cbtn full"; d.style.cssText="text-align:center;background:#fff3e0;border-color:#f0b44a;margin-top:10px";
   d.innerHTML=`🛠 ${n} drill${n>1?"s":""} due today: tap to review`; d.onclick=()=>{ DQ=null; openPage("drill"); }; g.parentNode.insertBefore(d,g); }
 
+/* ================= 4. My opening plan ================= */
+let OB=null; function obook(){ if(OB) return OB; try{ const j=JSON.parse(($("obook-data")||{}).textContent||"{}"); OB={p:j.p||{},lbl:j.lbl||"players"}; }catch(e){ OB={p:{},lbl:""}; } return OB; }
+const okey=fen=>fen.split(" ").slice(0,3).join(" ");
+function idea(mySan,bookUci,fen){ const c=new ChessLib.Chess(fen); let bm=null; try{ bm=c.move({from:bookUci.slice(0,2),to:bookUci.slice(2,4),promotion:"q"}); }catch(e){}
+  if(/^f[3-6]|^g[45]/.test(mySan)) return "Don't push the f- or g-pawn early: it opens the road to your king.";
+  if(/^Q/.test(mySan)&&!(bm&&bm.piece==="q")) return "Don't bring the queen out early: it gets chased and you lose time. Develop knights and bishops first.";
+  if(bm&&bm.san.startsWith("O-O")) return "Castle now: get your king safe before anything else.";
+  let mm=null; try{ mm=new ChessLib.Chess(fen).move(mySan); }catch(e){}
+  if(bm&&(bm.piece==="n"||bm.piece==="b")){ const home=/^[bg][18]$|^[cf][18]$/.test(mm&&mm.from||"");
+    if(mm&&(mm.piece==="n"||mm.piece==="b")&&home) return `Your move develops too, but ${bm.san} is the usual one here: knights out before bishops, and they guard your king.`;
+    if(mm&&"nbrq".includes(mm.piece)&&!home) return "Develop a NEW piece (knight or bishop) instead of moving the same one again.";
+    return "Develop your knights and bishops before pushing more pawns."; }
+  if(bm&&bm.piece==="p"&&/[de]/.test(bm.to[0])) return "Fight for the centre with your d- or e-pawn.";
+  if(bm&&bm.captured) return "Take back! Keep the material even.";
+  return "Develop, castle, then connect your rooks. One move for each piece.";
+}
+function openingGroups(){ const recs=recsSorted(), G={w:{},b:{}};
+  recs.forEach(r=>{ const s=sansOf(r); if(!s||s.length<6) return; const key=s.slice(0,2).join(" "); (G[r.me][key]=G[r.me][key]||[]).push({r,s}); });
+  return G; }
+function planFor(me){ const G=openingGroups()[me], keys=Object.keys(G).sort((a,b)=>G[b].length-G[a].length); if(!keys.length) return null;
+  const games=G[keys[0]], B=obook().p, dev={}; let oppFirst=0;
+  let key=keys[0]; for(let n=3;n<=8;n++){ const c={}; games.forEach(g=>{ if(g.s.length>=n){ const k=g.s.slice(0,n).join(" "); c[k]=(c[k]||0)+1; } }); const best=Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; if(best&&c[best]*2>=games.length&&c[best]>=2) key=best; else break; }
+  games.forEach(({r,s})=>{ const c=new ChessLib.Chess(); for(let i=0;i<Math.min(s.length,30);i++){ const fen=c.fen(), mine=(i%2===0)===(me==="w"), L=B[okey(fen)], mv=c.move(s[i]);
+      if(!mv) break; if(!L){ oppFirst++; break; } const inb=L.some(x=>x[0]===mv.from+mv.to+(mv.promotion||""));
+      if(inb) continue; if(!mine){ oppFirst++; break; }
+      const k=okey(fen); (dev[k]=dev[k]||{fen,ply:i,mine:{},n:0,games:[]}); dev[k].n++; dev[k].mine[mv.san]=(dev[k].mine[mv.san]||0)+1; dev[k].games.push(r); break; } });
+  const D=Object.values(dev).sort((a,b)=>b.n-a.n||a.ply-b.ply)[0];
+  let out={me,key,oppFirst,devN:Object.values(dev).reduce((a,d)=>a+d.n,0),count:games.length,total:Object.values(G).reduce((a,b)=>a+b.length,0),others:keys.slice(1,3).map(k=>({k,n:G[k].length}))};
+  if(D){ const L=B[okey(D.fen)]||[], tot=L.reduce((a,x)=>a+x[1],0), top=L.slice().sort((a,b)=>b[1]-a[1])[0]; const mySan=Object.keys(D.mine).sort((a,b)=>D.mine[b]-D.mine[a])[0];
+    out.dev=Object.assign(D,{mySan,top:top?{uci:top[0],san:sanOf(D.fen,top[0]),pct:Math.round(100*top[1]/Math.max(1,tot))}:null,
+      line:(()=>{ const c=new ChessLib.Chess(D.fen); return c; })()}); out.idea=top?idea(mySan,top[0],D.fen):"Develop, castle, then connect your rooks."; }
+  // traps that start the same way
+  if(window.TrapRadar){ const c=new ChessLib.Chess(); const P=[c.fen().split(" ").slice(0,2).join(" ")]; key.split(" ").forEach(m=>{ c.move(m); P.push(c.fen().split(" ").slice(0,2).join(" ")); });
+    out.traps=TrapRadar._db.filter(T=>T.f[1]===P[2]).map(T=>({T,role:T.v===me?"watch":"set",deep:T.f.filter(f=>P.includes(f)).length})).sort((a,b)=>b.deep-a.deep).slice(0,4); }
+  return out; }
+function moveLine(key){ return key.split(" ").map((m,i)=>(i%2?"":(i/2+1)+". ")+m).join(" "); }
+function planPage(s){ let h=pageHead("🗺 My opening plan")+`<p class="co17sm">Built from <b>your own games</b>. For your most-played start with each colour: where you usually leave the normal moves, and what ${E(obook().lbl||"stronger players")} play there.</p>`;
+  let any=false;
+  ["w","b"].forEach(me=>{ const P=planFor(me); h+=`<h3>${me==="w"?"⚪ As White":"⚫ As Black"}</h3>`; if(!P){ h+=`<div class="box">No studied games as ${me==="w"?"White":"Black"} yet.</div>`; return; } any=true;
+    h+=`<div class="box"><b>Your most-played start:</b> ${E(moveLine(P.key))}<br><small>${P.count} of your ${P.total} studied games as ${me==="w"?"White":"Black"}${P.others.length?` · next: ${P.others.map(o=>E(moveLine(o.k))+" ("+o.n+")").join(", ")}`:""}</small></div>`;
+    if(P.dev){ const d=P.dev, mv=Math.floor(d.ply/2)+1, lbl=d.ply%2?`${mv}...`:`${mv}.`;
+      h+=`<div class="box bad"><b>📍 Where you leave the book: move ${lbl}</b><br><small>You left the book first in ${P.devN} of ${P.count} games (your opponent left first in ${P.oppFirst}). This spot: ${d.n} game${d.n>1?"s":""}.</small><div class="bd">${miniBoard(d.fen,me==="b",[[d.top?d.top.uci:"","#2e7d32"]])}</div>
+        You usually play <b style="color:#c62828">${E(d.mySan)}</b> here.${d.top?` Most players play <b style="color:#2e7d32">${E(d.top.san)}</b> (${d.top.pct}% of games, green arrow).`:""}
+        <div style="margin-top:8px">💡 <b>Simple idea:</b> ${E(P.idea)}</div></div>`; }
+    else h+=`<div class="box good">You stay in the book in this line. 👍</div>`;
+    if(P.traps&&P.traps.length) h+=`<div class="box"><b>🪤 Traps in this opening</b>${P.traps.map(t=>`<div style="margin-top:6px">${t.role==="watch"?"🛡 Watch out for":"🎣 You can set"} <b>${E(t.T.n)}</b><br><small>${E(t.role==="watch"?t.T.avoid:t.T.setit)}</small></div>`).join("")}<button class="cbtn full" data-trapgo="1" style="text-align:center;margin-top:8px">🪤 Open Trap Radar</button></div>`; });
+  if(!any) h+=`<div class="box">Tap <b>📚 Study last 20 games</b> first, then come back.</div>`;
+  s.innerHTML=h; wireBack(s); s.querySelectorAll("[data-trapgo]").forEach(b=>b.onclick=()=>{ curPage=null; s.classList.remove("impP"); window.TrapRadar&&TrapRadar.open(); }); }
+addTile("plan","🗺","My opening plan","Where you leave the book + what to play",planPage);
+
 /* ================= boot ================= */
-const API={_tp:turningPoint,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
+const API={_tp:turningPoint,_plan:planFor,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
 window.CRImp=API;
 function init(){ initHeadline(); initTiles(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(init,350)); else setTimeout(init,350);
