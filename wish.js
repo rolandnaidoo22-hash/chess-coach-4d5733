@@ -132,6 +132,41 @@ function rookPage(s,arg){ const done=LSg(RK,{});
   $("wrL").onclick=()=>rookPage(s,"menu"); }
 I.addTile("rookend","♜","Rook endgames","Lucena (win) + Philidor (draw)",s=>{ RS=null; rookPage(s,"menu"); });
 
+/* ================= Blindfold: "where is the piece?" (text-only moves) ================= */
+const BK="chessReview.wish.blind.v1", PNM={n:"knight",b:"bishop",r:"rook",q:"queen",k:"king",p:"pawn"};
+function blindQ(n){ const C=ChessLib.Chess; let sans=null; const recs=I.recsSorted().filter(r=>r.pgn);
+  for(let t=0;t<6&&!sans;t++){ const r=recs[Math.floor(Math.random()*recs.length)]; const s=r&&I.sansOf(r); if(s&&s.length>=n) sans=s.slice(0,n); }
+  if(!sans){ const c=new C(); sans=[]; for(let i=0;i<n;i++){ const ms=c.moves(); if(!ms.length) break; const m=ms[Math.floor(Math.random()*ms.length)]; c.move(m); sans.push(m); } }
+  const c=new C(); const track={}; ["a","b","c","d","e","f","g","h"].forEach(f=>[1,2,7,8].forEach(r=>track[f+r]=f+r)); const moved={};
+  sans.forEach(sn=>{ const m=c.move(sn); const id=track[m.from]; delete track[m.from]; delete track[m.to];
+    if(m.flags.includes("e")) delete track[m.to[0]+m.from[1]]; track[m.to]=id; moved[id]=(moved[id]||0)+1;
+    if(m.flags.includes("k")||m.flags.includes("q")){ const rk=m.color==="w"?"1":"8", rf=m.flags.includes("k")?["h","f"]:["a","d"]; const rid=track[rf[0]+rk]; delete track[rf[0]+rk]; track[rf[1]+rk]=rid; moved[rid]=(moved[rid]||0)+1; } });
+  const cands=Object.keys(track).filter(sq=>moved[track[sq]]&&c.get(sq)&&c.get(sq).type!=="k").sort((a,b)=>(moved[track[b]]-moved[track[a]])||((c.get(b).type!=="p")-(c.get(a).type!=="p")));
+  const pick=cands.slice(0,3)[Math.floor(Math.random()*Math.min(3,cands.length))]; if(!pick) return null; const pc=c.get(pick);
+  return {sans,ans:pick,start:track[pick],piece:pc.type,color:pc.color,fen:c.fen()}; }
+function emptyBoard(hl){ let h=`<svg viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%">`; for(let r=0;r<8;r++) for(let c=0;c<8;c++){ const sq="abcdefgh"[c]+(8-r); h+=`<rect data-sq="${sq}" x="${c}" y="${r}" width="1" height="1" fill="${hl&&hl[sq]?hl[sq]:((r+c)%2?"#b58863":"#f0d9b5")}"/>`; }
+  for(let i=0;i<8;i++) h+=`<text x="${i+.04}" y="7.97" font-size=".22" fill="#444" pointer-events="none">${"abcdefgh"[i]}</text><text x=".03" y="${i+.24}" font-size=".22" fill="#444" pointer-events="none">${8-i}</text>`; return h+"</svg>"; }
+let BQ=null;
+function blindPage(s){ const st=LSg(BK,{lvl:3,ok:0,n:0,streak:0,best:0}); if(!BQ) BQ=blindQ(st.lvl===3?4:st.lvl===5?6:10);
+  if(!BQ){ s.innerHTML=I.pageHead("🙈 Blindfold")+`<div class="box">Couldn't make a question. Try again.</div>`; I.wireBack(s); return; }
+  const q=BQ, mv=q.sans.map((m,i)=>(i%2?"":`<b>${i/2+1}.</b> `)+E(m)).join(" ");
+  let h=I.pageHead("🙈 Blindfold")+`<p class="co17sm">No pieces on the board! Read the moves, picture them in your head, then tap the square.</p>
+   <div class="seg">${[3,5,8].map(l=>`<button data-lv="${l}" class="${st.lvl===l?"on":""}">${l===3?"Easy":l===5?"Medium":"Hard"}</button>`).join("")}</div>
+   <div class="box" style="font-size:18px;line-height:1.8">${mv}</div>
+   <div class="co17msg" id="blM">Where is the <b>${q.color==="w"?"white":"black"} ${PNM[q.piece]}</b> that started on <b>${q.start}</b>?</div>
+   <div class="co17board" id="blB">${emptyBoard()}</div><div id="blX"></div>
+   <div class="co17sm" style="text-align:center">Score ${st.ok}/${st.n} · streak 🔥 ${st.streak} · best ${st.best}</div>`;
+  s.innerHTML=h; I.wireBack(s); let done=false;
+  s.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>{ const S=LSg(BK,st); S.lvl=+b.dataset.lv; LSs(BK,S); BQ=null; blindPage(s); });
+  $("blB").onclick=e=>{ const sq=e.target.getAttribute&&e.target.getAttribute("data-sq"); if(!sq||done) return; done=true; const ok=sq===q.ans; const S=LSg(BK,st);
+    S.n++; if(ok){ S.ok++; S.streak++; S.best=Math.max(S.best,S.streak); } else S.streak=0; LSs(BK,S);
+    $("blM").innerHTML=ok?`✅ Yes! It's on <b>${q.ans}</b>.`:`❌ You tapped ${sq}. It's on <b>${q.ans}</b>.`;
+    $("blB").innerHTML=emptyBoard({[q.ans]:"#7cc47f",[sq]:ok?"#7cc47f":"#ef9a9a"});
+    $("blX").innerHTML=`<div class="box"><small>Here is the real position:</small><div class="bd">${I.miniBoard(q.fen,false,[])}</div><button class="cbtn full pri" id="blN" style="text-align:center">Next ▶</button></div>`;
+    $("blN").onclick=()=>{ BQ=null; blindPage(s); }; }; }
+I.addTile("blind","🙈","Blindfold","Text-only moves: where is the piece?",s=>{ BQ=null; blindPage(s); });
+W.blind={q:()=>BQ};
+
 /* ================= boot ================= */
 window.CRWish=W;
 function init(){ injectGoal(); const h=$("home"); if(h) new MutationObserver(()=>injectGoal()).observe(h,{childList:true}); (W._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
