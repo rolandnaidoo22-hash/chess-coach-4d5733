@@ -25,7 +25,7 @@ html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262
 const MODES=["home","review","goal","set","app"]; let mode=null, chosen=false;
 const TITLES={review:"📋 Review a game",goal:"🎯 Rating goal",set:"⚙ Settings"};
 function T(){ return window.Trainer; }
-function closeAll(){ try{ T()&&T().close(); }catch(e){} try{ window.PatternsUI&&PatternsUI.close(); }catch(e){} try{ window.Coach17&&Coach17.hide&&Coach17.hide(); }catch(e){} const p=$("paste"); if(p) p.classList.remove("open","gopen"); }
+function closeAll(){ try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ T()&&T().close(); }catch(e){} try{ window.PatternsUI&&PatternsUI.close(); }catch(e){} try{ window.Coach17&&Coach17.hide&&Coach17.hide(); }catch(e){} const p=$("paste"); if(p) p.classList.remove("open","gopen"); }
 function setMode(m,push){ if(!MODES.includes(m)) m="home"; mode=m; B.classList.add("hs-on"); MODES.forEach(x=>B.classList.toggle("hs-"+x,x===m)); B.classList.toggle("hs-game",chosen&&!B.classList.contains("nogame"));
   const h=$("hsPt"); if(h) h.textContent=TITLES[m]||""; if(m==="home"){ paint(); window.scrollTo(0,0); }
   if(push&&m!=="home"){ try{ history.pushState({hs:m},""); }catch(e){} } }
@@ -39,6 +39,7 @@ const TILES=[
  ["puzzles","🧩","Puzzles",()=>"From your own mistakes",()=>{ setMode("app",true); T().open("sec","puzzles"); }],
  ["drills","⚡","Quick drills",()=>"Stop blunders, fast",()=>{ setMode("app",true); T().open("sec","drills"); }],
  ["lessons","🎓","Lessons",()=>"Checkmates, basics, thinking",()=>{ setMode("app",true); T().open("sec","lessons"); }],
+ ["learn","📘","Learn the basics",()=>window.CRLearn?CRLearn.progressText():"Pieces, moves and rules",()=>{ closeAll(); setMode("app",true); window.CRLearn&&CRLearn.open(); }],
  ["play","🤝","Play a friend",()=>"Or the computer",()=>{ setMode("app",true); T().open("sec","play"); }],
  ["board","♟","Board training",()=>"Squares and your real board",()=>{ setMode("app",true); T().open("sec","boardtrain"); }],
  ["progress","📈","My progress",()=>"Patterns, openings, streak",()=>{ setMode("app",true); T().open("sec","progress"); }],
