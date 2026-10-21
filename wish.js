@@ -65,6 +65,35 @@ function injectGoal(){ const home=$("home"); if(!home||home.querySelector(".wgoa
   paintGoal(); if(LSg(GK,null)&&!GS.data&&!GS.loading&&Date.now()-(GS.at||0)>60000) loadRatings(); }
 W.goal={load:loadRatings,est:estimate,state:GS};
 
+/* ================= Why I lose (loss causes + plan) ================= */
+const CAUSE={opening:{ic:"📖",t:"Early mistake (opening)",d:"Your biggest mistake came in the first 12 moves."},tactic:{ic:"💥",t:"Tactical blunder",d:"A piece or mate was missed in the middle of the game."},
+  endgame:{ic:"👑",t:"Endgame",d:"The game was still OK until the endgame."},time:{ic:"⏱",t:"Time trouble",d:"You ran out of time, or the big mistake came with under 1 minute left."}};
+function lossCause(r){ const mv=r.mv||[]; if(!mv.length) return null; let w=mv[0]; mv.forEach(m=>{ if((m[7]||0)>(w[7]||0)) w=m; });
+  if(r.how==="time"||(w[3]!=null&&w[3]<60)) return {c:"time",m:w};
+  const mvno=Math.ceil(w[0]/2); if(mvno<=12&&w[4]!==2) return {c:"opening",m:w};
+  if(w[4]===2) return {c:"endgame",m:w}; return {c:"tactic",m:w}; }
+const PLAN={opening:[["🗺 My opening plan",()=>I.openPage("plan")],["🛠 Drill my top leak",()=>I.openPage("drill")],["🪤 Trap Radar",()=>window.TrapRadar&&TrapRadar.open()]],
+  tactic:[["🛠 Drill my top leak",()=>I.openPage("drill")],["🎯 Coach puzzles",()=>Coach17.open("puz")]],
+  endgame:[["👑 Pawn endgames",()=>Coach17.open("pawn")],["♜ Rook endgames",()=>I.openPage("rookend"),"rookend"]],
+  time:[["🧼 Am I getting cleaner?",()=>I.openPage("clean")]]};
+const planOf=k=>PLAN[k].filter(p=>!p[2]||I._tiles.some(t=>t.id===p[2]));
+const TIP={opening:"Most early losses at your level are a piece left hanging in the first 12 moves. Follow your opening plan, and check every capture before you move.",tactic:"Before every move: look at all checks, captures and threats (yours AND theirs).",
+  endgame:"Learn 2 endgame positions a week. Kings are strong in the endgame: bring yours to the middle.",time:"Use your clock evenly: about 1/40 of your time per move. Play fast only when the move is forced."};
+function whyPage(s){ const recs=I.recsSorted().slice(0,40), L=recs.filter(r=>r.res==="L"), C={opening:[],tactic:[],endgame:[],time:[]};
+  L.forEach(r=>{ const x=lossCause(r); if(x) C[x.c].push({r,m:x.m}); });
+  const order=Object.keys(C).sort((a,b)=>C[b].length-C[a].length);
+  let h=I.pageHead("🔍 Why I lose")+`<p class="co17sm">Each lost game gets <b>one main reason</b>: where your biggest mistake happened. Based on your ${recs.length} most recent studied games (${L.length} losses).</p>`;
+  if(!L.length){ h+=`<div class="box">No lost games studied yet. Tap <b>📚 Study last 20 games</b> first.</div>`; s.innerHTML=h; I.wireBack(s); return; }
+  order.forEach(k=>{ const n=C[k].length, pct=Math.round(100*n/L.length); h+=`<div class="box ${k===order[0]&&n?"bad":""}"><div class="row"><div><b>${CAUSE[k].ic} ${CAUSE[k].t}</b><br><small>${CAUSE[k].d}</small></div><div class="cnt">${n}</div></div>
+     <div style="height:10px;border-radius:5px;background:#e3e8ef;margin:6px 0;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${k===order[0]?"#c62828":"#3b6fb6"}"></i></div>
+     <small>${C[k].slice(0,6).map(x=>`vs ${E(x.r.me==="w"?x.r.black:x.r.white)} (move ${Math.ceil(x.m[0]/2)})`).join(" · ")}</small></div>`; });
+  const top=order.filter(k=>C[k].length).slice(0,2);
+  h+=`<h3>📅 Your training plan this week</h3><div class="box good">`+top.map((k,i)=>`<div style="margin:4px 0"><b>${i===0?"Main focus":"Also"}: ${CAUSE[k].t}</b> (${C[k].length} of ${L.length} losses)<br><small>${E(TIP[k])}</small><div class="chips">${planOf(k).map((p,j)=>`<button class="chip" data-pl="${k}|${j}">${p[0]}</button>`).join("")}</div></div>`).join("")+
+     `<div style="margin-top:6px"><small>Suggested: ${top[0]?`4 days on ${CAUSE[top[0]].t.toLowerCase()}`:""}${top[1]?`, 2 days on ${CAUSE[top[1]].t.toLowerCase()}`:""}, 1 day off. Keep doing your daily 30 minutes in My Coach.</small></div></div>`;
+  s.innerHTML=h; I.wireBack(s); s.querySelectorAll("[data-pl]").forEach(b=>b.onclick=()=>{ const [k,j]=b.dataset.pl.split("|"); I._setCur(null); s.classList.remove("impP"); planOf(k)[+j][1](); }); }
+I.addTile("why","🔍","Why I lose","Losses by cause + this week's plan",whyPage);
+W.why={lossCause};
+
 /* ================= boot ================= */
 window.CRWish=W;
 function init(){ injectGoal(); const h=$("home"); if(h) new MutationObserver(()=>injectGoal()).observe(h,{childList:true}); (W._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
