@@ -283,9 +283,64 @@ function planPage(s){ let h=pageHead("🗺 My opening plan")+`<p class="co17sm">
   s.innerHTML=h; wireBack(s); s.querySelectorAll("[data-trapgo]").forEach(b=>b.onclick=()=>{ curPage=null; s.classList.remove("impP"); window.TrapRadar&&TrapRadar.open(); }); }
 addTile("plan","🗺","My opening plan","Where you leave the book + what to play",planPage);
 
+/* ================= 5. Am I getting cleaner? ================= */
+const CK5="chessReview.imp.clean.v1", PER_OPEN=3;
+const CL={run:false,txt:"",i:0,n:0};
+function cstore(){ return LSg(CK5,{list:[],listAt:0,weeks:{}}); }
+function dOf(r){ const t=Date.parse(String(r.date||"").replace(/\./g,"-")); return isNaN(t)?0:t; }
+function monday(t){ const d=new Date(t); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.getTime(); }
+function gradeRec(r){ const ev=r.ev||[]; return {hang:ev.filter(e=>e.k==="hang").length,mm:ev.filter(e=>e.k==="missmate").length,
+  low:(r.mv||[]).filter(m=>m[3]!=null&&m[3]<60).length,clk:(r.mv||[]).some(m=>m[3]!=null)}; }
+async function refreshList(force){ const C=cstore(); if(!force&&Date.now()-C.listAt<30*60*1000&&C.list.length) return C;
+  const user=((window.CRUser&&CRUser.info())||{}).cc; if(!user) return C;
+  const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`)).json(); const arcs=(a.archives||[]).slice(-2).reverse(); let L=[];
+  for(const u of arcs){ const j=await (await fetch(u)).json(); (j.games||[]).forEach(x=>{ if(!x.pgn||x.rules!=="chess"||x.time_class==="bullet") return; if(Date.now()-x.end_time*1000>35*864e5) return; L.push({id:String(x.url).replace(/\/$/,""),t:x.end_time*1000,tc:x.time_class}); }); }
+  L.sort((x,y)=>y.t-x.t); C.list=L; C.listAt=Date.now(); C.user=user; LSs(CK5,C); C._arcs=arcs; return C; }
+async function gradeSome(n){ if(CL.run||!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()) return;
+  const user=((window.CRUser&&CRUser.info())||{}).cc; if(!user) return; CL.run=true;
+  try{ const C=await refreshList(false); const todo=C.list.filter(g=>!PatternStore.has(g.id)).slice(0,n);
+    if(todo.length&&!ReviewApp.isRunning()){ ReviewApp.setRunning(true);
+      try{ const need=new Set(todo.map(g=>g.id)), pg={}; const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`)).json();
+        for(const u of (a.archives||[]).slice(-2).reverse()){ const j=await (await fetch(u)).json(); (j.games||[]).forEach(x=>{ const id=String(x.url).replace(/\/$/,""); if(need.has(id)) pg[id]=x.pgn; }); }
+        let eng=await ReviewApp.getEngine();
+        for(let k=0;k<todo.length;k++){ const g=todo[k]; if(!pg[g.id]) continue; CL.txt=`Grading game ${k+1} of ${todo.length} (quick check)…`; paintClean(true);
+          try{ const d=await Analyzer.analyzeGame(pg[g.id],{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>false},()=>{}); d.meta.link=g.id; d.meta.pgn=pg[g.id]; PatternStore.put(d,pg[g.id]); }
+          catch(e){ console.error(e); try{ eng.quit(); }catch(_){} eng=await ReviewApp.getEngine(true); } }
+      } finally { ReviewApp.setRunning(false); } }
+  }catch(e){ console.error(e); }
+  CL.run=false; CL.txt=""; snapshot(); paintClean(); try{ injectTilesRefresh(); }catch(e){} }
+function cleanStats(){ const C=cstore(), recs=recsSorted(), byId={}; recs.forEach(r=>byId[r.id]=r); const now=Date.now(), wk=monday(now);
+  const tOf=r=>{ const g=C.list.find(x=>x.id===r.id); return g?g.t:dOf(r); };
+  const sum=rs=>rs.reduce((a,r)=>{ const g=gradeRec(r); a.games++; a.hang+=g.hang; a.mm+=g.mm; a.low+=g.low; if(g.clk) a.clkGames++; return a; },{games:0,hang:0,mm:0,low:0,clkGames:0});
+  const inR=(a,b)=>recs.filter(r=>{ const t=tOf(r); return t>=a&&t<b; });
+  const thisW=sum(inR(wk,now+864e5)), lastW=sum(inR(wk-7*864e5,wk)), month=sum(inR(now-30*864e5,wk)), all=sum(recs);
+  const listN=C.list.length, graded=C.list.filter(g=>byId[g.id]).length, wkList=C.list.filter(g=>g.t>=wk), wkGraded=wkList.filter(g=>byId[g.id]).length;
+  return {thisW,lastW,month,all,listN,graded,wkN:wkList.length,wkGraded}; }
+function snapshot(){ try{ const C=cstore(), S=cleanStats(); C.weeks[(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`)(new Date(monday(Date.now())))]=Object.assign({at:Date.now()},S.thisW); 
+  const keys=Object.keys(C.weeks).sort(); keys.slice(0,-26).forEach(k=>delete C.weeks[k]); LSs(CK5,C); }catch(e){} }
+const per=(a,k)=>a.games?a[k]/a.games:null;
+function trend(a,b,k){ const x=per(a,k), y=per(b,k); if(x==null||y==null) return ""; if(y<x*0.8) return `<span style="color:#2e7d32;font-weight:800">⬇ better</span>`; if(y>x*1.2) return `<span style="color:#c62828;font-weight:800">⬆ worse</span>`; return `<span style="color:#556">≈ same</span>`; }
+function paintClean(light){ const s=coachSec(); if(curPage!=="clean"||!s) return; if(light&&$("impClT")){ $("impClT").textContent=CL.txt; return; }
+  const S=cleanStats(), C=cstore(), M=S.month, W=S.thisW;
+  const row=(ic,name,k,desc)=>`<div class="box"><div class="row"><div><b>${ic} ${name}</b><br><small>${desc}</small></div><div style="text-align:right">${trend(M,W,k)}</div></div>
+    <div style="margin-top:6px">Before this week (30 days): <b>${M[k]} in ${M.games} game${M.games===1?"":"s"}</b>${M.games?` (${(M[k]/M.games).toFixed(1)} per game)`:""}<br>This week: <b>${W[k]} in ${W.games} game${W.games===1?"":"s"}</b>${W.games?` (${(W[k]/W.games).toFixed(1)} per game)`:""}</div></div>`;
+  let h=pageHead("🧼 Am I getting cleaner?")+`<p class="co17sm">Your weekly scorecard. Fewer is better. Each game gets a <b>quick check</b> (a few games every time you open the app, so your phone isn't slowed down).</p>
+   <div class="box"><b>Graded ${S.graded} of ${S.listN}</b> games from the last 30 days (rapid, daily and blitz; bullet skipped).<br>This week: graded ${S.wkGraded} of ${S.wkN}.
+   <div id="impClT" style="margin-top:6px;color:#3b6fb6;font-weight:700">${E(CL.txt)}</div>${S.graded<S.listN?`<button class="cbtn full" id="impClG" style="text-align:center" ${CL.run?"disabled":""}>⚡ Grade ${Math.min(PER_OPEN,S.listN-S.graded)} more now</button>`:""}</div>`;
+  h+=row("🎁","Hung pieces","hang","Pieces you left for free");
+  h+=row("👑","Missed checkmates","mm","Mate in 1–3 you didn't play");
+  h+=row("⏱","Moves under 1 minute","low",`Moves made with less than 1 minute on your clock${M.clkGames<M.games?" (daily games have no clock)":""}`);
+  const wks=Object.keys(C.weeks).sort().slice(-8);
+  if(wks.length) h+=`<h3>📅 Week by week</h3><div class="box" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><tr><th align="left">Week of</th><th>Games</th><th>Hangs</th><th>Missed mates</th><th>&lt;1 min</th></tr>${wks.map(k=>{ const w=C.weeks[k]; return `<tr><td>${new Date(k+"T00:00").toLocaleDateString(undefined,{day:"numeric",month:"short"})}</td><td align="center">${w.games}</td><td align="center">${w.hang}</td><td align="center">${w.mm}</td><td align="center">${w.low}</td></tr>`; }).join("")}</table></div>`;
+  s.innerHTML=h; wireBack(s); const g=$("impClG"); if(g) g.onclick=()=>gradeSome(PER_OPEN); }
+function injectTilesRefresh(){ const s=coachSec(); const t=s&&s.querySelector('[data-imp="clean"] small'); if(t) t.innerHTML=cleanSub(); }
+function cleanSub(){ try{ const S=cleanStats(); return `Weekly scorecard · graded ${S.graded} of ${S.listN||"?"}`; }catch(e){ return "Weekly scorecard"; } }
+addTile("clean","🧼","Am I getting cleaner?",cleanSub,s=>{ paintClean(); refreshList(false).then(()=>paintClean()).catch(()=>{}); });
+function autoGrade(){ setTimeout(()=>{ if(document.hidden) return; gradeSome(PER_OPEN); },20000); }
+
 /* ================= boot ================= */
-const API={_tp:turningPoint,_plan:planFor,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
+const API={_tp:turningPoint,_clean:cleanStats,gradeSome,_cl:CL,_plan:planFor,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
 window.CRImp=API;
-function init(){ initHeadline(); initTiles(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+function init(){ initHeadline(); initTiles(); try{ snapshot(); }catch(e){} autoGrade(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(init,350)); else setTimeout(init,350);
 })();
