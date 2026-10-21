@@ -10,7 +10,9 @@ body.hs-on:not(.hs-home) #hs .hsP{display:block}#hs .hsP{display:none}
 body.hs-on:not(.hs-review) header,body.hs-on:not(.hs-review) #summary,body.hs-on:not(.hs-review) section.main,body.hs-on:not(.hs-review) #footer,body.hs-on:not(.hs-review) #paste,body.hs-on:not(.hs-review) #ng16{display:none!important}
 body.hs-review:not(.hs-game) header,body.hs-review:not(.hs-game) #summary,body.hs-review:not(.hs-game) section.main,body.hs-review:not(.hs-game) #footer{display:none!important}
 body.hs-on:not(.hs-goal):not(.hs-set) #home{display:none!important}
-body.hs-goal #home>*:not(.wgoal),body.hs-set #home>*:not(.ub16):not(.set3d){display:none!important}
+body.hs-goal #home>*:not(.wgoal),body.hs-set #home>*:not(.ub16):not(.set3d):not(.nfa40){display:none!important}
+body:not(.hs-set) #home>.nfa40{display:none!important}
+#home>.nfa40{font-size:12px;color:var(--mute);margin:12px 2px;line-height:1.4}
 body.hs-app #hs .hsP{display:none!important}
 #hs{padding:4px 0 70px}#hs h1{font-size:26px;margin:6px 0 2px;display:flex;align-items:center;gap:8px}#hs h1 small{font-size:12px;background:#262421;color:#fff;border-radius:6px;padding:2px 7px;font-weight:700}
 #hs .hsSub{color:var(--mute);margin:0 0 12px;font-size:14px}
@@ -58,7 +60,8 @@ function watch(){ const mo=new MutationObserver(()=>{ if(mode!=="home"&&mode!=="
   const mo2=new MutationObserver(()=>{ const c=$("co17"); if(c&&!c.__hs){ c.__hs=1; mo.observe(c,{attributes:true,attributeFilter:["class"]}); } }); mo2.observe(document.body,{childList:true,subtree:true}); }
 document.addEventListener("click",e=>{ const t=e.target.closest&&e.target.closest('#homeBtn,#trHome,[data-co="exit"]'); if(t) setTimeout(goHome,0); },true);
 window.addEventListener("popstate",()=>{ const s=history.state; if(s&&s.hs&&s.hs!=="app") setMode(s.hs); else goHome(); });
-function boot(){ build(); hookLoad(); watch(); const deep=/ply=|try=|punish=/.test(location.hash); if(deep){ chosen=true; setMode("review"); } else setMode("home");
+function nfa(){ const h=$("home"); if(!h||h.querySelector(".nfa40")) return; const d=document.createElement("p"); d.className="nfa40"; d.textContent="Not affiliated with or endorsed by Chess.com or Lichess. For reviewing finished games only — don't use during live games."; h.appendChild(d); }
+function boot(){ build(); nfa(); hookLoad(); watch(); const deep=/ply=|try=|punish=/.test(location.hash); if(deep){ chosen=true; setMode("review"); } else setMode("home");
   setTimeout(paint,1500); window.addEventListener("crgoal",paint); }
 try{ const v=document.getElementById("verV"); if(v&&typeof VERSION!=="undefined") v.textContent=VERSION; }catch(e){}
 window.CRHome={setMode,goHome,mode:()=>mode,paint};
