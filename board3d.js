@@ -4,15 +4,30 @@
 (function(){
 "use strict";
 if(window.B3D) return;
-const B3D=window.B3D={views:new Map(),ready:false,failed:false,active:svg=>{const v=B3D.views.get(svg);return !!(v&&v.on);}};
+const MK="cr.board";
+function mode(){ let m=null; try{ m=localStorage.getItem(MK); }catch(e){}
+  if(m!=="flat"&&m!=="stand"&&m!=="gl"){ let o=null; try{ o=localStorage.getItem("cr.pieces3d"); }catch(e){} m=o==="0"?"flat":"gl"; try{ localStorage.setItem(MK,m); }catch(e){} }
+  return m; }
+const B3D=window.B3D={mode,views:new Map(),ready:false,failed:false,active:svg=>{const v=B3D.views.get(svg);return !!(v&&v.on);}};
 let T=null, R=null, loading=null, ENV=null;
 const css=document.createElement("style");
 css.textContent=`body.p3d svg.b3d.gl3d{transform:none!important;opacity:0!important;margin-top:0!important;touch-action:none}
 .gl3dc{position:absolute;pointer-events:none;z-index:1}
 .gl3dt{position:absolute;z-index:2;display:flex;gap:4px;pointer-events:auto}
 .gl3dt button{width:34px;height:34px;border-radius:17px;border:1px solid rgba(255,255,255,.5);background:rgba(30,22,16,.6);color:#fff;font-size:17px;line-height:1;padding:0;cursor:pointer}`;
+css.textContent+=`.bs21{display:flex!important;flex-direction:column;align-items:stretch!important;gap:6px!important}.bs21 b{font-size:15px}.bs21r{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.bs21r button{font:inherit;min-height:56px;border-radius:10px;border:2px solid var(--line,#ddd);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:700;font-size:14px;color:#222;cursor:pointer}
+.bs21r button small{font-weight:400;font-size:11px;color:#777}.bs21r button.on{border-color:#3b6fb6;background:#e8f1fb}`;
 document.head.appendChild(css);
-function want(svg){ return document.body.classList.contains("p3d")&&!B3D.failed&&svg.isConnected&&svg.classList.contains("b3d")&&!svg.classList.contains("flat3d"); }
+function setMode(m){ try{ localStorage.setItem(MK,m); }catch(e){} if(window.P3D) P3D.set(m!=="flat"); else document.body.classList.toggle("p3d",m!=="flat"); scan(); B3D.views.forEach(v=>v.on&&update(v,true)); picker(); }
+B3D.setMode=setMode;
+// "Board style" picker replaces the old 3D checkbox on the home screen
+function picker(){ document.querySelectorAll(".set3d").forEach(d=>{ const m=mode();
+  if(!d.classList.contains("bs21")){ d.classList.add("bs21"); d.innerHTML=`<b>♟ Board style</b><div class="bs21r" role="radiogroup" aria-label="Board style">
+   <button type="button" data-bs="flat" role="radio">▦ Flat<small>classic 2D</small></button><button type="button" data-bs="stand" role="radio">♞ Standing<small>tilted pieces</small></button><button type="button" data-bs="gl" role="radio">♛ Real 3D<small>wooden board</small></button></div>`;
+   d.addEventListener("click",e=>{ const b=e.target.closest("[data-bs]"); if(b){ e.stopPropagation(); setMode(b.dataset.bs); } }); }
+  d.querySelectorAll("[data-bs]").forEach(b=>{ const on=b.dataset.bs===m; b.classList.toggle("on",on); b.setAttribute("aria-checked",on); }); }); }
+function want(svg){ return mode()==="gl"&&document.body.classList.contains("p3d")&&!B3D.failed&&svg.isConnected&&svg.classList.contains("b3d")&&!svg.classList.contains("flat3d"); }
 function load(){ if(loading) return loading; const base=(document.currentScript&&document.currentScript.src)||location.href;
   loading=import(new URL("three.module.min.js",SRC).href).then(m=>{ T=m; init(); B3D.ready=true; }).catch(e=>{ console.warn("3D board off:",e); fail(); }); return loading; }
 const SRC=(document.currentScript&&document.currentScript.src)||location.href;
@@ -227,7 +242,7 @@ function frame(v){ if(!v.on||!v.w) return; const now=performance.now(); v.anims=
 let pend=new Set(), sched=0;
 function scan(){ document.querySelectorAll("svg.b3d").forEach(s=>{ const v=B3D.views.get(s); if(want(s)){ if(!v) attach(s); else if(v.on) pend.add(v); } else if(v) detach(v); });
   B3D.views.forEach(v=>{ if(!v.svg.isConnected) detach(v); }); }
-function flush(){ sched=0; scan(); pend.forEach(v=>{ try{ update(v); layout(v); }catch(e){ console.warn(e); } }); pend.clear(); }
+function flush(){ sched=0; picker(); scan(); pend.forEach(v=>{ try{ update(v); layout(v); }catch(e){ console.warn(e); } }); pend.clear(); }
 function soon(){ if(!sched){ sched=1; Promise.resolve().then(flush); } }
 new MutationObserver(ms=>{ for(const m of ms){ if(m.type==="attributes"){ soon(); continue; } const t=m.target; if(t.closest&&t.closest("svg.b3d")){ const v=B3D.views.get(t.closest("svg.b3d")); if(v&&v.on) pend.add(v); soon(); } else if(m.addedNodes.length||m.removedNodes.length) soon(); } })
   .observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
@@ -240,5 +255,6 @@ const oa=window.animatePiece; if(typeof oa==="function") window.animatePiece=fun
 B3D.test={frac:(svg,x,y)=>{ const v=B3D.views.get(svg); return v&&v.on?frac(v,{clientX:x,clientY:y}):null; },
   screenOf:(svg,sq)=>{ const v=B3D.views.get(svg); if(!v||!v.on) return null; const [i,j]=sq; const p=new T.Vector3(i-3.5,TOP+.02,j-3.5).project(v.cam); const r=v.cv.getBoundingClientRect(); return [r.left+(p.x+1)/2*r.width,r.top+(1-p.y)/2*r.height]; },
   view:svg=>B3D.views.get(svg)};
-if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",scan); else scan();
+{ const m=mode(); try{ localStorage.setItem("cr.pieces3d",m==="flat"?"0":"1"); }catch(e){} document.body.classList.toggle("p3d",m!=="flat"); }
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",flush); else flush();
 })();
