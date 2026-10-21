@@ -1,0 +1,2 @@
+pieces.bin: chess piece meshes from "Chess Set" by Riley Queen, Poly Haven (https://polyhaven.com/a/chess_set).
+License: CC0 1.0 (public domain). Repacked (geometry only, recoloured in code) for this app.

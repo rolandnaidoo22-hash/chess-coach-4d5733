@@ -29,7 +29,7 @@ function picker(){ document.querySelectorAll(".set3d").forEach(d=>{ const m=mode
   d.querySelectorAll("[data-bs]").forEach(b=>{ const on=b.dataset.bs===m; b.classList.toggle("on",on); b.setAttribute("aria-checked",on); }); }); }
 function want(svg){ return mode()==="gl"&&document.body.classList.contains("p3d")&&!B3D.failed&&svg.isConnected&&svg.classList.contains("b3d")&&!svg.classList.contains("flat3d"); }
 function load(){ if(loading) return loading; const base=(document.currentScript&&document.currentScript.src)||location.href;
-  loading=import(new URL("three.module.min.js",SRC).href).then(m=>{ T=m; init(); B3D.ready=true; }).catch(e=>{ console.warn("3D board off:",e); fail(); }); return loading; }
+  loading=import(new URL("three.module.min.js",SRC).href).then(m=>{ T=m; init(); return loadModels(); }).then(()=>{ B3D.ready=true; }).catch(e=>{ console.warn("3D board off:",e); fail(); }); return loading; }
 const SRC=(document.currentScript&&document.currentScript.src)||location.href;
 function fail(){ B3D.failed=true; B3D.views.forEach(v=>detach(v)); document.body.classList.remove("p3d"); }
 
@@ -43,13 +43,20 @@ function init(){
   R.shadowMap.enabled=true; R.shadowMap.type=T.PCFSoftShadowMap;
   const pm=new T.PMREMGenerator(R); ENV=pm.fromScene(roomEnv(),0.04).texture; pm.dispose();
   G.ivory=new T.MeshPhysicalMaterial({color:0xf8f8f8,roughness:.35,clearcoat:.6,clearcoatRoughness:.2,envMapIntensity:.55});
-  G.ebony=new T.MeshPhysicalMaterial({color:0x0a0a0a,roughness:.45,metalness:0,clearcoat:.55,clearcoatRoughness:.18,envMapIntensity:.35,specularIntensity:.4});
-  G.groove=new T.MeshStandardMaterial({color:0x140c08,roughness:.6}); G.geo={}; "PNBRQK".split("").forEach(t=>G.geo[t]=pieceParts(t));
+  G.ebony=new T.MeshPhysicalMaterial({color:0x0a0a0a,roughness:.35,metalness:0,clearcoat:.15,clearcoatRoughness:.3,envMapIntensity:.15,specularIntensity:.35});
+  G.groove=new T.MeshStandardMaterial({color:0x140c08,roughness:.6}); G.geo={}; "PNBRQK".split("").forEach(t=>G.geo[t]=pieceParts(t)); G.model=false;
   G.blob=new T.CanvasTexture(blobCanvas()); G.blob.colorSpace=T.SRGBColorSpace;
   G.glow=new T.CanvasTexture(blobCanvas("230,40,30")); 
   G.woodSq=woodSquares(); G.frameTex=new T.CanvasTexture(woodCanvas(512,512,[78,46,26],[52,29,15],9,true));
   G.frameTex.colorSpace=T.SRGBColorSpace; G.frameTex.wrapS=G.frameTex.wrapT=T.RepeatWrapping; G.frameTex.repeat.set(1/9.4,1/9.4); G.frameTex.offset.set(.5,.5);
 }
+// Staunton models: Poly Haven "Chess Set" by Riley Queen, CC0 (polyhaven.com/a/chess_set). Packed as int16 positions + int8 normals.
+const PH={R:[2016,8928,0],P:[1028,4920,36000],B:[1838,8772,55092],Q:[1827,8820,89180],K:[2643,12516,123268],N:[1705,7986,172092]}, MS=.8;
+function loadModels(){ return fetch(new URL("pieces.bin",SRC).href).then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); }).then(buf=>{
+  for(const t in PH){ const [nv,ni,o]=PH[t]; const q=new Int16Array(buf,o,nv*3), n=new Int8Array(buf,o+nv*6,nv*3); const io=o+nv*6+nv*3+((-nv*3)%4+4)%4; const ix=new Uint16Array(buf,io,ni);
+    const pos=new Float32Array(nv*3), nor=new Float32Array(nv*3); for(let i=0;i<nv*3;i++){ pos[i]=q[i]/32767*2*MS; nor[i]=n[i]/127; }
+    const g=new T.BufferGeometry(); g.setAttribute("position",new T.BufferAttribute(pos,3)); g.setAttribute("normal",new T.BufferAttribute(nor,3)); g.setIndex(new T.BufferAttribute(new Uint16Array(ix),1)); g.computeBoundingSphere();
+    G.geo[t]=[g]; } G.model=true; }).catch(e=>console.warn("3D models unavailable, using built-in pieces",e)); }
 function roomEnv(){ const s=new T.Scene(), g=new T.BoxGeometry(); g.deleteAttribute("uv");
   const room=new T.Mesh(g,new T.MeshStandardMaterial({side:T.BackSide,color:0x4a4038})); room.position.set(0,13,0); room.scale.set(32,28,28); s.add(room);
   const L=(x,y,z,sx,sy,sz,i)=>{ const m=new T.MeshBasicMaterial(); m.color.setScalar(i); const b=new T.Mesh(g,m); b.position.set(x,y,z); b.scale.set(sx,sy,sz); s.add(b); };
@@ -97,14 +104,14 @@ function pieceParts(t){ const parts=[lathe(PROF[t])]; const sph=(r,y,x=0,z=0)=>{
   return parts; }
 function makePiece(code,orient){ const t=code[1], white=code[0]==="w"; const g=new T.Group(); const mat=white?G.ivory:G.ebony;
   G.geo[t].forEach(geo=>{ const m=new T.Mesh(geo,geo.__groove?G.groove:mat); m.userData.base=m.material; m.castShadow=true; m.receiveShadow=true; g.add(m); });
-  if(t==="N"){ const faceUp=(white===(orient==="w")); g.rotation.y=faceUp?Math.PI/2:-Math.PI/2; }
-  if(t==="B") g.rotation.y=Math.PI/4;
-  const s=1.2; g.scale.set(s,s,s); g.userData={code,mat}; return g; }
+  const faceUp=(white===(orient==="w")); if(t==="N") g.rotation.y=G.model?(faceUp?Math.PI:0):(faceUp?Math.PI/2:-Math.PI/2);
+  if(t==="B"&&!G.model) g.rotation.y=Math.PI/4;
+  const s=G.model?1:1.2; g.scale.set(s,s,s); g.userData={code,mat}; return g; }
 
 /* ---------- a view per SVG board ---------- */
-const TOP=.361;
+const TOP=.361, PDEF=58*Math.PI/180;
 function attach(svg){
-  const v={svg,on:false,az:0,pol:32*Math.PI/180,P:new Map(),anims:[],orient:"w",key:""};
+  const v={svg,on:false,az:0,pol:PDEF,P:new Map(),anims:[],orient:"w",key:""};
   B3D.views.set(svg,v);
   load().then(()=>{ if(B3D.failed||!want(svg)) return; try{ build(v); }catch(e){ console.warn(e); fail(); } });
   return v; }
@@ -129,7 +136,7 @@ function build(v){
   const par=v.svg.parentNode; if(getComputedStyle(par).position==="static") par.style.position="relative";
   v.cv=document.createElement("canvas"); v.cv.className="gl3dc"; v.ctx=v.cv.getContext("2d"); par.insertBefore(v.cv,v.svg.nextSibling);
   v.tb=document.createElement("div"); v.tb.className="gl3dt"; v.tb.innerHTML=`<button type="button" data-r="-1" aria-label="Rotate left">⟲</button><button type="button" data-r="1" aria-label="Rotate right">⟳</button><button type="button" data-r="0" aria-label="Reset view">⌂</button>`;
-  v.tb.addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; e.stopPropagation(); const d=+b.dataset.r; turnTo(v,d?v.az+d*Math.PI/4:0,d?v.pol:32*Math.PI/180); });
+  v.tb.addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; e.stopPropagation(); const d=+b.dataset.r; turnTo(v,d?v.az+d*Math.PI/4:0,d?v.pol:PDEF); });
   par.insertBefore(v.tb,v.cv.nextSibling);
   v.ro=new ResizeObserver(()=>layout(v)); v.ro.observe(v.svg); v.ro.observe(par);
   wireOrbit(v);
@@ -146,15 +153,18 @@ function layout(v){ if(!v.on) return; const par=v.svg.parentNode, r=v.svg.getBou
   if(v.cv.width!==W||v.cv.height!==H){ v.cv.width=W; v.cv.height=H; }
   v.w=r.width; v.h=r.height; fit(v); req(v); }
 function fit(v){ const c=v.cam; c.aspect=v.w/v.h; c.fov=34; const tg=new T.Vector3(0,.35,0);
-  const pts=[]; for(const x of [-4.75,4.75]) for(const z of [-4.75,4.75]){ pts.push(new T.Vector3(x,0,z),new T.Vector3(x,.4,z)); pts.push(new T.Vector3(x*.84,1.25,z*.84)); }
+  const pts=[]; for(const x of [-4.75,4.75]) for(const z of [-4.75,4.75]){ pts.push(new T.Vector3(x,0,z),new T.Vector3(x,.4,z)); pts.push(new T.Vector3(x*.84,1.4,z*.84)); }
   const place=d=>{ const s=Math.sin(v.pol); c.position.set(tg.x+d*s*Math.sin(v.az),tg.y+d*Math.cos(v.pol),tg.z+d*s*Math.cos(v.az)); c.up.set(0,1,0); c.lookAt(tg); c.updateProjectionMatrix(); c.updateMatrixWorld(); };
-  let lo=5,hi=60; for(let i=0;i<22;i++){ const d=(lo+hi)/2; place(d); let m=0; pts.forEach(p=>{ const q=p.clone().project(c); m=Math.max(m,Math.abs(q.x),Math.abs(q.y)); }); if(m>.96) lo=d; else hi=d; } place(hi); }
+  c.clearViewOffset(); place(16); let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; const fw=1000*c.aspect, fh=1000;
+  pts.forEach(p=>{ const q=p.clone().project(c); const px=(q.x+1)/2*fw, py=(1-q.y)/2*fh; x0=Math.min(x0,px); x1=Math.max(x1,px); y0=Math.min(y0,py); y1=Math.max(y1,py); });
+  let w=(x1-x0)*1.04, h=(y1-y0)*1.04; if(w/h<c.aspect) w=h*c.aspect; else h=w/c.aspect;
+  c.setViewOffset(fw,fh,(x0+x1)/2-w/2,(y0+y1)/2-h/2,w,h); c.updateProjectionMatrix(); }
 function turnTo(v,az,pol){ const a0=v.az,p0=v.pol; anim(v,300,k=>{ v.az=a0+(az-a0)*k; v.pol=p0+(pol-p0)*k; fit(v); }); }
 function wireOrbit(v){ const s=v.svg; let o=null, blockClick=0;
   const dn=e=>{ if(!v.on) return; const f=frac(v,e,true); const off=!f||f[0]<0||f[0]>=1||f[1]<0||f[1]>=1; if(!off&&!e.ctrlKey&&e.button!==2) return;
     e.stopImmediatePropagation(); e.preventDefault(); o={x:e.clientX,y:e.clientY,az:v.az,pol:v.pol,id:e.pointerId,moved:0}; try{ s.setPointerCapture(e.pointerId); }catch(_){} };
   const mv=e=>{ if(!o||e.pointerId!==o.id) return; e.stopImmediatePropagation(); const dx=e.clientX-o.x, dy=e.clientY-o.y; o.moved=Math.max(o.moved,Math.abs(dx)+Math.abs(dy));
-    v.az=o.az-dx/v.w*Math.PI*1.4; v.pol=Math.max(0,Math.min(58*Math.PI/180,o.pol-dy/v.h*Math.PI*.8)); fit(v); req(v); };
+    v.az=o.az-dx/v.w*Math.PI*1.4; v.pol=Math.max(15*Math.PI/180,Math.min(72*Math.PI/180,o.pol-dy/v.h*Math.PI*.8)); fit(v); req(v); };
   const up=e=>{ if(!o||e.pointerId!==o.id) return; e.stopImmediatePropagation(); o=null; blockClick=Date.now(); };
   const ck=e=>{ if(Date.now()-blockClick<400){ e.stopImmediatePropagation(); e.preventDefault(); } };
   s.addEventListener("pointerdown",dn,true); s.addEventListener("pointermove",mv,true); s.addEventListener("pointerup",up,true); s.addEventListener("pointercancel",up,true); s.addEventListener("click",ck,true);
@@ -162,8 +172,15 @@ function wireOrbit(v){ const s=v.svg; let o=null, blockClick=0;
 // event -> [u,v] fraction in the SVG's own square space (same as flat boards)
 function frac(v,ev,planeOnly){ const r=v.cv.getBoundingClientRect(); if(!r.width) return null;
   const nd=new T.Vector2((ev.clientX-r.left)/r.width*2-1,-((ev.clientY-r.top)/r.height*2-1)); const rc=new T.Raycaster(); rc.setFromCamera(nd,v.cam);
-  if(!planeOnly){ const hits=rc.intersectObjects(v.pg.children,true); for(const h of hits){ let o=h.object; while(o&&o.parent!==v.pg) o=o.parent; if(o&&o.userData.sq&&!o.userData.dying&&!(o.position.y>TOP+.1)){ const [i,j]=o.userData.sq; return [(i+.5)/8,(j+.5)/8]; } } }
-  const p=new T.Vector3(); if(!rc.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),-TOP),p)) return null; return [(p.x+4)/8,(p.z+4)/8]; }
+  const p=new T.Vector3(); const onPlane=rc.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),-TOP),p); const pf=onPlane?[(p.x+4)/8,(p.z+4)/8]:null;
+  if(planeOnly) return pf;
+  // what's at the board point: a piece base there wins (pieces in front can overlap squares behind them)
+  let psq=null, sel=false; if(pf&&pf[0]>=0&&pf[0]<1&&pf[1]>=0&&pf[1]<1) psq=Math.floor(pf[0]*8)+","+Math.floor(pf[1]*8);
+  v.P.forEach(e=>{ if(e.obj.position.y>TOP+.1) sel=true; });
+  if(psq&&v.P.has(psq)) return pf;
+  if(psq&&sel) return pf; // a piece is lifted: an empty square is a move target
+  const hits=rc.intersectObjects(v.pg.children,true); for(const h of hits){ let o=h.object; while(o&&o.parent!==v.pg) o=o.parent; if(o&&o.userData.sq&&!o.userData.dying&&!(o.position.y>TOP+.1)){ const [i,j]=o.userData.sq; return [(i+.5)/8,(j+.5)/8]; } }
+  return pf; }
 
 /* ---------- reading the SVG ---------- */
 const BASE=new Set(["#f0d9b5","#b58863"]);
@@ -213,7 +230,7 @@ function update(v,first){ if(!v.on) return; const st=readSvg(v); const orientCha
 function addBlob(ob){ const m=new T.Mesh(new T.PlaneGeometry(.95,.95),new T.MeshBasicMaterial({map:G.blob,transparent:true,depthWrite:false,opacity:.8})); m.rotation.x=-Math.PI/2; m.position.y=.004; m.renderOrder=1; m.userData.blob=1; ob.add(m); }
 function setGlow(ob,on){ ob.children.forEach(m=>{ if(m.userData.blob) return; if(on){ if(!m.userData.gm){ m.userData.gm=m.material.clone(); m.userData.gm.emissive=new T.Color(0xd01c10); m.userData.gm.emissiveIntensity=.55; } m.material=m.userData.gm; } else if(m.userData.gm) m.material=m.userData.base; }); }
 function fade(v,ob,a,b,ms,done){ const mats=[]; ob.children.forEach(m=>{ m.material=m.material.clone(); m.material.transparent=true; mats.push([m.material,m.material.opacity]); });
-  const y0=ob.position.y; anim(v,ms,t=>{ const o=a+(b-a)*t; mats.forEach(([m,o0])=>m.opacity=o0*o); if(b<a){ ob.position.y=y0-.15*t; ob.scale.setScalar(1.2*(1-.15*t)); } },()=>{ if(b>a) ob.children.forEach(m=>{ m.material=m.userData.blob?m.material:m.userData.base; if(m.userData.blob){ m.material.opacity=.8; } }); done&&done(); }); }
+  const y0=ob.position.y; anim(v,ms,t=>{ const o=a+(b-a)*t; mats.forEach(([m,o0])=>m.opacity=o0*o); if(b<a){ ob.position.y=y0-.15*t; ob.scale.setScalar((G.model?1:1.2)*(1-.15*t)); } },()=>{ if(b>a) ob.children.forEach(m=>{ m.material=m.userData.blob?m.material:m.userData.base; if(m.userData.blob){ m.material.opacity=.8; } }); done&&done(); }); }
 function inCheck(P,orient){ const at=(i,j)=>{ const e=P.get(i+","+j); return e?e.code:null; }; const up=orient==="w"?-1:1;
   let res=null; P.forEach((e,k)=>{ if(e.code[1]!=="K") return; const col=e.code[0], [ki,kj]=k.split(",").map(Number), en=col==="w"?"b":"w";
     const hit=(c,types)=>c&&c[0]===en&&types.includes(c[1]);
