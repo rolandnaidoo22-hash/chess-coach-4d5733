@@ -33,6 +33,7 @@ function turningPoint(D){ const P=D.plies, me=D.meta.user_color, opp=me==="w"?"b
       why=def&&VAL[rm.piece]<VAL[rm.captured]?`your ${nm} on ${rm.to} could be taken by a cheaper piece (${rm.san}).`:`your ${nm} on ${rm.to} had no defender, so ${sideName(opp)} could just take it with ${rm.san}.`; }
     else if(p.bad&&p.bad.B&&p.bad.B.state==="missed"&&p.threat&&p.threat.san) why=`you didn't answer ${sideName(opp)}'s threat ${p.threat.san}.`;
     else if(rm&&window.Patterns&&Patterns.tacticAfter){ const t=Patterns.tacticAfter(p.fen,reply); if(t) why=`it walked into a ${t.kind} (${rm.san}).`; }
+    if(!why&&rm&&rm.captured==="p"&&/\+/.test(rm.san)) why=`it let ${sideName(opp)} take a pawn with check (${rm.san}) and attack your king.`;
     if(!why&&rm&&rm.captured==="p") why=`it gave away a pawn (${rm.san}) and your position got worse.`;
     if(!why&&rm) why=`it let ${sideName(opp)} play ${rm.san}, a strong reply.`;
   }catch(e){}
@@ -73,7 +74,7 @@ const TILES=[]; let curPage=null;
 function coachSec(){ return $("co17"); }
 function addTile(id,ic,t,sub,fn){ TILES.push({id,ic,t,sub,fn}); }
 function injectTiles(){ const s=coachSec(); if(!s) return; const g=s.querySelector(".co17grid"); if(!g) return;
-  TILES.forEach(T=>{ if(g.querySelector(`[data-imp="${T.id}"]`)) return; const b=document.createElement("button"); b.className="co17tile"; b.setAttribute("data-imp",T.id);
+    TILES.forEach(T=>{ if(g.querySelector(`[data-imp="${T.id}"]`)) return; const b=document.createElement("button"); b.className="co17tile"; b.setAttribute("data-imp",T.id);
     b.innerHTML=`<span class="ic">${T.ic}</span><b>${E(T.t)}</b><small>${typeof T.sub==="function"?T.sub():E(T.sub)}</small>`; b.onclick=()=>openPage(T.id); g.appendChild(b); }); }
 function openPage(id,arg){ const T=TILES.find(x=>x.id===id); if(!T||!window.Coach17) return; Coach17.open("home"); const s=coachSec(); if(!s) return;
   if(!$("imppcss")){ const st=document.createElement("style"); st.id="imppcss"; st.textContent=PCSS; document.head.appendChild(st); }
@@ -81,7 +82,10 @@ function openPage(id,arg){ const T=TILES.find(x=>x.id===id); if(!T||!window.Coac
 function pageHead(t){ return `<div class="co17h"><h2>${t}</h2><div><button class="cbtn" data-impback="1">‹ Back</button></div></div>`; }
 function wireBack(s){ s.querySelectorAll("[data-impback]").forEach(b=>b.onclick=()=>{ curPage=null; s.classList.remove("impP"); Coach17.open("home"); }); }
 function initTiles(){ const s=coachSec(); if(!s){ if((initTiles.n=(initTiles.n||0)+1)<40) setTimeout(initTiles,250); return; }
-  new MutationObserver(()=>{ if(!s.querySelector("[data-impback]")){ s.classList.remove("impP"); curPage=null; } injectTiles(); }).observe(s,{childList:true}); injectTiles(); }
+  let nav=0; s.addEventListener("click",e=>{ if(e.target.closest("[data-co],[data-trap],[data-imp],#co17today")) nav=Date.now(); },true);
+  document.addEventListener("click",e=>{ if(e.target.closest("#homeBtn,#co17cb")) nav=Date.now(); },true);
+  new MutationObserver(()=>{ if(!s.querySelector("[data-impback]")&&curPage){ const T=TILES.find(x=>x.id===curPage);
+      if(T&&Date.now()-nav>1500&&s.classList.contains("on")&&s.querySelector(".co17grid")){ T.fn(s); return; } s.classList.remove("impP"); curPage=null; } injectTiles(); }).observe(s,{childList:true}); injectTiles(); }
 function recsSorted(){ const m=window.PatternStore?PatternStore.all():{}; return Object.values(m).sort((a,b)=>((b.date||"")+b.id).localeCompare((a.date||"")+a.id)); }
 function sansOf(rec){ if(!rec.pgn||!window.ChessLib) return null; try{ const c=new ChessLib.Chess(); c.loadPgn(rec.pgn); return c.history(); }catch(e){ return null; } }
 function opp(rec){ return rec.me==="w"?rec.black:rec.white; }
@@ -132,8 +136,52 @@ function repeatPage(s){ const n=LSg(RCK,5), all=recsSorted(), recs=all.slice(0,n
 function wireSeg(s){ s.querySelectorAll(".seg [data-n]").forEach(b=>b.onclick=()=>{ LSs(RCK,+b.dataset.n); repeatPage(s); }); }
 addTile("repeat","🔁","Repeat Check","Same mistakes again? Last 2/5/10 games",repeatPage);
 
+/* ================= 2. Study my last 20 standard games ================= */
+const ST={run:false,cancel:false,txt:"",pct:0,done:[],skipped:0,found:0,err:"",worst:null};
+async function pick20(user){ const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`)).json();
+  const arcs=(a.archives||[]).slice().reverse().slice(0,12); const pool={good:[],blitz:[],bullet:[]}; let saved=0; const seen=new Set();
+  for(const u of arcs){ const g=await (await fetch(u)).json();
+    (g.games||[]).sort((x,y)=>(y.end_time||0)-(x.end_time||0)).forEach(x=>{ if(!x.pgn||x.rules!=="chess"||/SetUp "1"|Variant/.test(x.pgn)) return; const id=String(x.url).replace(/\/$/,""); if(seen.has(id)) return; seen.add(id);
+      if(PatternStore.has(id)){ saved++; return; } (x.time_class==="rapid"||x.time_class==="daily"||x.time_class==="classical"?pool.good:x.time_class==="blitz"?pool.blitz:pool.bullet).push(x); });
+    ST.txt=`Looking through your games… ${pool.good.length} rapid/daily, ${pool.blitz.length} blitz found`; paintStudy();
+    if(pool.good.length>=20) break; }
+  let list=pool.good.slice(0,20); if(list.length<20) list=list.concat(pool.blitz.slice(0,20-list.length)); if(list.length<20) list=list.concat(pool.bullet.slice(0,20-list.length));
+  return {list,saved,mix:{good:Math.min(20,pool.good.length)}}; }
+async function runStudy(){ if(ST.run) return; const user=((window.CRUser&&CRUser.info())||{}).cc||(($("uname")||{}).value||"");
+  if(!user){ ST.err="Add your Chess.com username on the home screen first."; paintStudy(); return; }
+  if(!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()){ ST.err="Another analysis is running. Try again when it finishes."; paintStudy(); return; }
+  Object.assign(ST,{run:true,cancel:false,txt:"Getting your games from Chess.com…",pct:1,done:[],err:"",worst:null}); paintStudy();
+  ReviewApp.setRunning(true); ReviewApp.keepAwake(true); try{ if(window.Coach17&&Coach17._imp) Coach17._imp.pauseFor(true); }catch(e){}
+  try{ const {list,saved}=await pick20(user); ST.skipped=saved; ST.found=list.length;
+    if(!list.length){ ST.txt=`All your recent games are already studied (${saved} saved).`; ST.pct=100; }
+    else { let eng=await ReviewApp.getEngine(); const t0=performance.now();
+      for(let k=0;k<list.length;k++){ if(ST.cancel) break; const g=list[k], me=g.white.username.toLowerCase()===user.toLowerCase()?"w":"b", opp=me==="w"?g.black.username:g.white.username;
+        try{ const d=await Analyzer.analyzeGame(g.pgn,{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>ST.cancel},pr=>{
+            const f=pr.phase==="moves"?0.85*(pr.i/(pr.n||1)):pr.phase==="threats"?0.85+0.15*(pr.i/(pr.n||1)):0, el=(performance.now()-t0)/1000, per=(k+f)>0.3?el/(k+f):null, left=per?Math.round(per*(list.length-k-f)):null;
+            ST.txt=`Game ${k+1} of ${list.length} (${g.time_class}, vs ${opp})${left!=null?` · about ${left<90?left+" s":Math.round(left/60)+" min"} left`:""}`; ST.pct=100*(k+f)/list.length; paintStudy(true); });
+          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn);
+          const acc=(d.summary.v7&&d.summary.v7[d.meta.user_color]&&d.summary.v7[d.meta.user_color].accuracy)||d.summary.accuracy||0;
+          ST.done.push({opp,tc:g.time_class,acc,url:g.url}); if(!ST.worst||acc<ST.worst.acc) ST.worst={acc,d,opp};
+        }catch(err){ if(String(err.message)==="cancelled") break; console.error(err); try{ eng.quit(); }catch(e){} eng=await ReviewApp.getEngine(true); } }
+      ST.pct=100; ST.txt=`Done: studied ${ST.done.length} new game${ST.done.length===1?"":"s"}${saved?` (skipped ${saved} already saved)`:""}.`; }
+  }catch(e){ console.error(e); ST.err=navigator.onLine===false?"You're offline.":"Couldn't reach Chess.com. Try again."; }
+  ST.run=false; ReviewApp.setRunning(false); ReviewApp.keepAwake(false); try{ if(window.Coach17&&Coach17._imp) Coach17._imp.pauseFor(false); }catch(e){}
+  paintStudy(); if(ST.worst&&curPage==="study") setTimeout(()=>openWorst(),900); }
+function openWorst(){ if(!ST.worst) return; try{ Coach17.hide(true); }catch(e){} curPage=null; try{ loadData(ST.worst.d); }catch(e){ console.error(e); } window.scrollTo(0,0); }
+function paintStudy(light){ const s=coachSec(); if(curPage!=="study"||!s) return;
+  if(light&&$("impStT")){ $("impStT").textContent=ST.txt; $("impStF").style.width=ST.pct.toFixed(1)+"%"; return; }
+  let h=pageHead("📚 Study my last 20 games")+`<p class="co17sm">I fetch your last <b>20 standard games</b> (rapid and daily first, blitz if needed, no Chess960), skip ones already studied, check each one, then open your <b>worst game</b> first.</p>`;
+  if(ST.err) h+=`<div class="box bad">${E(ST.err)}</div>`;
+  if(ST.run||ST.txt) h+=`<div class="box"><div id="impStT">${E(ST.txt)}</div><div style="height:10px;border-radius:5px;background:#e3e8ef;margin-top:8px;overflow:hidden"><i id="impStF" style="display:block;height:100%;width:${ST.pct}%;background:#3b6fb6"></i></div></div>`;
+  if(ST.run) h+=`<button class="cbtn full" id="impStC" style="text-align:center">⏹ Stop</button><p class="co17sm">Keep the app open. About 10–30 seconds per game on a phone.</p>`;
+  else h+=`<button class="cbtn full pri" id="impStGo" style="text-align:center;font-size:18px">▶ Study my last 20 games</button>`;
+  if(ST.done.length) h+=`<h3>Games studied</h3>`+ST.done.slice().sort((a,b)=>a.acc-b.acc).map((g,i)=>`<div class="box ${i===0?"bad":""}"><div class="row"><div><b>vs ${E(g.opp)}</b><br><small>${E(g.tc)}</small></div><div class="big">${Math.round(g.acc)}%</div></div></div>`).join("");
+  if(!ST.run&&ST.worst) h+=`<button class="cbtn full blue" id="impStW" style="text-align:center">🔎 Open my worst game (vs ${E(ST.worst.opp)})</button>`;
+  s.innerHTML=h; wireBack(s); const go=$("impStGo"); if(go) go.onclick=runStudy; const c=$("impStC"); if(c) c.onclick=()=>{ ST.cancel=true; }; const w=$("impStW"); if(w) w.onclick=openWorst; }
+addTile("study","📚","Study last 20 games","Rapid/daily first, worst game first",s=>paintStudy());
+
 /* ================= boot ================= */
-const API={_tp:turningPoint,openPage,_caught:caughtBy,_traps:trapHits};
+const API={_tp:turningPoint,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
 window.CRImp=API;
 function init(){ initHeadline(); initTiles(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(init,350)); else setTimeout(init,350);
