@@ -74,7 +74,8 @@ const TILES=[]; let curPage=null;
 function coachSec(){ return $("co17"); }
 function addTile(id,ic,t,sub,fn){ TILES.push({id,ic,t,sub,fn}); }
 function injectTiles(){ const s=coachSec(); if(!s) return; const g=s.querySelector(".co17grid"); if(!g) return;
-    TILES.forEach(T=>{ if(g.querySelector(`[data-imp="${T.id}"]`)) return; const b=document.createElement("button"); b.className="co17tile"; b.setAttribute("data-imp",T.id);
+  try{ dueBanner(); }catch(e){}
+  TILES.forEach(T=>{ if(g.querySelector(`[data-imp="${T.id}"]`)) return; const b=document.createElement("button"); b.className="co17tile"; b.setAttribute("data-imp",T.id);
     b.innerHTML=`<span class="ic">${T.ic}</span><b>${E(T.t)}</b><small>${typeof T.sub==="function"?T.sub():E(T.sub)}</small>`; b.onclick=()=>openPage(T.id); g.appendChild(b); }); }
 function openPage(id,arg){ const T=TILES.find(x=>x.id===id); if(!T||!window.Coach17) return; Coach17.open("home"); const s=coachSec(); if(!s) return;
   if(!$("imppcss")){ const st=document.createElement("style"); st.id="imppcss"; st.textContent=PCSS; document.head.appendChild(st); }
@@ -84,6 +85,7 @@ function wireBack(s){ s.querySelectorAll("[data-impback]").forEach(b=>b.onclick=
 function initTiles(){ const s=coachSec(); if(!s){ if((initTiles.n=(initTiles.n||0)+1)<40) setTimeout(initTiles,250); return; }
   let nav=0; s.addEventListener("click",e=>{ if(e.target.closest("[data-co],[data-trap],[data-imp],#co17today")) nav=Date.now(); },true);
   document.addEventListener("click",e=>{ if(e.target.closest("#homeBtn,#co17cb")) nav=Date.now(); },true);
+  if(window.Coach17&&!Coach17.__impw){ const o=Coach17.open; Coach17.open=function(){ nav=Date.now(); return o.apply(this,arguments); }; Coach17.__impw=1; }
   new MutationObserver(()=>{ if(!s.querySelector("[data-impback]")&&curPage){ const T=TILES.find(x=>x.id===curPage);
       if(T&&Date.now()-nav>1500&&s.classList.contains("on")&&s.querySelector(".co17grid")){ T.fn(s); return; } s.classList.remove("impP"); curPage=null; } injectTiles(); }).observe(s,{childList:true}); injectTiles(); }
 function recsSorted(){ const m=window.PatternStore?PatternStore.all():{}; return Object.values(m).sort((a,b)=>((b.date||"")+b.id).localeCompare((a.date||"")+a.id)); }
@@ -149,7 +151,10 @@ async function pick20(user){ const a=await (await fetch(`https://api.chess.com/p
   return {list,saved,mix:{good:Math.min(20,pool.good.length)}}; }
 async function runStudy(){ if(ST.run) return; const user=((window.CRUser&&CRUser.info())||{}).cc||(($("uname")||{}).value||"");
   if(!user){ ST.err="Add your Chess.com username on the home screen first."; paintStudy(); return; }
-  if(!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()){ ST.err="Another analysis is running. Try again when it finishes."; paintStudy(); return; }
+  if(!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()){ ST.run=true; ST.err=""; ST.txt="Waiting for the coach's background check to finish…"; ST.pct=0; paintStudy();
+    try{ if(window.Coach17&&Coach17._imp) Coach17._imp.cancel=true; }catch(e){}
+    for(let t=0;t<600&&ReviewApp.isRunning();t++) await new Promise(r=>setTimeout(r,1000)); ST.run=false;
+    if(ReviewApp.isRunning()){ ST.err="Another analysis is still running. Try again in a minute."; ST.txt=""; paintStudy(); return; } }
   Object.assign(ST,{run:true,cancel:false,txt:"Getting your games from Chess.com…",pct:1,done:[],err:"",worst:null}); paintStudy();
   ReviewApp.setRunning(true); ReviewApp.keepAwake(true); try{ if(window.Coach17&&Coach17._imp) Coach17._imp.pauseFor(true); }catch(e){}
   try{ const {list,saved}=await pick20(user); ST.skipped=saved; ST.found=list.length;
@@ -180,8 +185,56 @@ function paintStudy(light){ const s=coachSec(); if(curPage!=="study"||!s) return
   s.innerHTML=h; wireBack(s); const go=$("impStGo"); if(go) go.onclick=runStudy; const c=$("impStC"); if(c) c.onclick=()=>{ ST.cancel=true; }; const w=$("impStW"); if(w) w.onclick=openWorst; }
 addTile("study","📚","Study last 20 games","Rapid/daily first, worst game first",s=>paintStudy());
 
+/* ================= 3. Drill my top leak (spaced repetition 1/3/7 days) ================= */
+const DK="chessReview.imp.drill.v1", IVL=[1,3,7], DAY=864e5;
+const DRILLABLE=["hang","fell","miss","missmate","misstac","notrade","threat"];
+function drills(){ return LSg(DK,{items:{},log:[]}); }
+function dueList(){ const D=drills(), now=Date.now(); return Object.values(D.items).filter(x=>!x.grad&&x.due<=now); }
+function topLeak(){ if(!window.Patterns) return null; const recs=recsSorted(); if(!recs.length) return null; const A=Patterns.aggregate(recs);
+  const L=(A.ranked||[]).find(x=>DRILLABLE.includes(x.k)&&x.examples.some(e=>e.fen&&e.best&&e.uci&&e.best!==e.uci)); return L||null; }
+function buildQueue(){ const D=drills(), due=dueList(), L=topLeak(), q=due.slice(0,5);
+  if(L&&q.length<5){ for(const e of L.examples){ if(q.length>=5) break; if(!(e.fen&&e.best&&e.uci)||e.best===e.uci) continue; const id=e.fen+"|"+e.uci; if(D.items[id]) continue;
+      q.push({id,fen:e.fen,best:e.best,uci:e.uci,reply:e.reply||null,k:L.k,title:L.title,box:-1,due:0,isNew:true}); } }
+  return {q,L}; }
+function schedule(it,ok){ const D=drills(), x=D.items[it.id]||Object.assign({},it); delete x.isNew;
+  if(ok){ x.box=(x.box==null||x.box<0?1:x.box+1); if(x.box>=IVL.length){ x.grad=true; x.due=Infinity; } else x.due=Date.now()+IVL[x.box]*DAY; }
+  else { x.box=0; x.due=Date.now()+IVL[0]*DAY; x.grad=false; }
+  x.last=Date.now(); D.items[it.id]=x; D.log.push([Date.now(),ok?1:0]); D.log=D.log.slice(-300); LSs(DK,D); return x; }
+let DQ=null;
+function drillPage(s){ if(!DQ||DQ.fin) DQ=Object.assign(buildQueue(),{i:0,ok:0}); const {q,L}=DQ;
+  let h=pageHead("🛠 Drill my top leak");
+  if(!q.length){ h+=`<div class="box">${L?"Nothing due right now. Come back tomorrow! 🎉":"No studied games yet. Tap <b>📚 Study last 20 games</b> first, then come back."}</div>`; s.innerHTML=h; wireBack(s); return; }
+  if(DQ.i>=q.length){ DQ.fin=true; const nx=Object.values(drills().items).filter(x=>!x.grad).sort((a,b)=>a.due-b.due)[0];
+    h+=`<div class="box good"><b>Done! ${DQ.ok} of ${q.length} right.</b><br>Positions you missed come back <b>tomorrow</b>; ones you got right come back in 3 days, then 7 days.${nx?`<br><small>Next drill due: ${new Date(nx.due).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</small>`:""}</div>`;
+    s.innerHTML=h; wireBack(s); return; }
+  const it=q[DQ.i], G=new ChessLib.Chess(it.fen), me=G.turn(), boxTxt=it.box>=0?` · review ${it.box+1} of 3`:" · new";
+  h+=`<p class="co17sm">Your top leak: <b>${E(it.title||(L&&L.title)||"")}</b>. These positions are from <b>your own games</b>, one move before the mistake.</p>
+   <div class="co17msg" id="impDm">Position ${DQ.i+1} of ${q.length}${boxTxt}: what should you play as <b>${me==="w"?"White":"Black"}</b>?</div><div class="co17board" id="impDb"></div>
+   <div class="co17pz"><button class="cbtn" id="impDh">💡 Hint</button><button class="cbtn" id="impDs">Show answer</button><button class="cbtn pri" id="impDn" style="display:none">Next ▶</button></div><div id="impDx"></div>`;
+  s.innerHTML=h; wireBack(s); let done=false, hint=false, arrows=[];
+  const msg=t=>{ $("impDm").innerHTML=t; };
+  const finish=(ok,played)=>{ done=true; schedule(it,ok); if(ok) DQ.ok++; $("impDn").style.display=""; $("impDh").style.display="none"; $("impDs").style.display="none";
+    const bestSan=sanOf(it.fen,it.best), mySan=sanOf(it.fen,it.uci);
+    let x=""; if(!ok){ const fa=after(it.fen,played||it.uci); const c=new ChessLib.Chess(fa); let pun="";
+        try{ const rep=(played&&played!==it.uci)?null:it.reply; if(rep){ const m=c.move({from:rep.slice(0,2),to:rep.slice(2,4),promotion:rep[4]||"q"}); pun=`They answer <b>${E(m.san)}</b>${m.captured?` and take your ${PN[m.captured]}`:""}${c.isCheckmate()?": checkmate":""}.`; } }catch(e){}
+        x=`<div class="box bad">❌ In the game you played <b>${E(mySan)}</b>. ${pun||"That lets your opponent win something."}<br>✅ Better: <b>${E(bestSan)}</b> (green arrow). This one comes back <b>tomorrow</b>.</div>`;
+        arrows=[{u:it.uci,c:"#d32f2f"},{u:it.best,c:"#2f7d32"}]; if(it.reply) arrows.push({u:it.reply,c:"#ef6c00"}); }
+    else x=`<div class="box good">✅ Correct: <b>${E(bestSan)}</b>! In the game you played ${E(mySan)}. Next review in ${IVL[Math.min(IVL.length-1,(drills().items[it.id]||{}).box||0)]} day(s).</div>`;
+    $("impDx").innerHTML=x; redraw(); };
+  const extra=()=>({hl:hint&&!done?[{sq:it.best.slice(0,2),c:"#3b6fb6",o:.55}]:[],arrows});
+  const redraw=Coach17._tapBoard($("impDb"),G,me,(f,t,ms)=>{ if(done) return; const g2=new ChessLib.Chess(G.fen()); let m=null; try{ m=g2.move({from:f,to:t,promotion:"q"}); }catch(e){}
+      if(!m) return; const ok=(f+t)===it.best.slice(0,4)||g2.isCheckmate(); G.move({from:f,to:t,promotion:"q"});
+      if(ok){ msg("✅ Correct!"); } else { msg(`❌ ${E(m.san)} isn't it.`); } finish(ok&&!hint,f+t); },extra);
+  $("impDh").onclick=()=>{ hint=true; redraw(); msg("💡 Hint: move the highlighted piece. Check every capture and every threat first."); };
+  $("impDs").onclick=()=>{ msg("Answer shown."); finish(false,it.uci); };
+  $("impDn").onclick=()=>{ DQ.i++; drillPage(s); }; }
+addTile("drill","🛠","Drill my top leak",()=>{ const n=dueList().length; return n?`<b style="color:#c62828">${n} due today</b> · spaced review`:"Quiz from your own games"; },s=>{ DQ=null; drillPage(s); });
+function dueBanner(){ const s=coachSec(); if(!s) return; const g=s.querySelector(".co17grid"); if(!g||s.querySelector("#impDue")) return; const n=dueList().length; if(!n) return;
+  const d=document.createElement("button"); d.id="impDue"; d.className="cbtn full"; d.style.cssText="text-align:center;background:#fff3e0;border-color:#f0b44a;margin-top:10px";
+  d.innerHTML=`🛠 ${n} drill${n>1?"s":""} due today: tap to review`; d.onclick=()=>{ DQ=null; openPage("drill"); }; g.parentNode.insertBefore(d,g); }
+
 /* ================= boot ================= */
-const API={_tp:turningPoint,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
+const API={_tp:turningPoint,_dq:()=>DQ,_drills:drills,_due:dueList,_topLeak:topLeak,_sched:schedule,_study:ST,runStudy,openPage,_caught:caughtBy,_traps:trapHits};
 window.CRImp=API;
 function init(){ initHeadline(); initTiles(); (API._inits||[]).forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(init,350)); else setTimeout(init,350);
