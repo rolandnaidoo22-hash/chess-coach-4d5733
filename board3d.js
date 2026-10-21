@@ -44,7 +44,7 @@ function init(){
   const pm=new T.PMREMGenerator(R); ENV=pm.fromScene(roomEnv(),0.04).texture; pm.dispose();
   G.ivory=new T.MeshPhysicalMaterial({color:0xe2cc9f,roughness:.3,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:.85});
   G.ebony=new T.MeshPhysicalMaterial({color:0x221a16,roughness:.3,clearcoat:1,clearcoatRoughness:.07,envMapIntensity:1.1});
-  G.geo={}; "PNBRQK".split("").forEach(t=>G.geo[t]=pieceParts(t));
+  G.groove=new T.MeshStandardMaterial({color:0x140c08,roughness:.6}); G.geo={}; "PNBRQK".split("").forEach(t=>G.geo[t]=pieceParts(t));
   G.blob=new T.CanvasTexture(blobCanvas()); G.blob.colorSpace=T.SRGBColorSpace;
   G.glow=new T.CanvasTexture(blobCanvas("230,40,30")); 
   G.woodSq=woodSquares(); G.frameTex=new T.CanvasTexture(woodCanvas(512,512,[78,46,26],[52,29,15],9,true));
@@ -73,31 +73,33 @@ function woodSquares(){ const S=128, c=document.createElement("canvas"); c.width
   return c; }
 
 /* ---------- Staunton pieces (lathe profiles + sculpted knight) ---------- */
-function base(r){ return [[0,0],[r,0],[r,.035],[r*.97,.055],[r*.99,.075],[r*.9,.1],[r*.84,.115],[r*.86,.13],[r*.76,.15]]; }
+function base(r){ return [[0,0],[r,0],[r,.028],[r*.95,.042],[r*.975,.058],[r*.9,.075],[r*.8,.088],[r*.83,.1],[r*.83,.112],[r*.7,.13]]; }
 const PROF={
- P:base(.33).concat([[.2,.17],[.15,.22],[.115,.3],[.1,.38],[.165,.405],[.17,.43],[.1,.45],[0,.455]]),
- R:base(.36).concat([[.27,.17],[.235,.24],[.215,.4],[.22,.5],[.27,.54],[.285,.58],[.285,.66],[.2,.66],[.2,.62],[0,.62]]),
- N:base(.35).concat([[.27,.17],[.25,.2],[.26,.235],[0,.24]]),
- B:base(.34).concat([[.22,.17],[.155,.24],[.11,.36],[.095,.48],[.18,.51],[.185,.54],[.1,.56],[.125,.6],[.15,.67],[.14,.74],[.1,.8],[.05,.85],[0,.865]]),
- Q:base(.37).concat([[.255,.17],[.175,.26],[.125,.42],[.11,.6],[.2,.64],[.205,.67],[.12,.69],[.14,.73],[.2,.84],[.215,.875],[.17,.88],[.13,.9],[0,.91]]),
- K:base(.38).concat([[.265,.17],[.185,.27],[.135,.45],[.12,.66],[.215,.7],[.22,.73],[.13,.75],[.15,.8],[.205,.92],[.16,.94],[.1,.96],[.06,.99],[0,1.0]])};
-function lathe(pr){ return new T.LatheGeometry(pr.map(p=>new T.Vector2(p[0],p[1])),40); }
-function pieceParts(t){ const parts=[lathe(PROF[t])]; const sph=(r,y,x=0,z=0)=>{ const g=new T.SphereGeometry(r,24,16); g.translate(x,y,z); return g; };
-  if(t==="P") parts.push(sph(.14,.56));
-  if(t==="B"){ parts.push(sph(.045,.9)); }
-  if(t==="Q"){ for(let i=0;i<9;i++){ const a=i/9*Math.PI*2; parts.push(sph(.04,.9,Math.cos(a)*.18,Math.sin(a)*.18)); } parts.push(sph(.07,.97)); }
-  if(t==="K"){ const v=new T.BoxGeometry(.06,.24,.06); v.translate(0,1.1,0); const h=new T.BoxGeometry(.18,.06,.06); h.translate(0,1.13,0); parts.push(v,h); }
-  if(t==="R"){ for(let i=0;i<6;i++){ const a=i/6*Math.PI*2, b=new T.BoxGeometry(.075,.08,.1); b.rotateY(-a); b.translate(Math.cos(a)*.245,.70,Math.sin(a)*.245); parts.push(b); } }
-  if(t==="N"){ const s=new T.Shape(); const P=[[-.2,.22],[-.215,.42],[-.19,.6],[-.13,.75],[-.085,.86],[-.05,.97],[.0,.88],[.055,.84],[.15,.77],[.26,.66],[.32,.57],[.315,.5],[.25,.475],[.16,.5],[.08,.48],[.1,.4],[.17,.31],[.18,.22]];
+ P:base(.29).concat([[.165,.16],[.12,.205],[.09,.28],[.078,.35],[.145,.372],[.15,.392],[.09,.405],[.075,.42],[0,.425]]),
+ R:base(.32).concat([[.2,.16],[.165,.215],[.148,.3],[.145,.43],[.152,.48],[.2,.515],[.21,.54],[.185,.555],[.2,.575],[.205,.6],[.2,.715],[.15,.715],[.15,.67],[0,.67]]),
+ N:base(.31).concat([[.2,.16],[.175,.19],[.2,.215],[.2,.24],[.17,.25],[0,.25]]),
+ B:base(.3).concat([[.17,.16],[.12,.215],[.088,.32],[.07,.47],[.14,.497],[.146,.517],[.08,.53],[.15,.548],[.155,.568],[.085,.583],[.098,.61],[.13,.67],[.14,.72],[.125,.79],[.085,.85],[.04,.885],[0,.895]]),
+ Q:base(.33).concat([[.2,.16],[.14,.225],[.098,.36],[.08,.6],[.16,.632],[.166,.656],[.092,.672],[.152,.69],[.158,.71],[.09,.725],[.1,.755],[.14,.83],[.19,.935],[.175,.948],[.13,.952],[.1,.96],[0,.965]]),
+ K:base(.34).concat([[.21,.16],[.15,.23],[.108,.38],[.088,.68],[.17,.712],[.177,.737],[.1,.752],[.162,.768],[.168,.79],[.1,.805],[.108,.835],[.15,.905],[.178,.99],[.16,1.002],[.13,1.015],[.07,1.04],[.068,1.07],[.1,1.08],[.1,1.098],[0,1.1]])};
+function lathe(pr){ return new T.LatheGeometry(pr.map(p=>new T.Vector2(p[0],p[1])),44); }
+function pieceParts(t){ const parts=[lathe(PROF[t])]; const sph=(r,y,x=0,z=0)=>{ const g=new T.SphereGeometry(r,22,14); g.translate(x,y,z); return g; };
+  const ring=(n,rad,y,f)=>{ for(let i=0;i<n;i++){ const a=i/n*Math.PI*2; parts.push(f(a,Math.cos(a)*rad,y,Math.sin(a)*rad)); } };
+  if(t==="P") parts.push(sph(.122,.53));
+  if(t==="B"){ parts.push(sph(.038,.925)); const g2=new T.CylinderGeometry(.148,.148,.022,32); g2.rotateZ(-.62); g2.translate(.025,.75,0); g2.__groove=1; parts.push(g2); }
+  if(t==="Q"){ ring(9,.168,.985,(a,x,y,z)=>{ const c=new T.ConeGeometry(.03,.09,10); c.translate(x,y,z); return c; }); ring(9,.168,1.035,(a,x,y,z)=>sph(.022,y,x,z)); parts.push(sph(.052,1.0)); }
+  if(t==="K"){ const v=new T.BoxGeometry(.045,.24,.045); v.translate(0,1.2,0); const h=new T.BoxGeometry(.16,.045,.045); h.translate(0,1.24,0); parts.push(v,h); }
+  if(t==="R"){ ring(5,.176,.745,(a,x,y,z)=>{ const b=new T.BoxGeometry(.1,.06,.05); b.rotateY(-a+Math.PI/2); b.translate(x,y,z); return b; }); }
+  if(t==="N"){ const s=new T.Shape(); const P=[[-.165,.24],[-.185,.4],[-.17,.55],[-.13,.68],[-.095,.78],[-.072,.87],[-.05,.97],[-.02,.89],[.015,.935],[.035,.86],[.095,.81],[.18,.73],[.26,.635],[.3,.565],[.292,.51],[.25,.488],[.18,.505],[.115,.47],[.092,.41],[.125,.33],[.155,.24]];
     s.moveTo(P[0][0],P[0][1]); P.slice(1).forEach(p=>s.lineTo(p[0],p[1])); s.closePath();
-    const g=new T.ExtrudeGeometry(s,{depth:.15,bevelEnabled:true,bevelThickness:.06,bevelSize:.045,bevelSegments:4,curveSegments:8}); g.translate(0,0,-.075);
-    parts.push(g); const eye=sph(.03,.74,.11,.12); const eye2=sph(.03,.74,.11,-.12); parts.push(eye,eye2); }
+    const g=new T.ExtrudeGeometry(s,{depth:.11,bevelEnabled:true,bevelThickness:.05,bevelSize:.04,bevelSegments:4,curveSegments:8}); g.translate(0,0,-.055); parts.push(g);
+    for(let k=0;k<7;k++){ const u=k/6; parts.push(sph(.034,.42+u*.42,-.19+u*.11,0)); } // mane
+    parts.push(sph(.024,.73,.115,.085),sph(.024,.73,.115,-.085),sph(.018,.53,.28,.05),sph(.018,.53,.28,-.05)); } // eyes, nostrils
   return parts; }
 function makePiece(code,orient){ const t=code[1], white=code[0]==="w"; const g=new T.Group(); const mat=white?G.ivory:G.ebony;
-  G.geo[t].forEach(geo=>{ const m=new T.Mesh(geo,mat); m.castShadow=true; m.receiveShadow=true; g.add(m); });
+  G.geo[t].forEach(geo=>{ const m=new T.Mesh(geo,geo.__groove?G.groove:mat); m.userData.base=m.material; m.castShadow=true; m.receiveShadow=true; g.add(m); });
   if(t==="N"){ const faceUp=(white===(orient==="w")); g.rotation.y=faceUp?Math.PI/2:-Math.PI/2; }
   if(t==="B") g.rotation.y=Math.PI/4;
-  const s=1.22; g.scale.set(s,s,s); g.userData={code,mat}; return g; }
+  const s=1.2; g.scale.set(s,s,s); g.userData={code,mat}; return g; }
 
 /* ---------- a view per SVG board ---------- */
 const TOP=.361;
@@ -209,9 +211,9 @@ function update(v,first){ if(!v.on) return; const st=readSvg(v); const orientCha
   if(st.ov!==v.key||first){ v.key=st.ov; paintTop(v,st.ov); }
   req(v); }
 function addBlob(ob){ const m=new T.Mesh(new T.PlaneGeometry(.95,.95),new T.MeshBasicMaterial({map:G.blob,transparent:true,depthWrite:false,opacity:.8})); m.rotation.x=-Math.PI/2; m.position.y=.004; m.renderOrder=1; m.userData.blob=1; ob.add(m); }
-function setGlow(ob,on){ ob.children.forEach(m=>{ if(m.userData.blob) return; if(on){ if(!m.userData.gm){ m.userData.gm=m.material.clone(); m.userData.gm.emissive=new T.Color(0xd01c10); m.userData.gm.emissiveIntensity=.55; } m.material=m.userData.gm; } else if(m.userData.gm) m.material=ob.userData.mat; }); }
+function setGlow(ob,on){ ob.children.forEach(m=>{ if(m.userData.blob) return; if(on){ if(!m.userData.gm){ m.userData.gm=m.material.clone(); m.userData.gm.emissive=new T.Color(0xd01c10); m.userData.gm.emissiveIntensity=.55; } m.material=m.userData.gm; } else if(m.userData.gm) m.material=m.userData.base; }); }
 function fade(v,ob,a,b,ms,done){ const mats=[]; ob.children.forEach(m=>{ m.material=m.material.clone(); m.material.transparent=true; mats.push([m.material,m.material.opacity]); });
-  const y0=ob.position.y; anim(v,ms,t=>{ const o=a+(b-a)*t; mats.forEach(([m,o0])=>m.opacity=o0*o); if(b<a){ ob.position.y=y0-.15*t; ob.scale.setScalar(1.22*(1-.15*t)); } },()=>{ if(b>a) ob.children.forEach(m=>{ m.material=m.userData.blob?m.material:ob.userData.mat; if(m.userData.blob){ m.material.opacity=.8; } }); done&&done(); }); }
+  const y0=ob.position.y; anim(v,ms,t=>{ const o=a+(b-a)*t; mats.forEach(([m,o0])=>m.opacity=o0*o); if(b<a){ ob.position.y=y0-.15*t; ob.scale.setScalar(1.2*(1-.15*t)); } },()=>{ if(b>a) ob.children.forEach(m=>{ m.material=m.userData.blob?m.material:m.userData.base; if(m.userData.blob){ m.material.opacity=.8; } }); done&&done(); }); }
 function inCheck(P,orient){ const at=(i,j)=>{ const e=P.get(i+","+j); return e?e.code:null; }; const up=orient==="w"?-1:1;
   let res=null; P.forEach((e,k)=>{ if(e.code[1]!=="K") return; const col=e.code[0], [ki,kj]=k.split(",").map(Number), en=col==="w"?"b":"w";
     const hit=(c,types)=>c&&c[0]===en&&types.includes(c[1]);
@@ -254,7 +256,7 @@ const of=window.boardFrac; window.boardFrac=function(el,ev){ const v=B3D.views.g
 const oa=window.animatePiece; if(typeof oa==="function") window.animatePiece=function(u){ const b=document.getElementById("board"); if(b&&B3D.active(b)) return; return oa.apply(this,arguments); };
 B3D.test={frac:(svg,x,y)=>{ const v=B3D.views.get(svg); return v&&v.on?frac(v,{clientX:x,clientY:y}):null; },
   screenOf:(svg,sq)=>{ const v=B3D.views.get(svg); if(!v||!v.on) return null; const [i,j]=sq; const p=new T.Vector3(i-3.5,TOP+.02,j-3.5).project(v.cam); const r=v.cv.getBoundingClientRect(); return [r.left+(p.x+1)/2*r.width,r.top+(1-p.y)/2*r.height]; },
-  view:svg=>B3D.views.get(svg)};
+  view:svg=>B3D.views.get(svg),cam:(svg,pos,tg)=>{ const v=B3D.views.get(svg); v.cam.position.set(...pos); v.cam.lookAt(new T.Vector3(...tg)); v.cam.updateMatrixWorld(); frame(v); }};
 { const m=mode(); try{ localStorage.setItem("cr.pieces3d",m==="flat"?"0":"1"); }catch(e){} document.body.classList.toggle("p3d",m!=="flat"); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",flush); else flush();
 })();
