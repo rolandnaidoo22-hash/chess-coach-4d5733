@@ -1,15 +1,17 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chess Review – Privacy Policy</title>
 <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:auto;padding:20px;line-height:1.55;color:#222;background:#f4f1ea}h1{color:#262421}</style></head><body>
-<h1>Chess Review – Privacy Policy</h1><p><i>Last updated: 15 October 2026</i></p>
+<h1>Chess Review – Privacy Policy</h1><p><i>Last updated: 21 October 2026</i></p>
 <p>Chess Review ("the app") is a free chess-learning app by Prishen Naidoo. This policy explains what happens with your information.</p>
-<h2>What we collect</h2><p><b>Nothing.</b> The app has no accounts, no sign-in, no ads, no analytics and no tracking. We do not run a server that receives your data.</p>
-<h2>What stays on your device</h2><p>Your games, analysis, puzzle progress, streaks and settings are saved only in your phone's browser storage (local storage). You can delete them at any time by clearing the app's data or uninstalling the app.</p>
+<h2>What we collect</h2><p>The app has no accounts, no sign-in, no ads, no analytics and no tracking. We do not keep a database of users and do not sell or share personal data.</p>
+<h2>What stays on your device</h2><p>Your games, Stockfish analysis, puzzles and drills, streaks, rating goal, weekly scorecard, board style and other settings are saved only in your device's browser storage (local storage / cache). Chess analysis (Stockfish) runs on your device. You can delete everything at any time by clearing the app's data or uninstalling the app.</p>
 <h2>Services the app talks to</h2><ul>
-<li><b>Chess.com public API</b> (api.chess.com): if you type a Chess.com username, the app downloads that player's public games. Chess.com's own privacy policy applies to that request.</li>
-<li><b>Link games with a friend</b> (optional): uses the free PeerJS service (0.peerjs.com) only to connect two phones; the moves then go directly between the phones. Nothing is stored.</li>
-<li><b>unpkg.com</b>: the link-game and QR-code code libraries are downloaded from this public CDN when you first use link play.</li>
-<li><b>YouTube links</b> open YouTube; its privacy policy applies.</li></ul>
-<h2>Children</h2><p>The app does not collect personal information from anyone, including children.</p>
+<li><b>Chess.com public API</b> (api.chess.com): when you enter a Chess.com username, the app downloads that player's public games and public ratings. Chess.com's privacy policy applies.</li>
+<li><b>Lichess</b> (lichess.org): when you load a Lichess game link or open a Lichess puzzle/link, the app fetches public game data or opens lichess.org. Lichess's privacy policy applies.</li>
+<li><b>AI coach (optional)</b>: only if you tap the AI coach report button, the app sends a summary of that one game (moves, analysis results and your rating goal; no name, email or device identifiers) to our Cloudflare Worker proxy (chess-coach-grok.chess-review.workers.dev). The proxy forwards it to an AI model provider (xAI Grok, or Google Gemini) to write the report and returns the text. The proxy does not store the request; Cloudflare may keep short-lived technical logs (such as IP address) for rate limiting and security, and the AI provider processes the text under its own terms. If you never tap the button, nothing is sent.</li>
+<li><b>Play with a friend (optional)</b>: uses the free PeerJS service (0.peerjs.com) only to connect two devices; moves then go directly between them. Nothing is stored.</li>
+<li><b>unpkg.com</b>: some code libraries (link play, QR codes) are downloaded from this public CDN when first used.</li>
+<li><b>YouTube</b> links open YouTube; its privacy policy applies.</li></ul>
+<h2>Children</h2><p>The app does not knowingly collect personal information from anyone, including children.</p>
 <h2>Changes</h2><p>If this policy changes, the new version will be posted on this page.</p>
-<h2>Contact</h2><p>Questions: open an issue at <a href="https://github.com/rolandnaidoo22-hash/chess-review/issues">github.com/rolandnaidoo22-hash/chess-review</a>.</p>
+<h2>Contact</h2><p>Questions: open an issue at github.com/rolandnaidoo22-hash/chess-coach-4d5733.</p>
 </body></html>
