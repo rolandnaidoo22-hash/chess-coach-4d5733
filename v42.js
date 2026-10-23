@@ -205,3 +205,26 @@ function boot(){ const st=document.createElement("style"); st.textContent=CSS; d
 window.V42={level,attachPlay,toast,stats,openXP,openPuzzles,openCharts,podPuzzle,applyTheme,_q:{qBest,qWhy,qThreat}};
 try{ boot(); }catch(e){ console.error(e); }
 })();
+
+/* v43: reorder "Review a new game": username/side, online fetch, Lichess, then PGN paste */
+(function(){
+  function reorder(){
+    const pb=document.getElementById("pbody"), li=document.getElementById("li16"), fe=document.getElementById("bFetch");
+    if(!pb||!li||!fe) return false; if(pb.dataset.v43) return true;
+    const howto=pb.querySelector("ol.howto"), ta=document.getElementById("pgnIn"),
+      who=document.getElementById("uname").closest(".prow"), modes=pb.querySelector(".prow.modes"),
+      arow=document.getElementById("bAnalyze").closest(".prow"), fl=document.getElementById("fetchList");
+    const frow=document.createElement("div"); frow.className="prow"; frow.appendChild(fe);
+    const pgn=document.createElement("div"); pgn.className="v43pgn"; pgn.innerHTML='<b>📋 Paste a game (PGN)</b>';
+    [howto,ta,modes,arow].forEach(e=>e&&pgn.appendChild(e));
+    const first=pb.firstChild;
+    [who,frow,li,fl,pgn].forEach(e=>e&&pb.insertBefore(e,first));
+    pb.dataset.v43="1"; return true;
+  }
+  const st=document.createElement("style"); st.textContent=".v43pgn{margin-top:14px;padding-top:10px;border-top:1px solid rgba(0,0,0,.12)}.v43pgn>b{display:block;margin-bottom:6px}";
+  document.head.appendChild(st);
+  let n=0; (function tryIt(){ if(!reorder()&&n++<100) setTimeout(tryIt,100); })();
+})();
+
+/* v43: no empty strip under the screen title on any non-home screen */
+(function(){const s=document.createElement("style");s.textContent="body.hs-on:not(.hs-home) #hs{padding-bottom:4px!important}";document.head.appendChild(s);})();
