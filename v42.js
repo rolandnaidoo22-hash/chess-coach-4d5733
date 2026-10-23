@@ -228,3 +228,21 @@ try{ boot(); }catch(e){ console.error(e); }
 
 /* v43: no empty strip under the screen title on any non-home screen */
 (function(){const s=document.createElement("style");s.textContent="body.hs-on:not(.hs-home) #hs{padding-bottom:4px!important}";document.head.appendChild(s);})();
+
+/* v44: analysis progress bar pinned to the top while it runs, and scroll up to it */
+(function(){
+  const s=document.createElement("style");
+  s.textContent="#prog.progress.on{position:fixed;top:0;left:50%;transform:translateX(-50%);width:min(100%,760px);box-sizing:border-box;z-index:9000;margin:0;padding:10px 14px calc(10px);padding-top:calc(10px + env(safe-area-inset-top));background:var(--card,#fff);border-bottom:1px solid rgba(0,0,0,.15);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:0 0 12px 12px}"+
+    "body.v44an #hs{margin-top:var(--v44h,64px)}";
+  document.head.appendChild(s);
+  function hook(){
+    const p=document.getElementById("prog"); if(!p) return setTimeout(hook,200);
+    if(p.parentElement!==document.body) document.body.appendChild(p);
+    let was=false;
+    new MutationObserver(()=>{ const on=p.classList.contains("on");
+      document.body.classList.toggle("v44an",on);
+      if(on){ document.documentElement.style.setProperty("--v44h",(p.offsetHeight+4)+"px"); if(!was) window.scrollTo({top:0,behavior:"smooth"}); }
+      was=on; }).observe(p,{attributes:true,attributeFilter:["class"]});
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",hook); else hook();
+})();
