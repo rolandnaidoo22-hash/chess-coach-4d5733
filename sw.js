@@ -1,6 +1,6 @@
 // Chess Review service worker: keeps the app usable offline.
 // Page: network first (so updates show up), falling back to the cached copy when offline.
-const CACHE = "chess-review-v48";
+const CACHE = "chess-review-v49";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon.svg", "./icon-maskable-192.png", "./icon-maskable-512.png", "./apple-touch-icon.png", "./traps.js", "./imp.js", "./wish.js", "./learn.js", "./home.js", "./v42.js", "./assess.js", "./v46.js", "./v47.js", "./board3d.js", "./three.module.min.js", "./pieces.bin"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(ASSETS.map(a => c.add(a)))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
