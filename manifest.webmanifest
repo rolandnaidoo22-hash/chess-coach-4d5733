@@ -1,6 +1,6 @@
 {
- "name": "Chess coach app",
- "short_name": "Chess coach",
+ "name": "The Ultimate Chess App",
+ "short_name": "Ultimate Chess",
  "description": "Review your Chess.com or Lichess games: mistakes, best moves, practice lines and the BAD check. Works offline.",
  "start_url": "./",
  "scope": "./",
