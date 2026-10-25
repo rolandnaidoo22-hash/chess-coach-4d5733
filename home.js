@@ -50,7 +50,7 @@ function paint(){ const g=$("hsG"); if(!g) return; g.innerHTML=TILES.map(([id,i,
   g.querySelectorAll("[data-hs]").forEach(b=>b.onclick=()=>{ const x=TILES.find(t=>t[0]===b.dataset.hs); try{ x[4](); }catch(e){ console.error(e); } }); }
 function build(){ const w=document.querySelector(".wrap"); if(!w||$("hs")) return; const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
   const d=document.createElement("div"); d.id="hs";
-  d.innerHTML=`<div class="hsT"><h1><img src="icon-192.png" alt="" class="hsLogo"> The Ultimate Chess App <small>${typeof VERSION!=="undefined"?VERSION:""}</small></h1><p class="hsSub">Get better at chess with your own games.</p><div class="hsG" id="hsG"></div></div>
+  d.innerHTML=`<div class="hsT"><h1><img src="icon-192.png" alt="" class="hsLogo"> The Ultimate Chess App</h1><p class="hsSub">Get better at chess with your own games.</p><div class="hsG" id="hsG"></div></div>
    <div class="hsP"><div class="hsPh"><h2 id="hsPt"></h2><button type="button" id="hsBack">‹ Home</button></div></div>`;
   w.insertBefore(d,w.firstChild); $("hsBack").onclick=()=>goHome(); }
 function goHome(){ closeAll(); setMode("home"); try{ if(history.state&&history.state.hs) history.replaceState(null,""); }catch(e){} }
