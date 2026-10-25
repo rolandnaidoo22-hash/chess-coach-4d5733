@@ -137,7 +137,7 @@ function reasonBad(fenAfter,replyUci,mv){ const C=CH(); let why=[];
   if(mv&&mv.piece==="k"&&!mv.san.startsWith("O-O")) why.push("moving the king early loses the right to castle");
   if(replyUci){ try{ const c=new C(fenAfter); const r=c.move({from:replyUci.slice(0,2),to:replyUci.slice(2,4),promotion:replyUci[4]||"q"}); if(r&&r.captured) why.push(`it leaves your ${PN[r.captured]} on ${r.to} to be taken (${r.san})`); else if(r) why.push(`the opponent can answer with ${r.san}`); }catch(e){} }
   return why.length?why.join(", and ")+".":"it gives the opponent an easier game."; }
-async function engine(){ if(!window.ReviewApp) throw new Error("no engine"); if(ReviewApp.isRunning&&ReviewApp.isRunning()) throw new Error("busy"); return ReviewApp.getEngine(); }
+async function engine(){ if(!window.ReviewApp) throw new Error("no engine"); if(ReviewApp.isRunning&&ReviewApp.isRunning()&&!(window.CRBusy&&CRBusy.isMine())) throw new Error("busy"); return ReviewApp.getEngine(); }
 
 async function analyse(o){ const cache=LS.get(KW,{}), key=o.k+"|"+o.n; if(cache[key]) return cache[key];
   const C=CH(); const pos={}; // fen -> {ply, n, moves:{san:count}, games}
@@ -145,7 +145,7 @@ async function analyse(o){ const cache=LS.get(KW,{}), key=o.k+"|"+o.n; if(cache[
       if(turn===g.me){ const p=pos[k]=pos[k]||{fen:f,ply:i,n:0,moves:{},sc:0}; p.n++; p.moves[g.mv[i]]=(p.moves[g.mv[i]]||0)+1; p.sc+=g.sc; }
       let m=null; try{ m=c.move(g.mv[i]); }catch(e){} if(!m) break; } }
   const min=o.n>=6?2:1; const list=Object.values(pos).filter(p=>p.n>=min).sort((a,b)=>a.ply-b.ply||b.n-a.n).slice(0,14);
-  const E=await engine(); let found=null, worst=null;
+  let rel=null; if(window.CRBusy) rel=await CRBusy.acquire(); let E; try{ E=await engine(); }catch(e){ rel&&rel(); throw e; } let found=null, worst=null; try{
   for(let i=0;i<list.length;i++){ const p=list[i]; prog(true,`Checking your moves… ${i+1} of ${list.length}`,8+88*i/list.length);
     const san=Object.keys(p.moves).sort((a,b)=>p.moves[b]-p.moves[a])[0];
     const before=await E.analyse(p.fen,12,500,1); const bu=before.bm||before.pv[0]; if(!bu) continue;
@@ -155,7 +155,7 @@ async function analyse(o){ const cache=LS.get(KW,{}), key=o.k+"|"+o.n; if(cache[
     const c2=new C(p.fen); const bm=c2.move({from:bu.slice(0,2),to:bu.slice(2,4),promotion:bu[4]||"q"});
     const rec={fen:p.fen,ply:p.ply,n:p.n,san,count:p.moves[san],best:bm?bm.san:bu,loss:Math.round(loss),reply:after.bm||after.pv[0]||"",mv:{piece:mv.piece,san:mv.san,moveNo:mv.moveNo}};
     if(!worst||loss>worst.loss) worst=rec;
-    if(loss>=70){ found=rec; break; } }
+    if(loss>=70){ found=rec; break; } } } finally{ rel&&rel(); }
   const res=found||(worst&&worst.loss>=30?worst:null)||{none:true};
   if(res&&!res.none){ const C3=CH(); const c=new C3(res.fen); c.move(res.san); res.why=reasonBad(c.fen(),res.reply,res.mv); res.good=reasonBest(res.fen,res.best); }
   cache[key]=res; LS.set(KW,cache); return res; }

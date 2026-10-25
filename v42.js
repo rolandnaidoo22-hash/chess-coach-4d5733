@@ -113,7 +113,7 @@ function openCharts(sel){ const G=games(); const cls={}; G.forEach(g=>{ const c=
   d.querySelectorAll("#v42tc [data-c]").forEach(b=>b.onclick=()=>openCharts(b.dataset.c)); }
 
 /* ---------- 8. coach questions (built-in engine) ---------- */
-async function engine(){ if(!window.ReviewApp) throw new Error("no engine"); if(ReviewApp.isRunning&&ReviewApp.isRunning()) throw new Error("busy"); return ReviewApp.getEngine(); }
+async function engine(){ if(!window.ReviewApp) throw new Error("no engine"); if(window.CRBusy) return CRBusy.engine(); if(ReviewApp.isRunning&&ReviewApp.isRunning()) throw new Error("busy"); return ReviewApp.getEngine(); }
 const sv=sc=>!sc?0:sc.mate!=null?(sc.mate>0?10000-sc.mate*10:-10000-sc.mate*10):sc.cp;
 const PNm={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
 function sanOf(fen,u){ try{ const c=new (CH())(fen); return c.move({from:u.slice(0,2),to:u.slice(2,4),promotion:u[4]||"q"}).san; }catch(e){ return u; } }
