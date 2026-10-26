@@ -1,0 +1,4 @@
+stockfish.js and stockfish.wasm: Stockfish.js 19 (https://github.com/nmrugg/stockfish.js), single-threaded lite build,
+based on Stockfish (https://github.com/official-stockfish/Stockfish). Licensed under the GNU General Public License v3 (GPLv3).
+This is the same engine build that was already embedded in index.html, saved as separate files so the bots can run it in a Web Worker.
+Full licence text: https://www.gnu.org/licenses/gpl-3.0.txt  Source code: the links above.
