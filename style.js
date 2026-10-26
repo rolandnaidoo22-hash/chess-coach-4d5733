@@ -9,11 +9,15 @@ const PFX="chessReview.v52.style.", BOOKPLY=30, DAY=864e5, REFRESH=3*DAY, DEPTH=
 const key=f=>f.split(" ").slice(0,4).join(" ");
 const E_=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const MODELV=1;
+/* names never looked up (treated as not found) */
+const HIDE=["prishennaidoo"];
+const hidden=u=>HIDE.includes(String(u||"").trim().replace(/^@/,"").toLowerCase());
+window.CRHidden=hidden;
 const PRESET={corban:{user:"corban_hercules",name:"Corban",file:"corban-profile.json",sub:"Plays like Prishen's friend Corban"}};
 const G="#d4af37", D="#1b1712", L="#f3e3b0";
 const avatar=(letter,hat)=>`<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="${D}" stroke="${G}" stroke-width="2"/><circle cx="32" cy="26" r="11" fill="${G}"/>${hat?`<path d="M20 22q12-14 24 0l2 2H18z" fill="${L}"/><rect x="18" y="21" width="28" height="3" rx="1.5" fill="${L}"/>`:""}<path d="M16 58c0-11 7-17 16-17s16 6 16 17z" fill="${G}"/><text x="32" y="55" font-size="11" font-weight="800" text-anchor="middle" fill="${D}" font-family="sans-serif">${E_(letter)}</text></svg>`;
 /* ---------- storage ---------- */
-function load(user){ try{ return JSON.parse(localStorage.getItem(PFX+user.toLowerCase()))||null; }catch(e){ return null; } }
+function load(user){ if(hidden(user)) return null; try{ return JSON.parse(localStorage.getItem(PFX+user.toLowerCase()))||null; }catch(e){ return null; } }
 function save(d){ for(let t=0;t<4;t++){ try{ localStorage.setItem(PFX+d.user.toLowerCase(),JSON.stringify(d)); return true; }catch(e){ if(d.games.length<40) return false; const old=d.games.splice(0,Math.ceil(d.games.length*0.15)); old.forEach(g=>delete d.an[g.id]); } } return false; }
 function users(){ const out=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(PFX)) out.push(k.slice(PFX.length)); } return out; }
 /* ---------- fetch + parse public games ---------- */
@@ -123,6 +127,7 @@ async function addUser(user){ user=(user||"").trim().replace(/^@/,""); const p=U
   p.innerHTML=`<h2>👤 ${E_(user)}</h2><div id="ps52prog" class="card"><b id="ps52t">Looking up ${E_(user)}…</b><div style="height:10px;background:#eee;border-radius:5px;margin-top:6px;overflow:hidden"><i id="ps52f" style="display:block;height:100%;width:3%;background:#d4af37"></i></div></div><div class="row"><button class="bt" id="ps52back">‹ All bots</button></div>`;
   $("ps52back").onclick=()=>CRBots.open();
   const d={user,games:[],an:{},fetched:0,lastMonth:""};
+  if(hidden(user)){ if($("ps52t")) $("ps52t").textContent="⚠️ No player with that username."; return; }
   try{ await fetchGames(d,true,(t,f)=>{ $("ps52t")&&($("ps52t").textContent=t); $("ps52f")&&($("ps52f").style.width=Math.round(f*100)+"%"); }); }
   catch(e){ if($("ps52t")) $("ps52t").textContent="⚠️ "+e.message; return; }
   if(!d.games.length){ if($("ps52t")) $("ps52t").textContent="No public games found for this player."; return; }
