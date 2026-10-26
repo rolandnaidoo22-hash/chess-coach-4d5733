@@ -50,7 +50,8 @@ let G=null; // current game
 function list(){ const p=show("bots52"), R=LS.get(KR,{});
   p.innerHTML=`<h2>🤖 Play the bots</h2><p class="mute">Pick an opponent. Each bot has its own rating and style.</p>`+
    BOTS().map(b=>`<button class="lt" data-b="${b.id}"><span class="av">${b.avatar}</span><span><b>${E_(b.name)}</b><span class="elo">${b.elo}</span><small>${E_(b.style)}${b.adaptive&&window.CRUltimate?` · level ${CRUltimate.status().level} · ${CRUltimate.status().games} games learned`:""}</small><small>${E_(b.story)}</small></span>${R[b.id]?`<span class="tk">🏆 ${R[b.id]}</span>`:""}</button>`).join("");
-  p.querySelectorAll("[data-b]").forEach(x=>x.onclick=()=>pickSide(BOTS().find(b=>b.id===x.dataset.b))); }
+  p.querySelectorAll("[data-b]").forEach(x=>x.onclick=()=>{ const b=BOTS().find(b=>b.id===x.dataset.b); if(b.open) b.open(); else pickSide(b); });
+  if(window.CRStyle) CRStyle.listExtra(p); }
 function pickSide(bot){ const p=show("bots52");
   p.innerHTML=`<h2>${E_(bot.name)} <span class="elo">${bot.elo}</span></h2><div class="say"><span class="av">${bot.avatar}</span><span class="bub">${E_(bot.adaptive&&window.CRUltimate&&CRUltimate.inviteDue()?"I've studied the game you beat me in. Rematch?":bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned?"📓 What I learned: "+CRUltimate.status().learned:bot.chat.start[0])}</span></div>${bot.adaptive&&window.CRUltimate?`<p class="mute">Level ${CRUltimate.status().level} of 10 · ${CRUltimate.status().games} games learned · You ${CRUltimate.status().record.you} – ${CRUltimate.status().record.me} Ultimo. It adapts to your games, all on this phone.</p>`:""}
    <p class="mute">${E_(bot.story)}</p><h3>Play as</h3><div class="row"><button class="bt go" data-c="w">♔ White</button><button class="bt go" data-c="b">♚ Black</button><button class="bt" data-c="r">🎲 Random</button></div><div class="row"><button class="bt" id="b52back">‹ All bots</button></div>`;
@@ -64,7 +65,7 @@ function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.
   G={bot,me,g:new C(),sel:null,last:null,thinking:false,token:0,over:false};
   G.B=board($("b52bd"),tap); G.B.orient=me; say("start"); if(bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned) $("b52say").textContent="📓 "+CRUltimate.status().learned; draw();
   $("b52undo").onclick=undo; $("b52flip").onclick=()=>{ G.B.orient=G.B.orient==="w"?"b":"w"; draw(); };
-  $("b52new").onclick=()=>pickSide(bot); $("b52list").onclick=()=>{ G=null; list(); };
+  $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot); $("b52list").onclick=()=>{ G=null; list(); };
   try{ window.CRBotEngine&&CRBotEngine.boot().catch(()=>{}); }catch(e){}
   if(me==="b") botMove(); }
 function draw(){ if(!G) return; const g=G.g, hl=[];
@@ -85,7 +86,7 @@ function tap(sq){ if(!G||G.thinking||G.g.isGameOver()||G.g.turn()!==G.me) return
   const go=m=>{ const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
   if(c[0].promotion) promo(G.me,t=>{ if(t) go(c.find(m=>m.promotion===t)); else draw(); }); else go(c[0]); }
 async function botMove(){ const tok=++G.token, game=G; G.thinking=true; draw();
-  let m=null; try{ m=G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(G.g.fen(),G.g.history()):await CRBotEngine.move(G.g.fen(),G.bot,{history:G.g.history()}); }catch(e){ console.error(e); }
+  let m=null; try{ m=G.bot.pick?await G.bot.pick(G.g.fen(),G.g.history()):G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(G.g.fen(),G.g.history()):await CRBotEngine.move(G.g.fen(),G.bot,{history:G.g.history()}); }catch(e){ console.error(e); }
   if(G!==game||tok!==G.token) return; G.thinking=false; if(!m){ draw(); return; }
   const r=G.g.move({from:m.from,to:m.to,promotion:m.promotion||"q"}); G.last=r;
   if(G.g.isGameOver()) finish(); else if(m.blunder&&G.bot.chat.blunder&&Math.random()<.5) say("blunder"); else if(G.g.inCheck()) say("check"); else if(r.captured) say("capture");
@@ -95,5 +96,5 @@ function undo(){ if(!G||G.thinking) return; const g=G.g; G.token++; G.over=false
   if(g.history().length===0&&G.me==="b"){ /* bot moves first as White */ G.last=null; G.sel=null; draw(); botMove(); return; }
   const h=g.history({verbose:true}); G.last=h[h.length-1]||null; G.sel=null; draw(); }
 onClose(()=>{ if(G){ G.token++; G=null; } });
-window.CRBots={open:list,_rematch:()=>pickSide(BOTS().find(b=>b.adaptive)),_start:(id,c)=>start(BOTS().find(b=>b.id===id),c||"w"),_game:()=>G};
+window.CRBots={open:list,_startBot:start,_rematch:()=>pickSide(BOTS().find(b=>b.adaptive)),_start:(id,c)=>start(BOTS().find(b=>b.id===id),c||"w"),_game:()=>G};
 })();

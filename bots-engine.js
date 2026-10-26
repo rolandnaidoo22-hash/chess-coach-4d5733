@@ -13,13 +13,13 @@ function boot(){ if(ready) return ready;
     W.postMessage("uci"); setTimeout(()=>rej(new Error("engine timeout")),20000); });
   return ready; }
 /* ask Stockfish for its top `mpv` moves with scores (from the side to move), thinking at most `ms`. Resets MultiPV to 1 after. */
-function candidates(fen,mpv,ms){ const run=busy.then(()=>new Promise((res,rej)=>{ const got={};
+function candidates(fen,mpv,ms,depth){ const run=busy.then(()=>new Promise((res,rej)=>{ const got={};
   const to=setTimeout(()=>{ listener=null; W.postMessage("stop"); },ms+3000);
   listener=l=>{ if(l.startsWith("info")&&l.includes(" pv ")){ const k=+(/multipv (\d+)/.exec(l)||[0,1])[1], cp=/score cp (-?\d+)/.exec(l), mt=/score mate (-?\d+)/.exec(l), pv=/ pv (\S+)/.exec(l);
       if(pv) got[k]={uci:pv[1],score:mt?(+mt[1]>0?100000-+mt[1]:-100000-+mt[1]):+cp[1]}; }
     else if(l.startsWith("bestmove")){ clearTimeout(to); listener=null; W.postMessage("setoption name MultiPV value 1"); const b=l.split(" ")[1];
       const list=Object.keys(got).sort((a,b)=>a-b).map(k=>got[k]); if(!list.length&&b&&b!=="(none)") list.push({uci:b,score:0}); res(list); } };
-  W.postMessage("setoption name MultiPV value "+mpv); W.postMessage("position fen "+fen); W.postMessage("go movetime "+ms); }));
+  W.postMessage("setoption name MultiPV value "+mpv); W.postMessage("position fen "+fen); W.postMessage("go "+(depth?"depth "+depth+" ":"")+"movetime "+ms); }));
   busy=run.catch(()=>{}); return run; }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
