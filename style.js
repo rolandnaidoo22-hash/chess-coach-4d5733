@@ -13,7 +13,7 @@ const MODELV=1;
 const HIDE=["prishennaidoo"];
 const hidden=u=>HIDE.includes(String(u||"").trim().replace(/^@/,"").toLowerCase());
 window.CRHidden=hidden;
-const PRESET={corban:{user:"corban_hercules",name:"Corban",file:"corban-profile.json",sub:"Plays like Prishen's friend Corban"}};
+const PRESET={corban:{user:"corban_hercules",name:"Corban",file:"corban-profile.json",sub:"Plays like Corban"}};
 const G="#d4af37", D="#1b1712", L="#f3e3b0";
 const avatar=(letter,hat)=>`<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="${D}" stroke="${G}" stroke-width="2"/><circle cx="32" cy="26" r="11" fill="${G}"/>${hat?`<path d="M20 22q12-14 24 0l2 2H18z" fill="${L}"/><rect x="18" y="21" width="28" height="3" rx="1.5" fill="${L}"/>`:""}<path d="M16 58c0-11 7-17 16-17s16 6 16 17z" fill="${G}"/><text x="32" y="55" font-size="11" font-weight="800" text-anchor="middle" fill="${D}" font-family="sans-serif">${E_(letter)}</text></svg>`;
 /* ---------- storage ---------- */
