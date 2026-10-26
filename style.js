@@ -8,6 +8,7 @@ const $=id=>document.getElementById(id), U=()=>window.CR52, CH=()=>window.ChessL
 const PFX="chessReview.v52.style.", BOOKPLY=30, DAY=864e5, REFRESH=3*DAY, DEPTH=8;
 const key=f=>f.split(" ").slice(0,4).join(" ");
 const E_=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const MODELV=1;
 const PRESET={corban:{user:"corban_hercules",name:"Corban",file:"corban-profile.json",sub:"Plays like Prishen's friend Corban"}};
 const G="#d4af37", D="#1b1712", L="#f3e3b0";
 const avatar=(letter,hat)=>`<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="${D}" stroke="${G}" stroke-width="2"/><circle cx="32" cy="26" r="11" fill="${G}"/>${hat?`<path d="M20 22q12-14 24 0l2 2H18z" fill="${L}"/><rect x="18" y="21" width="28" height="3" rx="1.5" fill="${L}"/>`:""}<path d="M16 58c0-11 7-17 16-17s16 6 16 17z" fill="${G}"/><text x="32" y="55" font-size="11" font-weight="800" text-anchor="middle" fill="${D}" font-family="sans-serif">${E_(letter)}</text></svg>`;
@@ -47,13 +48,14 @@ function profile(d,ids){ const P={}, T={}; ["o","m","e"].forEach(p=>P[p]={n:0,su
   const tc={}; Object.keys(T).forEach(k=>tc[k]={n:T[k].n,acpl:T[k].n?Math.round(T[k].sum/T[k].n):0,blun:T[k].n?T[k].blun/T[k].n:0});
   return {open:f(P.o),mid:f(P.m),end:f(P.e),tc}; }
 /* ---------- the bot ---------- */
-const STR=[{id:0,label:"His style",scale:1,ms:350,depth:10},{id:1,label:"+200",scale:0.55,ms:600,depth:13},{id:2,label:"+400",scale:0.3,ms:900,depth:16}];
+const STR=[{id:0,label:"His style",scale:1,ms:350,depth:10,beta:0,T:0.6},{id:1,label:"+200",scale:0.55,ms:600,depth:13,beta:1.5,T:0.5},{id:2,label:"+400",scale:0.3,ms:900,depth:16,beta:4,T:0.4}];
 const pickW=o=>{ const e=Object.entries(o), tot=e.reduce((a,b)=>a+b[1],0); let r=Math.random()*tot; for(const [k,v] of e){ r-=v; if(r<=0) return k; } return e[0][0]; };
 function makePicker(d,strength,opt){ opt=opt||{}; const B=opt.book||book(d), P=opt.prof||profile(d), S=STR[strength||0];
   return async function(fen,history){ const C=CH(), g=new C(fen), side=g.turn(), t0=Date.now(), legal=g.moves({verbose:true}); if(!legal.length) return null;
     const wait=async m=>{ if(opt.noDelay) return m; const ms=600+Math.random()*1600-(Date.now()-t0); if(ms>0) await new Promise(r=>setTimeout(r,ms)); return m; };
     const ply=history.length, bk=ply<BOOKPLY&&B[side][key(fen)];
     if(bk&&Object.keys(bk).length&&(strength===0||Math.random()<0.8)){ const san=pickW(bk), m=legal.find(x=>x.san===san); if(m) return wait(Object.assign({book:true},m)); }
+    const M=opt.model||d.model; if(M&&window.CRStyleModel){ const r=await modelPick(M,fen,history,legal,S,opt); if(r) return wait(r); }
     const ph=P[{o:"open",m:"mid",e:"end"}[phaseOf(fen,ply)[0]]]||P.mid, sc=S.scale;
     const r=Math.random(), cat=r<ph.blun*sc?"blun":r<(ph.blun+ph.mist)*sc?"mist":r<(ph.blun+ph.mist+ph.inacc)*sc?"inacc":"best";
     let list=[]; try{ await CRBotEngine.boot(); list=await CRBotEngine.candidates(fen,5,opt.ms||S.ms,opt.depth||S.depth); }catch(e){}
@@ -64,6 +66,17 @@ function makePicker(d,strength,opt){ opt=opt||{}; const B=opt.book||book(d), P=o
     if(!pool.length&&cat==="blun"){ const h=CRBotEngine.hangingMoves(fen); if(h.length) return wait(Object.assign({cat,blunder:true},h[Math.floor(Math.random()*h.length)])); }
     if(!pool.length) pool=[cand[Math.min(cand.length-1,cat==="inacc"?1:cand.length-1)]];
     return wait(Object.assign({cat},pool[Math.floor(Math.random()*pool.length)].m)); }; }
+/* learned move-choice model (weights fitted on the box from the player's own analysed moves) */
+function mlpScore(M,X){ return X.map(x=>{ let s=0; for(let i=0;i<x.length;i++) s+=x[i]*M.wl[i]; for(let h=0;h<M.b1.length;h++){ let z=M.b1[h]; for(let i=0;i<x.length;i++) z+=x[i]*M.W1[i][h]; s+=Math.tanh(z)*M.w2[h]; } return s; }); }
+async function modelPick(M,fen,history,legal,S,opt){ const C=CH(); let list=[];
+  try{ await CRBotEngine.boot(); list=await CRBotEngine.candidates(fen,8,300,8); }catch(e){ return null; } if(!list.length) return null;
+  const best=list[0].score, cand={}; list.forEach((c,k)=>cand[c.uci]={rank:k+1,loss:Math.max(0,best-c.score)});
+  const r=new C(); const h=[]; for(const x of history){ let mv=null; try{ mv=r.move(x); }catch(e){} if(!mv) break; h.push(mv); }
+  const ply=history.length, ctx={phase:phaseOf(fen,ply)[0],ply,fast:!!opt.fast,oppLastTo:h.length?h[h.length-1].to:null,myLastTo:h.length>1?h[h.length-2].to:null};
+  const X=CRStyleModel.feats(C,fen,legal,cand,ctx); let s=mlpScore(M,X);
+  if(S.beta) s=s.map((v,i)=>v+S.beta*(X[i][0]*2-X[i][5]));
+  let k=0; if(opt.argmax) k=s.indexOf(Math.max(...s)); else { const p=CRStyleModel.softmax(s,S.T); let u=Math.random(); for(k=0;k<p.length-1;k++){ u-=p[k]; if(u<=0) break; } }
+  return Object.assign({cat:"model"},legal[k]); }
 /* ---------- background analysis (only games not analysed yet) ---------- */
 let running=null;
 function analyseAll(d,onP){ if(running) return running; running=(async()=>{ const todo=d.games.filter(g=>!d.an[g.id]); let k=0;
@@ -72,11 +85,13 @@ function analyseAll(d,onP){ if(running) return running; running=(async()=>{ cons
   d.prof=profile(d); save(d); running=null; })(); return running; }
 /* ---------- screens ---------- */
 function preset(id){ return PRESET[id]; }
-async function ensure(user,presetId){ let d=load(user); if(d) return d;
+async function ensure(user,presetId){ let d=load(user);
+  if(d&&presetId&&(d.modelV||0)<MODELV){ try{ const r=await fetch(PRESET[presetId].file); if(r.ok){ const f=await r.json(); d.model=f.model; d.modelV=f.modelV; save(d); } }catch(e){} }
+  if(d) return d;
   if(presetId){ try{ const r=await fetch(PRESET[presetId].file); if(r.ok){ d=await r.json(); d.user=PRESET[presetId].user; save(d); return d; } }catch(e){} }
   return null; }
 function botFor(d,strength,presetId){ const p=d.prof||profile(d), name=presetId?PRESET[presetId].name:d.user, el=avgElo(d);
-  return {id:presetId||"ps-"+d.user.toLowerCase(),name:name+(strength?" "+STR[strength].label:""),elo:el+(strength?200*strength:0),style:(presetId?"Plays like Corban":"Plays like "+d.user)+" · "+STR[strength].label,styleUser:d.user,
+  return {id:presetId||"ps-"+d.user.toLowerCase(),name:name+(strength?" "+STR[strength].label:""),elo:el+(strength?200*strength:0),style:(presetId?"Plays like Corban":"Plays like "+d.user)+" · "+(strength||presetId?STR[strength].label:"Their style"),styleUser:d.user,
     avatar:avatar((name[0]||"?").toUpperCase(),!!presetId),chat:{start:["Let's play. I'll play my usual openings."],capture:["Got one!"],check:["Check!"],lost:["Good game, you won."],won:["Good game!"],draw:["A draw."]},
     pick:makePicker(d,strength)}; }
 function avgElo(d){ const r=d.games.filter(g=>g.tc==="rapid"&&g.e).slice(-30); const a=(r.length?r:d.games.filter(g=>g.e).slice(-30)); return a.length?Math.round(a.reduce((s,g)=>s+g.e,0)/a.length/10)*10:0; }
@@ -91,7 +106,7 @@ async function open(user,presetId,note){ const p=U().show("bots52"); let d=await
   const name=presetId?PRESET[presetId].name:d.user, el=avgElo(d); let strength=+(U().LS.get(PFX+"str."+d.user.toLowerCase(),0));
   p.innerHTML=`<h2>${name} <span class="elo">${el}</span></h2><div class="say"><span class="av">${avatar((name[0]||"?").toUpperCase(),!!presetId)}</span><span class="bub">${presetId?"Plays the openings Corban plays, and slips up about as often as he does.":"Plays the openings this player plays, and slips up about as often as they do."}</span></div>
    <div id="ps52note" class="mute"></div><div id="ps52prog"></div><div id="ps52st">${statsHtml(d)}</div>
-   <h3>Strength</h3><div class="row" id="ps52s">${STR.map(s=>`<button class="bt ${s.id===strength?"go":""}" data-s="${s.id}">${s.label}</button>`).join("")}</div>
+   <h3>Strength</h3><div class="row" id="ps52s">${STR.map(s=>`<button class="bt ${s.id===strength?"go":""}" data-s="${s.id}">${s.id===0&&!presetId?"Their style":s.label}</button>`).join("")}</div>
    <h3>Play as</h3><div class="row"><button class="bt go" data-c="w">♔ White</button><button class="bt go" data-c="b">♚ Black</button></div><div class="row"><button class="bt" id="ps52back">‹ All bots</button>${presetId?"":`<button class="bt" id="ps52del">🗑 Remove</button>`}</div>`;
   p.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{ strength=+b.dataset.s; U().LS.set(PFX+"str."+d.user.toLowerCase(),strength); p.querySelectorAll("[data-s]").forEach(x=>x.classList.toggle("go",x===b)); });
   p.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>CRBots._startBot(botFor(d,strength,presetId),b.dataset.c));
@@ -124,15 +139,15 @@ function listExtra(p){ const known=users().filter(u=>!u.startsWith("str.")&&u!==
   story:"Learned from Corban's real games: his favourite openings and how often he slips up. Keeps learning as he plays.",
   avatar:avatar("C",true),chat:{start:[""]},open:()=>open(PRESET.corban.user,"corban")});
 /* holdout test helper (used by the test script): train on 85%, check how often the bot plays the player's real move on the other 15% */
-async function holdout(d,frac,maxOut){ const ids=d.games.map(g=>g.id), test=new Set(ids.filter((id,i)=>(i*7919)%100<frac*100)), train=new Set(ids.filter(i=>!test.has(i)));
-  const B=book(d,train), P=profile(d,train), pick=makePicker(d,0,{book:B,prof:P,noDelay:true,ms:250,depth:10}), C=CH();
+async function holdout(d,frac,maxOut,model){ const ids=d.games.map(g=>g.id), test=new Set(ids.filter((id,i)=>(i*7919)%100<frac*100)), train=new Set(ids.filter(i=>!test.has(i)));
+  const B=book(d,train), P=profile(d,train), o={book:B,prof:P,noDelay:true,ms:250,depth:10,model:model||null,argmax:!!model}, pick=makePicker(model?d:Object.assign({},d,{model:null}),0,o), C=CH();
   let bN=0,bTop=0,bSamp=0,oN=0,oHit=0,eHit=0,cov=0,tot=0;
-  for(const g of d.games){ if(!test.has(g.id)) continue; const ch=new C();
+  for(const g of d.games){ if(!test.has(g.id)) continue; const ch=new C(); o.fast=/bullet|blitz/.test(g.tc);
     for(let i=0;i<g.m.length;i++){ const side=i%2?"b":"w"; if(side===g.c){ const fen=ch.fen(), bk=i<BOOKPLY&&B[side][key(fen)];
         if(i<BOOKPLY) tot++;
         if(bk){ cov++; bN++; const e=Object.entries(bk).sort((a,b)=>b[1]-a[1]); if(e[0][0]===g.m[i]) bTop++; bSamp+=(bk[g.m[i]]||0)/e.reduce((s,x)=>s+x[1],0); }
         else if(oN<maxOut&&i>=6){ oN++; const m=await pick(fen,g.m.slice(0,i)); if(m&&m.san===g.m[i]) oHit++; const l=await CRBotEngine.candidates(fen,1,250,10); if(l[0]&&ch.moves({verbose:true}).some(x=>x.from+x.to+(x.promotion||"")===l[0].uci&&x.san===g.m[i])) eHit++; } }
       ch.move(g.m[i]); } }
   return {trainGames:train.size,testGames:test.size,bookPositionsTried:bN,bookTop1:bN?bTop/bN:0,bookSampled:bN?bSamp/bN:0,bookCoverage:tot?cov/tot:0,outOfBookTried:oN,outOfBookMatch:oN?oHit/oN:0,engineBestMatch:oN?eHit/oN:0}; }
-window.CRStyle={open,addUser,listExtra,load,save,fetchGames,analyseAll,analyseGame,book,profile,makePicker,holdout,parseGame,_STR:STR};
+window.CRStyle={_phase:(f,p)=>phaseOf(f,p)[0],open,addUser,listExtra,load,save,fetchGames,analyseAll,analyseGame,book,profile,makePicker,holdout,parseGame,_STR:STR};
 })();
