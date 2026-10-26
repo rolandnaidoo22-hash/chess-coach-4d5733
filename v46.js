@@ -68,7 +68,7 @@ async function getJSON(url){ const r=await fetch(url); if(r.status===404) throw 
 async function fetchGames(u,force){
   const c=LS.get(KC,null);
   if(!force&&c&&c.u===u.toLowerCase()&&Date.now()-c.t<6*3600e3) return c.games;
-  prog(true,"Finding your games on Chess.com…",5);
+  prog(true,"Finding your games…",5);
   const A=(await getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(u.toLowerCase())}/games/archives`)).archives||[];
   const months=A.slice(-12), out=[];
   for(let i=0;i<months.length;i++){ prog(true,`Downloading games… month ${i+1} of ${months.length}`,10+80*i/months.length);
@@ -94,10 +94,10 @@ function groups(G){ const m={}; G.forEach(g=>{ const k=g.me+"|"+g.name; (m[k]=m[
 let GAMES=null, GR=null;
 
 async function open(force){ const u=username();
-  if(!u){ const d=panel(`<div class="card"><h3>Who are you on Chess.com?</h3><p>Add your Chess.com username in ⚙ Settings first, then come back here.</p><button class="v46b pri full" id="v46gs">Go to Settings</button></div>`);
-    $("v46gs").onclick=()=>{ close(); CRHome.setMode("set",true); }; return; }
+  if(!u){ panel(`<div class="card" id="v46who">${window.CRAcct?CRAcct.form("v46ac","Who are you online?"):"<h3>Who are you online?</h3><p>Add a username in ⚙ Settings.</p>"}</div>`);
+    if(window.CRAcct) CRAcct.wire($("v46who"),()=>setTimeout(()=>open(true),400)); return; }
   panel(`<div class="card"><p>Loading your openings…</p></div>`);
-  try{ GAMES=await fetchGames(u,force); }catch(e){ prog(false); panel(`<div class="card"><h3>Couldn't load your games</h3><p>${e.message==="nouser"?`Chess.com doesn't know the username "${E_(u)}". Check it in Settings.`:"Check your internet connection and try again."}</p><button class="v46b pri full" id="v46rt">Try again</button></div>`); $("v46rt").onclick=()=>open(true); return; }
+  try{ GAMES=await fetchGames(u,force); }catch(e){ prog(false); panel(`<div class="card"><h3>Couldn't load your games</h3><p>${e.message==="nouser"?`We couldn't find the username "${E_(u)}". Check it in Settings.`:"Check your internet connection and try again."}</p><button class="v46b pri full" id="v46rt">Try again</button></div>`); $("v46rt").onclick=()=>open(true); return; }
   prog(false); render(u); }
 
 function render(u){ const G=GAMES; GR=groups(G);

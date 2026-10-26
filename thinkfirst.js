@@ -70,12 +70,12 @@ function reason0(P,u){ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)
 const clsOf=(P,u)=>{ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)===u.slice(0,4))]; return t?t[0]:"m"; };
 const tagOf=(P,u)=>{ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)===u.slice(0,4))]; return t?t[2]:"S"; };
 /* ---------- positions from the player's own reviewed games, checked live with the app's Stockfish ---------- */
-function ownMoments(){ const out=[]; try{ Object.values(window.PatternStore?PatternStore.all():{}).forEach(r=>(r.ev||[]).forEach(e=>{ if(e.fen&&e.best&&e.best!==e.uci&&/^(missmate|misstac|miss|hang|fell)$/.test(e.k)) out.push({id:r.id+"|"+e.ply,f:e.fen,best:e.best,k:e.k}); })); }catch(e){}
+function ownMoments(){ const out=[]; try{ Object.values(window.PatternStore?PatternStore.all():{}).forEach(r=>(r.ev||[]).forEach(e=>{ if(e.fen&&e.best&&e.best!==e.uci&&/^(missmate|misstac|miss|hang|fell)$/.test(e.k)) out.push({id:r.id+"|"+e.ply,f:e.fen,best:e.best,k:e.k,src:/lichess\.org/i.test(String(r.pgn||"").slice(0,400)+String(r.id||""))?"Lichess":""}); })); }catch(e){}
   const seen=new Set(); return out.filter(x=>{ const k=x.f.split(" ").slice(0,4).join(" "); if(seen.has(k)) return false; seen.add(k); return true; }); }
 async function liveCheck(o){ const E=window.CRBotEngine; await E.boot(); const g=new (CH())(o.f), me=g.turn(), n=Math.min(24,g.moves().length);
   const list=await E.candidates(o.f,n,2500); if(!list.length) return null; const best=list[0].score, m={};
   for(const x of list){ const d=best-x.score; const cls=(d<=30||(best>90000&&x.score>90000))?"b":(d<=120&&x.score>-150)?"g":"m"; let tg=x.score>90000?"M":x.score<-90000?"A":cls==="m"?"S":"F"; m[x.uci]=[cls,"",tg]; }
-  const P={id:"own:"+o.id,f:o.f,lm:"",lab:"From your game",best:list[0].uci,m,t:threatJS(o.f),own:true,live:true}; return P; }
+  const P={id:"own:"+o.id,f:o.f,lm:"",lab:o.src?"From your "+o.src+" game":"From your game",best:list[0].uci,m,t:threatJS(o.f),own:true,live:true}; return P; }
 async function liveReply(P,u){ if(!P.live) return; const t=P.m[u]; if(t&&t[0]!=="m") return; const E=window.CRBotEngine; const g=new (CH())(P.f); const m=vmove(P.f,u); g.move({from:m.from,to:m.to,promotion:m.promotion});
   try{ const r=await E.candidates(g.fen(),1,800); const x=r[0]; if(!x) return; const c=g.get(x.uci.slice(2,4)); const tg=x.score>90000?"A":(c&&VAL[c.type]>=1)?"L"+c.type:"S"; P.m[u]=["m",x.uci,tg]; }catch(e){} }
 /* ---------- state for one position ---------- */

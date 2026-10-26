@@ -150,12 +150,12 @@ async function pick20(user){ const a=await (await fetch(`https://api.chess.com/p
   let list=pool.good.slice(0,20); if(list.length<20) list=list.concat(pool.blitz.slice(0,20-list.length)); if(list.length<20) list=list.concat(pool.bullet.slice(0,20-list.length));
   return {list,saved,mix:{good:Math.min(20,pool.good.length)}}; }
 async function runStudy(){ if(ST.run) return; const user=((window.CRUser&&CRUser.info())||{}).cc||(($("uname")||{}).value||"");
-  if(!user){ ST.err="Add your Chess.com username on the home screen first."; paintStudy(); return; }
+  if(!user){ ST.err="Add your Chess.com or Lichess username in ⚙ Settings first."; paintStudy(); return; }
   if(!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()){ ST.run=true; ST.err=""; ST.txt="Waiting for the coach's background check to finish…"; ST.pct=0; paintStudy();
     try{ if(window.Coach17&&Coach17._imp) Coach17._imp.cancel=true; }catch(e){}
     for(let t=0;t<600&&ReviewApp.isRunning();t++) await new Promise(r=>setTimeout(r,1000)); ST.run=false;
     if(ReviewApp.isRunning()){ ST.err="Another analysis is still running. Try again in a minute."; ST.txt=""; paintStudy(); return; } }
-  Object.assign(ST,{run:true,cancel:false,txt:"Getting your games from Chess.com…",pct:1,done:[],err:"",worst:null}); paintStudy();
+  Object.assign(ST,{run:true,cancel:false,txt:"Getting your games…",pct:1,done:[],err:"",worst:null}); paintStudy();
   ReviewApp.setRunning(true); ReviewApp.keepAwake(true); try{ if(window.Coach17&&Coach17._imp) Coach17._imp.pauseFor(true); }catch(e){}
   try{ const {list,saved}=await pick20(user); ST.skipped=saved; ST.found=list.length;
     if(!list.length){ ST.txt=`All your recent games are already studied (${saved} saved).`; ST.pct=100; }
@@ -180,7 +180,7 @@ function paintStudy(light){ const s=coachSec(); if(curPage!=="study"||!s) return
   if(ST.run||ST.txt) h+=`<div class="box"><div id="impStT">${E(ST.txt)}</div><div style="height:10px;border-radius:5px;background:#e3e8ef;margin-top:8px;overflow:hidden"><i id="impStF" style="display:block;height:100%;width:${ST.pct}%;background:#3b6fb6"></i></div></div>`;
   if(ST.run) h+=`<button class="cbtn full" id="impStC" style="text-align:center">⏹ Stop</button><p class="co17sm">Keep the app open. About 10–30 seconds per game on a phone.</p>`;
   else h+=`<button class="cbtn full pri" id="impStGo" style="text-align:center;font-size:18px">▶ Study my last 20 games</button>`;
-  if(ST.done.length) h+=`<h3>Games studied</h3>`+ST.done.slice().sort((a,b)=>a.acc-b.acc).map((g,i)=>`<div class="box ${i===0?"bad":""}"><div class="row"><div><b>vs ${E(g.opp)}</b><br><small>${E(g.tc)}</small></div><div class="big">${Math.round(g.acc)}%</div></div></div>`).join("");
+  if(ST.done.length) h+=`<h3>Games studied</h3>`+ST.done.slice().sort((a,b)=>a.acc-b.acc).map((g,i)=>`<div class="box ${i===0?"bad":""}"><div class="row"><div><b>vs ${E(g.opp)}</b>${window.CRAcct?CRAcct.tag(g.url):""}<br><small>${E(g.tc)}</small></div><div class="big">${Math.round(g.acc)}%</div></div></div>`).join("");
   if(!ST.run&&ST.worst) h+=`<button class="cbtn full blue" id="impStW" style="text-align:center">🔎 Open my worst game (vs ${E(ST.worst.opp)})</button>`;
   s.innerHTML=h; wireBack(s); const go=$("impStGo"); if(go) go.onclick=runStudy; const c=$("impStC"); if(c) c.onclick=()=>{ ST.cancel=true; }; const w=$("impStW"); if(w) w.onclick=openWorst; }
 addTile("study","📚","Study last 20 games","Rapid/daily first, worst game first",s=>paintStudy());
