@@ -49,7 +49,7 @@ function autoHook(line,b){ const g=new (U().CH())(b.pos[b.pos.length-1]), mv=b.m
 function list(q){ const p=U().show("open52"), E_=U().E_;
   p.innerHTML=`<h2>♞ Learn openings</h2><p class="mute">Pick a line or search. Then step through it, learn the idea and drill it.</p>
    <input type="text" id="o52q" placeholder="Search, e.g. London or Scholar" value="${E_(q||"")}"><div id="o52l" style="margin-top:8px"></div>
-   <button class="lt" id="o52add"><span class="i">🔗</span><span><b>Learn a line from a video</b><small>Paste a YouTube link and the moves</small></span></button>`;
+   <button class="lt" id="o52add"><span class="i">🔗</span><span><b>Learn a line from a video</b><small>Paste a YouTube link. We find and check the moves</small></span></button>`;
   const paint=()=>{ const s=$("o52q").value.trim().toLowerCase(), L=all().filter(x=>!s||(x.name+" "+(x.tags||"")).toLowerCase().includes(s));
     $("o52l").innerHTML=L.map(x=>`<button class="lt" data-o="${E_(x.id)}"><span class="i">${x.icon||"🎬"}</span><span><b>${E_(x.name)}</b><small>${E_(x.sub||"")} · you play ${SIDE(x.side)}</small></span><span class="tk">${badge(x.id)}</span></button>`).join("")||`<p class="mute">Nothing found. Try another word, or add your own line below.</p>`;
     $("o52l").querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>view(all().find(x=>x.id===b.dataset.o),0)); };
@@ -132,13 +132,43 @@ function videoForm(pre){ pre=pre||{}; const p=U().show("open52"), E_=U().E_;
    <div class="row"><button class="bt go" data-s="w">I play White</button><button class="bt go" data-s="b">I play Black</button></div>
    <div class="msg no" id="o52e"></div><div id="o52f"></div><div class="row"><button class="bt" id="o52x">‹ All lines</button></div>`;
   $("o52x").onclick=()=>list();
+  $("o52t").placeholder="Leave empty and we'll try to find the moves from the video. Or type them, e.g. 1.d4 d5 2.Bf4";
   p.querySelectorAll("[data-s]").forEach(x=>x.onclick=()=>{ const link=$("o52u").value.trim(), txt=$("o52t").value; $("o52f").innerHTML="";
     if(!ytOk(link)){ $("o52e").textContent="Please paste a YouTube link (youtube.com or youtu.be)."; return; }
+    if(!txt.trim()){ $("o52e").textContent=""; return findMoves(link,x.dataset.s); }
     const r=check(txt); if(r.err){ $("o52e").textContent="⚠️ "+r.err+(r.at>=0?" Fix it and try again.":"");
       if(r.at>=0){ $("o52f").innerHTML=`<div class="card"><p class="mute" style="margin:0 0 4px">Your moves: ${r.toks.map((t,i)=>i===r.at?`<b style="color:#c62828;text-decoration:underline">${E_(t)}</b>`:E_(t)).join(" ")}</p><p class="mute">The board just before that move:</p><div class="bd" style="max-width:260px">${U().mini(r.fen,"w",{})}</div></div>`; } return; }
     const C=U().CH(), g=new C(), moves=r.sans.map((san,i)=>{ const before=g.fen(); const m=g.move(san); return [san,explain(m,before,g.fen(),i)]; });
     const line={id:"u"+Date.now(),name:$("o52n").value.trim()||("Video line: "+r.sans.slice(0,4).join(" ")),side:x.dataset.s,icon:"🎬",sub:`${r.sans.length} moves from a video`,link,moves,tags:"video my line"};
     line.hook=autoHook(line,build(line)); const L=mine(); L.push(line); U().LS.set(KU,L); view(line,0); }); }
+/* ---------- find the moves from the video's text (title, description, captions) ---------- */
+const VAPI=/workers\.dev$/.test(location.hostname)?"/api/moves":"https://chess-video-moves-preview.chess-review.workers.dev/api/moves";
+const PN={K:"King",Q:"Queen",R:"Rook",B:"Bishop",N:"Knight"};
+function words(san){ const s=san.replace(/[+#!?]/g,""); if(s==="O-O") return "Castle on the king side"; if(s==="O-O-O") return "Castle on the queen side";
+  const to=(s.match(/[a-h][1-8]/g)||[]).pop()||s, pc=PN[s[0]]||"Pawn", tk=s.includes("x"), pr=s.match(/=([QRBN])/i);
+  return `${pc} ${tk?"takes on":"to"} ${to}${pr?` and becomes a ${PN[pr[1].toUpperCase()]}`:""}${/#$/.test(san)?" (checkmate)":/\+$/.test(san)?" (check)":""}`; }
+function teach(link,side,sans,name){ const C=U().CH(), g=new C(), moves=sans.map((san,i)=>{ const before=g.fen(); const m=g.move(san); return [san,explain(m,before,g.fen(),i)]; });
+  const line={id:"u"+Date.now(),name:name||("Video line: "+sans.slice(0,4).join(" ")),side,icon:"🎬",sub:`${sans.length} moves from a video`,link,moves,tags:"video my line"};
+  line.hook=autoHook(line,build(line)); const L=mine(); L.push(line); U().LS.set(KU,L); view(line,0); }
+async function findMoves(link,side){ const E_=U().E_, f=$("o52f");
+  f.innerHTML=`<div class="card"><p>🔎 Reading the video's title, description and captions to find the moves…</p><p class="mute">This takes a few seconds. We only read the text. The video itself is never downloaded.</p></div>`;
+  let d; try{ const r=await fetch(VAPI,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:link})}); d=await r.json(); }catch(e){ d={error:"offline"}; }
+  const typeBox=msg=>{ f.innerHTML=`<div class="card"><p>${msg}</p><p class="mute">No problem. Type the moves in the Moves box above (for example 1.d4 d5 2.Bf4) and tap your side again. We'll check every move for you.</p></div>`; $("o52t").focus(); };
+  if(d.error==="offline") return typeBox("😕 We couldn't reach the internet just now.");
+  if(d.error) return typeBox(d.error==="busy"?"⏳ Lots of people are checking videos right now. Try again in a minute.":"😕 We couldn't open that video. It may be private or removed.");
+  if(!d.found||!d.moves.length) return typeBox(d.hadCaptions?`🙂 We read <b>${E_(d.title)}</b> but couldn't find the moves in its words. The moves are probably only shown on the board in the video.`:`🙂 We found <b>${E_(d.title)}</b>, but couldn't read what's said in it just now, and the moves aren't written in its description. You can try again in a minute.`);
+  const C=U().CH(), g=new C(), ok=[]; let bad=null;
+  for(let i=0;i<d.moves.length;i++){ const r=parseMove(g,d.moves[i]); if(!r.m){ bad={i,san:d.moves[i],why:r.why}; break; } g.move(r.m); ok.push(r.m.san); }
+  const nm=(d.opening||d.title).slice(0,60), who=i=>i%2?"Black":"White", num=i=>Math.floor(i/2)+1;
+  const list=ok.map((s,i)=>`<li><b>${num(i)}. ${who(i)}:</b> ${E_(words(s))}</li>`).join("")+(bad?`<li style="color:#c62828"><b>${num(bad.i)}. ${who(bad.i)}:</b> ${E_(words(bad.san))} ❌</li>`:"");
+  const verdict=bad?`<p class="msg no" style="display:block">⚠️ Move ${num(bad.i)} for ${who(bad.i)} (${E_(words(bad.san))}) isn't legal here: ${E_(bad.why)}.</p><p class="mute">The ${ok.length} move${ok.length===1?"":"s"} before it check out. Videos often skip the other side's reply, so this may be a gap in what was said rather than a mistake in the video. You can learn the ${ok.length} good move${ok.length===1?"":"s"}, or add the missing move in the box above.</p>`
+    :`<p class="msg ok" style="display:block">✅ All ${ok.length} moves check out. Every move is legal.</p>`;
+  f.innerHTML=`<div class="card"><p class="mute" style="margin:0">From the video: <b>${E_(d.title)}</b></p><h3 style="margin:8px 0 4px">${E_(nm)}</h3>${verdict}
+    <ol style="list-style:none;padding:0;margin:6px 0">${list}</ol><div class="bd" style="max-width:260px">${U().mini(g.fen(),side,{})}</div>
+    ${ok.length?`<div class="row"><button class="bt go" id="o53l">🎓 Learn this line</button></div>`:""}
+    <p class="mute" style="font-size:12px">Moves found by reading the video's text. Explanations are written by the app.</p></div>`;
+  $("o52t").value=ok.join(" ");
+  if(ok.length) $("o53l").onclick=()=>teach(link,side,ok,$("o52n").value.trim()||nm); }
 U().onClose(()=>{});
 window.CROpenings={open:list,_view:id=>view(all().find(x=>x.id===id),0),_hook:id=>hook(all().find(x=>x.id===id)),_drill:id=>drill(all().find(x=>x.id===id)),_check:check,_explain:explain,_video:videoForm};
 })();
