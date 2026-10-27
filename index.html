@@ -654,7 +654,7 @@ function show(){updateGraph();
   if(!thp&&BAD(p.cls)&&p.best_uci&&p.best_uci!==p.uci){const [f,t]=sqs(p.best_uci);arrows.push({from:f,to:t,color:"green"});}
   if(!thp&&tq&&thrAns[i]){arrows.push({from:tq.from,to:tq.sq,color:"red"});}
   drawBoard(p.fen,hl,arrows,checkSquare(p.fen,p.san),lastShown===i-1?p.uci:null);drawEval(p.eval);drawPlayers(i,p.color==="w"?"b":"w");}
- lastShown=i;drawCard();markList();
+ lastShown=i;drawCard();try{reviewIdeas(i);}catch(e){console.warn(e);}markList();
  $("bFirst").disabled=$("bPrev").disabled=i===0;$("bNext").disabled=$("bLast").disabled=i===P.length;
  $("trybar").classList.remove("on");$("pbanner").classList.remove("on");document.body.classList.remove("practice");}
 
@@ -687,6 +687,12 @@ function hopeBadge(i){if(!window.Trainer)return "";const H=Trainer.hopeForData(D
  return `<div class="hopeb"><b>🙏 Hope move</b> You hoped your opponent wouldn't see ${q&&q.best_san?`<b>${esc(q.best_san)}</b>`:"their best reply"}. Real chess = check their best reply before you move. <button class="btn" onclick="Trainer.open('methods',{id:'hope'})">Learn</button></div>`;}
 function playItOut(){const fen=cur===0?DATA.start_fen:(tryS?(tryS.step?tryS.steps[tryS.step-1].fen:tryS.start):P[cur-1].fen);
  const label=cur===0?"from the start":(tryS?"from the practice line":"after "+P[cur-1].label);if(window.Trainer)Trainer.open("play",{fen,me:UC,from:"Starting "+label+".",back:true});}
+function reviewIdeas(i){ if(!window.CRIdeas||!i||tryS)return; const p=P[i-1]; if(!p||!p.user||!p.fen_before||!p.uci||threatPending(i))return;
+ const c=$("movecard"); if(!c)return; const box=document.createElement("div"); box.id="rvIdeas"; const act=c.querySelector(".actions"); if(act)act.before(box); else c.appendChild(box);
+ const G=[]; if(p.best_uci&&p.best_uci.slice(0,4)!==p.uci.slice(0,4)) G.push({fen:p.fen_before,uci:p.best_uci,title:"Why "+(p.best_san||"the better move"),sub:"the better move"});
+ G.push({fen:p.fen_before,uci:p.uci,title:"Why "+p.san,sub:G.length?"your move":"your move, also the engine's choice"});
+ let saved=null; CRIdeas.mount(box,G,(after,x,g)=>{ const b=$("board"); if(!after){ if(saved!=null){ b.innerHTML=saved; saved=null; } return; }
+  if(saved==null) saved=b.innerHTML; drawBoard(after,sqs(g.uci),[]); b.innerHTML+=CRIdeas.svg(x.a,center); }); }
 function drawCard(){const i=cur,c=$("movecard");thrTries=thrTries&&lastThrI===i?thrTries:0;lastThrI=i;
  if(i===0){c.innerHTML=`<div class="top"><span class="mv">Start</span></div>
   <p class="expl">This replays your game against <b>${esc(UC==="w"?M.black:M.white)}</b> move by move. Each of your moves gets a grade and a short explanation. The <b style="color:#3b6fb6">blue squares</b> show the move that was played. When a move wasn't the best, a <b style="color:var(--best)">green arrow</b> shows the better move, and the <b style="background:#f5c518;padding:0 4px;border-radius:4px">yellow Try the better move</b> button plays it out as a practice line. Anything yellow is practice, not your real game.</p>
@@ -4852,9 +4858,10 @@ async function analyzeGame(pgnText, opts, progress){
     if(gain>=150){ const tr=play(nf,r.pv[0]); if(tr) p.threat={uci:r.pv[0],san:tr.m.san,gain:Math.round(gain),mate:r.score.mate!=null}; }
   }
   progress({phase:"build",i:1,n:1,t:performance.now()-t0});
-  const opening=h.ECOUrl?h.ECOUrl.split("/").pop().replace(/-/g," "):(h.Opening||"");
+  const _ob=(window.CRECO&&(!g.startFen||/^rnbqkbnr\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/RNBQKBNR w/.test(g.startFen)))?CRECO.lookup(plies.map(p=>p.san)):null;
+  const opening=_ob?_ob.name:h.ECOUrl?h.ECOUrl.split("/").pop().replace(/-/g," "):(h.Opening||"");
   const data={meta:{white,black,white_elo:h.WhiteElo||"",black_elo:h.BlackElo||"",result:h.Result||"*",date:(h.Date||"").replace(/\./g,"-"),
-      termination:h.Termination||"",opening,eco:opening?(h.ECO||""):"",link:h.Link||h.Site||"",depth:`${mode.label} (in-browser Stockfish, depth ≤${mode.depth})`,
+      termination:h.Termination||"",opening,eco:_ob?_ob.eco:opening?(h.ECO||""):"",link:h.Link||h.Site||"",depth:`${mode.label} (in-browser Stockfish, depth ≤${mode.depth})`,
       user_color:user,title:`Game review: ${white} vs ${black}`,source:"browser",time_control:h.TimeControl||""},
     start_fen:g.startFen,plies,summary:{}};
   finishData(data);
@@ -10138,7 +10145,9 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script src="v47.js?v=52"></script>
 <script src="bots-data.js?v=52"></script>
 <script src="ultimate.js?v=52"></script>
-<script src="bots-engine.js?v=52"></script>
+<script src="bots-engine.js?v=54i"></script>
+<script src="ideas.js?v=54i"></script>
+<script src="openings-names.js?v=54i"></script>
 <script src="bots.js?v=52"></script>
 <script src="style-model.js?v=52"></script>
 <script src="style.js?v=52b"></script>

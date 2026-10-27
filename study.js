@@ -25,13 +25,13 @@ function fromChessCom(g,user){ if(!g.pgn||(g.rules&&g.rules!=="chess")) return n
   const me=c==="w"?g.white:g.black, op=c==="w"?g.black:g.white, P=parsePgn(g.pgn);
   const res=me.result==="win"?1:/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(me.result)?0.5:0;
   const why=res===1?op.result:me.result, how=res===0.5?"draw":why==="timeout"?"time":why==="resigned"?"resign":why==="checkmated"?"mate":why==="abandoned"?"abandon":"other";
-  return rec("c",g.url||String(g.end_time),c,g.time_class||"?",res,how,me.rating,op.rating,(g.end_time||0)*1000,P,P.H.Opening||slugName(P.H.ECOUrl)); }
+  return rec("c",g.url||String(g.end_time),c,g.time_class||"?",res,how,me.rating,op.rating,(g.end_time||0)*1000,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||P.H.Opening||slugName(P.H.ECOUrl)); }
 function fromLichess(pgn,user){ const P=parsePgn(pgn), H=P.H, u=user.toLowerCase(); if(H.Variant&&H.Variant!=="Standard") return null;
   const c=(H.White||"").toLowerCase()===u?"w":(H.Black||"").toLowerCase()===u?"b":null; if(!c) return null;
   const res=H.Result==="1/2-1/2"?0.5:(H.Result==="1-0")===(c==="w")?1:0, last=P.sans[P.sans.length-1]||"";
   const how=res===0.5?"draw":H.Termination==="Time forfeit"?"time":H.Termination==="Abandoned"?"abandon":/#$/.test(last)?"mate":H.Termination==="Normal"?"resign":"other";
   const t=Date.parse((H.UTCDate||"").replace(/\./g,"-")+"T"+(H.UTCTime||"00:00:00")+"Z")||0;
-  return rec("l",H.Site||H.GameId||String(t),c,tcOf(H.TimeControl),res,how,c==="w"?H.WhiteElo:H.BlackElo,c==="w"?H.BlackElo:H.WhiteElo,t,P,H.Opening||""); }
+  return rec("l",H.Site||H.GameId||String(t),c,tcOf(H.TimeControl),res,how,c==="w"?H.WhiteElo:H.BlackElo,c==="w"?H.BlackElo:H.WhiteElo,t,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||H.Opening||""); }
 /* ---------- fetch (public games only) ---------- */
 async function getJ(u,site){ const r=await fetch(u,{cache:"no-store"}); if(r.status===404) throw new Error(`No ${site} player with that name.`); if(r.status===429) throw new Error(`${site} is busy right now. Try again in a minute.`); if(!r.ok) throw new Error(`Couldn't reach ${site} (${r.status}).`); return r.json(); }
 async function fetchChessCom(user,onP){ if(window.CRHidden&&CRHidden(user)) throw new Error("No Chess.com player with that name."); const a=((await getJ(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`,"Chess.com")).archives||[]).slice().reverse(), out=[];
@@ -143,7 +143,7 @@ function paint(d){ const p=U().show("study52"), R=report(d), y=window.scrollY;
   p.innerHTML=`<div id="st52rep" data-u="${E_(d.user+d.src)}"><h2>🔍 ${E_(d.user)}</h2>
    <div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px">${Object.entries(R.rat).map(([k,v])=>`<span class="elo" style="font-size:13px">${E_(k)} ${v}</span>`).join("")}</div>
     <div style="margin-top:6px"><b>${R.n} games</b> · won ${pct(R.w/R.n)} · drew ${pct(R.dr/R.n)} · lost ${pct(R.l/R.n)}</div>${wdl}
-    <div class="mute">From public games on ${d.src.split("").map(x=>SITE[x]).join(" and ")}. Last updated ${new Date(d.fetched).toLocaleDateString()}.</div>${(d.notes||[]).length?`<div class="no" style="font-size:13px">${E_(d.notes.join(" "))}</div>`:""}<div id="st52pr">${progBar(d)}</div></div>
+    <div class="mute">From public games on ${d.src.split("").map(x=>SITE[x]).join(" and ")}. Last updated ${new Date(d.fetched).toLocaleDateString()}.${window.CRECO?" "+CRECO.credit:""}</div>${(d.notes||[]).length?`<div class="no" style="font-size:13px">${E_(d.notes.join(" "))}</div>`:""}<div id="st52pr">${progBar(d)}</div></div>
    ${sec("♔ As White they usually play",R.white,"w")}
    ${R.vsE4.length?sec(`♚ As Black against the king's pawn (1.e4) <small class="mute">${R.vsE4N} games</small>`,R.vsE4,"b"):""}
    ${R.vsD4.length?sec(`♚ As Black against the queen's pawn (1.d4) <small class="mute">${R.vsD4N} games</small>`,R.vsD4,"b"):""}

@@ -227,7 +227,11 @@ async function finish(P,u,said){ if(W.st.s4!=null) return; stopTimer(); W.st.s4=
   const up=record({id:P.id,ms:Date.now()-W.t0,s1:s.s1,s2:s.s2,s3:s.s3,s4:s.s4,cls,hung:hungNow?1:0,lvl:W.lvl,cleanCX:s.cx,cats:s.cats,def:!!P.isDef});
   if(W.sess) sessNote({s1:s.s1,def:P.isDef,ok:cls!=="m",cats:s.cats});
   if(up) $("tfOut").insertAdjacentHTML("afterbegin",`<div class="card tfup">🎉 <b>Level up! You reached Level ${up}: ${LV[up]}.</b> 10 positions in a row with no missed check or capture.</div>`);
-  $("tfN").onclick=next; $("tfH").onclick=()=>{ W.sess=null; open(); }; $("tfOut").scrollIntoView({block:"nearest",behavior:"smooth"}); }
+  if(window.CRIdeas){ const box=document.createElement("div"); box.className="card"; box.id="tfIdeas"; const row=$("tfOut").querySelector(".row"); $("tfOut").insertBefore(box,row);
+    const G=[]; if(P.best&&P.best.slice(0,4)!==u.slice(0,4)) G.push({fen:P.f,uci:P.best,title:"Why "+phrase(P.f,P.best),sub:"the best move"});
+    G.push({fen:P.f,uci:u,title:"Why "+phrase(P.f,u),sub:G.length?"your move":"your move, the best one"});
+    CRIdeas.mount(box,G,(af,x,g)=>{ if(!af){ B.draw(P.f,{arrows}); return; } B.draw(af,{arrows:x.a,hl:[{sq:g.uci.slice(0,2),c:"#f2d35b",o:.45},{sq:g.uci.slice(2,4),c:"#f2d35b",o:.55}]}); }); }
+$("tfN").onclick=next; $("tfH").onclick=()=>{ W.sess=null; open(); }; $("tfOut").scrollIntoView({block:"nearest",behavior:"smooth"}); }
 /* ---------- Level 3: silent ---------- */
 function silent(P){ const p=page(), g=new (CH())(P.f), me=g.turn(); let sel=null, paused=false;
   p.innerHTML=`${head(P,0)}<p class="tfq">Your move.</p><p class="mute">${P.lm?`They just played ${phrase(fenBefore(P),P.lm)}.`:""} Think it through, then move.</p><div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
@@ -308,5 +312,5 @@ const CSS=`#tf54 .tfh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;mar
 html.dark-mode .tfstats div,html.dark-mode .tfchip:not(.on),html.dark-mode .tfcnt span{background:#262626;color:#eee}html.dark-mode .tftray{background:#1d2633}html.dark-mode .tfpause,html.dark-mode .tfup,html.dark-mode .tfdef{background:#2a2a2a!important}`;
 { const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); }
 try{ U().onClose(()=>{ stopTimer(); }); }catch(e){}
-window.CRThink={open,sub,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
+window.CRThink={open,sub,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_finish:u=>{ W.st=Object.assign({marked:[],tray:[],F:[],cats:[]},W.st,{s4:null}); step4(W.P); W.st.s4=null; return finish(W.P,u,null); },_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
 })();

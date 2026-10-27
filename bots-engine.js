@@ -52,5 +52,13 @@ async function move(fen,bot,opt){ opt=opt||{}; const C=CH(), g=new C(fen), legal
   const top=Math.max(...scored.map(x=>x.s)); const w=scored.map(x=>Math.exp((x.s-top)/T)); let r=Math.random()*w.reduce((a,b)=>a+b,0);
   for(let i=0;i<scored.length;i++){ r-=w[i]; if(r<=0) return done(scored[i].m); }
   return done(scored[0].m); }
-window.CRBotEngine={move,boot,candidates,hangingMoves};
+/* principal variation for the side to move: {pv:[uci...], score} (score from the side to move) */
+function line(fen,ms,depth){ const run=busy.then(()=>new Promise(res=>{ let best={pv:[],score:0};
+  const to=setTimeout(()=>{ W.postMessage("stop"); },ms+3000);
+  listener=l=>{ if(l.startsWith("info")&&l.includes(" pv ")&&!/multipv [2-9]/.test(l)){ const cp=/score cp (-?\d+)/.exec(l), mt=/score mate (-?\d+)/.exec(l), pv=/ pv (.+)$/.exec(l);
+      if(pv) best={pv:pv[1].trim().split(/\s+/),score:mt?(+mt[1]>0?100000-+mt[1]:-100000-+mt[1]):cp?+cp[1]:0,mate:mt?+mt[1]:0}; }
+    else if(l.startsWith("bestmove")){ clearTimeout(to); listener=null; const b=l.split(" ")[1]; if(!best.pv.length&&b&&b!=="(none)") best.pv=[b]; res(best); } };
+  W.postMessage("setoption name MultiPV value 1"); W.postMessage("position fen "+fen); W.postMessage("go "+(depth?"depth "+depth+" ":"")+"movetime "+ms); }));
+  busy=run.catch(()=>{}); return run; }
+window.CRBotEngine={move,boot,candidates,hangingMoves,line};
 })();

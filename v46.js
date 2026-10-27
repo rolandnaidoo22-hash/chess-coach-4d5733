@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id), B=document.body;
 const LS={get:(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } },set:(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }};
 const E_=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const CH=()=>window.ChessLib&&window.ChessLib.Chess||window.Chess;
-const KS="chessReview.v46.engine", KC="chessReview.v46.openCache", KW="chessReview.v46.wrong";
+const KS="chessReview.v46.engine", KC="chessReview.v46.openCache2", KW="chessReview.v46.wrong";
 
 /* ================= Analysis strength ================= */
 const STR={quick:{label:"Quick",ms:2000,d:16,rev:{depth:14,time:1000,tdepth:11,ttime:300}},
@@ -54,7 +54,7 @@ html.dark-mode #v46 .card,html.dark-mode .v46op,html.dark-mode .v46b:not(.pri),h
 function prog(on,txt,pct){ let p=$("v46prog"); if(!p){ p=document.createElement("div"); p.id="v46prog"; p.innerHTML=`<div id="v46pt"></div><div class="pb"><i id="v46pf"></i></div>`; B.appendChild(p); }
   p.classList.toggle("on",!!on); B.classList.toggle("v46an",!!on); if(txt!=null) $("v46pt").textContent=txt; if(pct!=null) $("v46pf").style.width=Math.max(3,Math.min(100,pct))+"%"; if(on) window.scrollTo({top:0,behavior:"smooth"}); }
 
-function panel(html){ let d=$("v46"); if(!d){ d=document.createElement("div"); d.id="v46"; document.querySelector(".wrap").appendChild(d); }
+function panel(html){ if(window.CRECO&&/Your results/.test(html)) html+=`<p class="sub" style="font-size:12px;opacity:.75;margin:8px 4px">${CRECO.credit}</p>`; let d=$("v46"); if(!d){ d=document.createElement("div"); d.id="v46"; document.querySelector(".wrap").appendChild(d); }
   try{ window.Trainer&&Trainer.close(); }catch(e){} try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ window.Coach17&&Coach17.hide&&Coach17.hide(); }catch(e){}
   ["v42","v45"].forEach(id=>{ const v=$(id); if(v) v.classList.remove("on"); });
   if(window.CRHome) CRHome.setMode("app",true);
@@ -77,7 +77,7 @@ async function fetchGames(u,force){
       const sc=res==="win"?1:["agreed","repetition","stalemate","insufficient","50move","timevsinsufficient"].includes(res)?.5:0;
       out.push({id:(g.url||"").split("/").pop(),url:g.url,me,sc,tc:g.time_class,eco:g.eco||"",pgn:g.pgn||"",end:g.end_time}); } }catch(e){ console.warn("month failed",e.message); } }
   prog(true,"Sorting your openings…",95);
-  const slim=out.map(g=>{ const m=movesOf(g.pgn); const h=hdr(g.pgn); return {id:g.id,url:g.url,me:g.me,sc:g.sc,tc:g.tc,ecoc:h.ECO||"",name:nameOf(g.eco||h.ECOUrl||""),mv:m.slice(0,24),end:g.end}; });
+  const slim=out.map(g=>{ const m=movesOf(g.pgn); const h=hdr(g.pgn); return {id:g.id,url:g.url,me:g.me,sc:g.sc,tc:g.tc,ecoc:(window.CRECO&&(CRECO.lookup(m)||{}).eco)||h.ECO||"",name:(()=>{ const r=window.CRECO&&CRECO.lookup(m); return r?r.name.split(":")[0]:nameOf(g.eco||h.ECOUrl||""); })(),mv:m.slice(0,24),end:g.end}; });
   LS.set(KC,{u:u.toLowerCase(),t:Date.now(),games:slim}); return slim; }
 function hdr(p){ const h={}; String(p).replace(/\[(\w+) "([^"]*)"\]/g,(_,k,v)=>{ h[k]=v; }); return h; }
 function movesOf(p){ let t=String(p).replace(/\[[^\]]*\]/g," ").replace(/\{[^}]*\}/g," ").replace(/\([^)]*\)/g," ").replace(/\d+\.(\.\.)?/g," ").replace(/(1-0|0-1|1\/2-1\/2|\*)\s*$/,"");
