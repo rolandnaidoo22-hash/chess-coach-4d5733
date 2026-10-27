@@ -104,6 +104,12 @@ function boot(){ css(); const u=document.getElementById("uname"); if(u&&!u.value
 function sync(){ const p=primary(); if(p&&cc()!==p) LS.setItem("chessReview.username",p); }
 if(window.CRUser&&CRUser.set){ const S=CRUser.set; CRUser.set=function(a,b){ const r=S.apply(this,arguments); try{ sync(); }catch(e){} return r; }; }
 try{ sync(); }catch(e){}
-window.CRAcct={cc:realCC,li,primary,check,save,src,tag,form,wire,NOTE,liGames};
+/* v54ux: the "Who are you online?" card as a sheet, opened from locked features' "Add your username" buttons */
+function ask(after){ css(); const old=document.getElementById("acAsk"); if(old) old.remove();
+  const d=document.createElement("div"); d.id="acAsk"; d.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center";
+  d.innerHTML=`<div class="card" style="background:var(--card,#fff);color:inherit;width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;margin:0"><button class="btn" id="acAskX" style="float:right" aria-label="Close">✕</button>${form("acAskF","Who are you online?")}</div>`;
+  document.body.appendChild(d); d.onclick=e=>{ if(e.target===d) d.remove(); }; document.getElementById("acAskX").onclick=()=>d.remove();
+  wire(d,()=>setTimeout(()=>{ d.remove(); if(after) after(); else if(window.CRHome) CRHome.goHome(); },500)); }
+window.CRAcct={ask,cc:realCC,li,primary,check,save,src,tag,form,wire,NOTE,liGames};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
 })();

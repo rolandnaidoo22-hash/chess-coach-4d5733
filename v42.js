@@ -99,6 +99,14 @@ function lineChart(vals,o){ const W=340,H=150,pl=34,pr=8,pt=10,pb=18; const ok=v
   const dots=vals.map((v,i)=>v==null?"":`<circle cx="${X(i)}" cy="${Y(v)}" r="2.6" fill="${o.c}"/>`).join("");
   return `<svg viewBox="0 0 ${W} ${H}">${grid}<polyline points="${path(vals)}" fill="none" stroke="${o.c}" stroke-width="${o.avg?1.2:2.2}" opacity="${o.avg?.55:1}"/>${o.avg?`<polyline points="${path(o.avg)}" fill="none" stroke="#2f7d32" stroke-width="2.6"/>`:""}${dots}<text x="${pl}" y="${H-4}" font-size="10" fill="#888">older</text><text x="${W-pr}" y="${H-4}" font-size="10" fill="#888" text-anchor="end">newest</text></svg>`; }
 function games(){ let m={}; try{ m=PatternStore.all(); }catch(e){} return Object.values(m).filter(r=>r&&r.date).sort((a,b)=>String(a.date).localeCompare(String(b.date))); }
+function demoChart(){ const ex=window.EXAMPLE_DATA; if(!ex||!ex.plies) return `<div class="card"><p>No reviewed games yet.</p></div>`;
+  const vals=ex.plies.map(p=>{ const ev=p.eval; if(!ev) return null; if(ev.mate!=null) return ev.mate>0?800:ev.mate<0?-800:0; return ev.cp==null?null:ev.cp; });
+  const v7=ex.summary&&ex.summary.v7; const acc=v7?` White was ${v7.w.accuracy}% accurate, Black ${v7.b.accuracy}%.`:"";
+  return `<div class="card"><p><b>Sample preview</b> · ${E_(ex.meta&&ex.meta.title||"demo game")}. Not your games.</p>
+    <p class="sub">My charts plot your rating and accuracy after you review a few games. This sample is the engine's view of the demo game.${acc}</p>
+    ${lineChart(vals,{c:"#3b6fb6"})}
+    <p class="lg">Each point is one move of the demo game. Yours will be one point per game you review.</p></div>
+    <button class="v42b pri full" id="v42add" type="button">Add your Chess.com or Lichess username</button>`; }
 function openCharts(sel){ const G=games(); const cls={}; G.forEach(g=>{ const c=tcClass(g.tc); cls[c]=(cls[c]||0)+1; });
   const order=Object.keys(cls).sort((a,b)=>cls[b]-cls[a]); sel=sel&&cls[sel]?sel:order[0]; const L=G.filter(g=>tcClass(g.tc)===sel);
   const el=L.map(g=>g.myElo||null), ac=L.map(g=>g.acc==null?null:Math.round(g.acc)); const avg=ac.map((v,i)=>{ const w=ac.slice(Math.max(0,i-4),i+1).filter(x=>x!=null); return w.length?w.reduce((a,b)=>a+b,0)/w.length:null; });
@@ -109,7 +117,8 @@ function openCharts(sel){ const G=games(); const cls={}; G.forEach(g=>{ const c=
    ${G.length?`<div class="v42chips" id="v42tc">${order.map(c=>`<button data-c="${c}" class="${c===sel?"on":""}">${TCN[c]} (${cls[c]})</button>`).join("")}</div>
    <div class="card v42chart"><h3 style="margin:0 0 4px">Rating history</h3><p class="sub" style="margin:0 0 6px">${eTxt||"Your rating from each game."}</p>${lineChart(el,{c:"#3b6fb6"})}</div>
    <div class="card v42chart"><h3 style="margin:0 0 4px">Accuracy trend</h3><p class="sub" style="margin:0 0 6px">${aTxt||"How accurate your moves were in each game."}</p>${lineChart(ac,{c:"#999",avg,min:0,max:100})}<p class="lg">Grey: each game · Green: average of your last 5 games</p></div>`
-   :`<div class="card"><p>No reviewed games yet.</p><p class="sub">Go to <b>My Coach</b> or <b>Review a game</b> and review a few games. Then come back to see your charts.</p></div>`}`);
+   :demoChart()}`);
+  const add=$("v42add"); if(add) add.onclick=()=>{ if(window.CRAcct) CRAcct.ask(); else if(window.R16) R16.welcome(); };
   d.querySelectorAll("#v42tc [data-c]").forEach(b=>b.onclick=()=>openCharts(b.dataset.c)); }
 
 /* ---------- 8. coach questions (built-in engine) ---------- */

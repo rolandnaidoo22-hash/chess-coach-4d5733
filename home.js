@@ -1,4 +1,5 @@
-/* v39: a real home screen ("The Ultimate Chess App"). Own file; it only shows/hides existing parts and calls their open functions. */
+/* v39: a real home screen ("The Ultimate Chess App"). Own file; it only shows/hides existing parts and calls their open functions.
+   v53: sections (Review, Play, Train, Progress). Every feature is in the first paint, so later scripts don't insert tiles after Skip. */
 (function(){
 "use strict"; if(window.CRHome) return;
 const $=id=>document.getElementById(id), B=document.body;
@@ -18,6 +19,11 @@ body.hs-app #hs .hsP{display:none!important}
 #hs{padding:4px 0 70px}#hs h1{font-size:26px;margin:6px 0 2px;display:flex;align-items:center;gap:8px}#hs h1 small{font-size:12px;background:#262421;color:#fff;border-radius:6px;padding:2px 7px;font-weight:700}
 #hs .hsSub{color:var(--mute);margin:0 0 12px;font-size:14px}
 .hsG{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hsSec{grid-column:1/-1;margin:16px 2px 0;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:800}
+.hsG .hsSec:first-child{margin-top:2px}
+.hsStart{grid-column:1/-1;background:linear-gradient(135deg,#2e7d32,#1565c0);color:#fff;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.hsStart small{opacity:.9}.hsSteps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.hsSteps button{flex:1 1 30%;min-width:110px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:9px 6px;font-weight:700;cursor:pointer}
+.hsStart .hsHide{color:#fff;opacity:.8;font-size:12px;align-self:flex-end}
 .hsG button{min-height:108px;border-radius:16px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;text-align:left;padding:12px;display:flex;flex-direction:column;gap:3px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .hsG button .i{font-size:30px;line-height:1.1}.hsG button b{font-size:16.5px}.hsG button small{color:var(--mute);font-size:12.5px;line-height:1.3}
 .hsG button.wide{grid-column:1/-1;min-height:84px;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;border:none}.hsG button.wide small{color:#e8f0ff}.hsG button.wide .i{font-size:38px}
@@ -27,32 +33,63 @@ const MODES=["home","review","goal","set","app"]; let mode=null, chosen=false;
 const TITLES={review:"📋 Review a game",goal:"🎯 Rating goal",set:"⚙ Settings"};
 function T(){ return window.Trainer; }
 function closeAll(){ try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ window.CR52&&CR52.closeAll(); }catch(e){} try{ T()&&T().close(); }catch(e){} try{ window.PatternsUI&&PatternsUI.close(); }catch(e){} try{ window.Coach17&&Coach17.hide&&Coach17.hide(); }catch(e){} const p=$("paste"); if(p) p.classList.remove("open","gopen"); }
+function openReviewForm(){ const p=$("paste"); if(p&&(B.classList.contains("nogame")||!chosen)) p.classList.add("open"); }
 function setMode(m,push){ if(!MODES.includes(m)) m="home"; mode=m; B.classList.add("hs-on"); MODES.forEach(x=>B.classList.toggle("hs-"+x,x===m)); B.classList.toggle("hs-game",chosen&&!B.classList.contains("nogame"));
   const h=$("hsPt"); if(h) h.textContent=TITLES[m]||""; if(m==="home"){ paint(); window.scrollTo(0,0); }
+  if(m==="review") openReviewForm();
   if(push&&m!=="home"){ try{ history.pushState({hs:m},""); }catch(e){} } }
 function coachSub(){ const c=$("co17go"); const t=c&&c.innerText.split("\n").map(x=>x.trim()).filter(Boolean); return t&&t[1]?t[1]:"Today's 30-minute plan"; }
 function goalSub(){ try{ const g=+JSON.parse(localStorage.getItem("chessReview.wish.goal.v1")); return g?`Your goal: ${g}`:"Set a rating to aim for"; }catch(e){ return "Set a rating to aim for"; } }
+function levelSub(){ try{ const H=JSON.parse(localStorage.getItem("chessReview.v45.assess")||"[]"); const h=H[H.length-1]; return h?`${h.level} · ${h.lo}–${h.hi}`:"Skill test + 4-week plan"; }catch(e){ return "Skill test + 4-week plan"; } }
+function podSub(){ try{ const lp=JSON.parse(localStorage.getItem("chessReview.lpz.v1")||"{}"); const seen=lp.seen||{}; const n=Object.keys(seen).length; return n?"Come back each day":"One new puzzle every day"; }catch(e){ return "One new puzzle every day"; } }
+/* One entry each. Markers (data-v42t / data-v45t / data-v46t) stop the later scripts from inserting the same tile again. */
 const TILES=[
  ["coach","🧑‍🏫","My Coach",coachSub,()=>{ setMode("app",true); Coach17.open("home"); },"wide"],
- ["review","📋","Review a game",()=>"Pick a game and see each mistake",()=>{ closeAll(); setMode("review",true); $("paste").classList.add("open"); }],
+ ["review","📋","Review a game",()=>"Pick a game and see each mistake",()=>{ closeAll(); setMode("review",true); openReviewForm(); }],
  ["games","📚","My games",()=>"Games you already reviewed",()=>{ closeAll(); setMode("review",true); $("paste").classList.add("gopen"); try{ ReviewApp.renderGames(); }catch(e){} }],
- ["trap","🪤","Trap Radar",()=>"Opening traps you fall for",()=>{ setMode("app",true); window.TrapRadar&&TrapRadar.open(); }],
+ ["trap","🪤","Trap Radar",()=>"Opening traps you fall for",()=>{ setMode("app",true); window.TrapRadar&&TrapRadar.open(); },"",{"data-hs-only":"trap"}],
+ ["study52","🔍","Study your opponent",()=>"Report from public games",()=>{ setMode("app",true); window.CRStudy&&CRStudy.open(); }],
+ ["bots52","🤖","Play the bots",()=>window.CRUltimate&&CRUltimate.inviteDue()?"📬 1 new message":"Pick a bot, from easy to strong",()=>{ setMode("app",true); window.CRBots&&CRBots.open(); }],
+ ["play","🤝","Play a friend",()=>"Or the computer",()=>{ setMode("app",true); T().open("sec","play"); }],
  ["puzzles","🧩","Puzzles",()=>"From your own mistakes",()=>{ setMode("app",true); T().open("sec","puzzles"); }],
+ ["v42pod","📅","Puzzle of the day",podSub,()=>{ setMode("app",true); window.V42&&V42.openPuzzles(); },"",{"data-v42t":"v42pod"}],
  ["drills","⚡","Quick drills",()=>"Stop blunders, fast",()=>{ setMode("app",true); T().open("sec","drills"); }],
  ["lessons","🎓","Lessons",()=>"Checkmates, basics, thinking",()=>{ setMode("app",true); T().open("sec","lessons"); }],
  ["learn","📘","Learn the basics",()=>window.CRLearn?CRLearn.progressText():"Pieces, moves and rules",()=>{ closeAll(); setMode("app",true); window.CRLearn&&CRLearn.open(); }],
- ["bots52","🤖","Play the bots",()=>window.CRUltimate&&CRUltimate.inviteDue()?"📬 1 new message":"Pick a bot, from easy to strong",()=>{ setMode("app",true); window.CRBots&&CRBots.open(); }],
  ["open52","♞","Learn openings",()=>"Step by step, then drill",()=>{ setMode("app",true); window.CROpenings&&CROpenings.open(); }],
  ["read52","📖","Read",()=>"Illustrated guides",()=>{ setMode("app",true); window.CRRead&&CRRead.open(); }],
  ["tf54","🧠","Think First",()=>window.CRThink?CRThink.sub():"Four steps before every move",()=>{ setMode("app",true); window.CRThink&&CRThink.open(); }],
- ["study52","🔍","Study your opponent",()=>"Report from public games",()=>{ setMode("app",true); window.CRStudy&&CRStudy.open(); }],
- ["play","🤝","Play a friend",()=>"Or the computer",()=>{ setMode("app",true); T().open("sec","play"); }],
+ ["corban52","🧢","Corban",()=>"Plays like a real friend",()=>{ setMode("app",true); const b=(window.CRBotsData||[]).find(x=>x.id==="corban"); b&&b.open?b.open():window.CRBots&&CRBots.open(); }],
+ ["ultimo52","🦉","Ultimo",()=>"The bot that adapts to you",()=>{ setMode("app",true); window.CRBots&&CRBots._rematch(); }],
  ["board","♟","Board training",()=>"Squares and your real board",()=>{ setMode("app",true); T().open("sec","boardtrain"); }],
+ ["v45","🎯","Find my level",levelSub,()=>{ setMode("app",true); window.CRAssess&&CRAssess.open(); },"",{"data-v45t":"1"}],
+ ["v46mo","📖","My Openings",()=>"Which openings win you games",()=>{ setMode("app",true); window.CROpen&&CROpen.open(false); },"",{"data-v46t":"1"}],
+ ["v42ch","📊","My charts",()=>"Rating and accuracy",()=>{ setMode("app",true); window.V42&&V42.openCharts(); },"",{"data-v42t":"v42ch"}],
  ["progress","📈","My progress",()=>"Patterns, openings, streak",()=>{ setMode("app",true); T().open("sec","progress"); }],
+ ["v42xp","🏅","Level & badges",()=>"XP, badges, board colours",()=>{ setMode("app",true); window.V42&&V42.openXP(); },"",{"data-v42t":"v42xp"}],
  ["goal","🎯","Rating goal",goalSub,()=>{ closeAll(); setMode("goal",true); }],
  ["set","⚙","Settings",()=>"Username, board style",()=>{ closeAll(); setMode("set",true); }]];
-function paint(){ const g=$("hsG"); if(!g) return; g.innerHTML=TILES.map(([id,i,t,sub,,c])=>`<button type="button" data-hs="${id}" class="${c||""}"><span class="i">${i}</span><span><b>${t}</b><br><small>${sub()}</small></span></button>`).join("");
-  g.querySelectorAll("[data-hs]").forEach(b=>b.onclick=()=>{ const x=TILES.find(t=>t[0]===b.dataset.hs); try{ x[4](); }catch(e){ console.error(e); } }); }
+/* Most-used coaching actions first, then play, train, and progress. */
+const ORDER=[
+ ["Review",["coach","review","games","trap"]],
+ ["Play",["bots52","corban52","ultimo52","play"]],
+ ["Train",["start54","tf54","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
+ ["Progress",["v45","v46mo","v42ch","progress","v42xp","goal","set"]]];
+function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
+  ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);
+    ids.forEach(id=>{ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;
+      if(attrs) Object.keys(attrs).forEach(k=>b.setAttribute(k,attrs[k]));
+      b.innerHTML=`<span class="i">${i}</span><span><b>${name}</b><br><small></small></span>`; b.querySelector("small").textContent=sub();
+      b.onclick=()=>{ try{ t[4](); }catch(e){ console.error(e); } }; g.appendChild(b); }); }); }
+/* "Start here" for new players: Read guides -> Learn the basics -> Pip. Hidden once dismissed. */
+const SKEY="chessReview.v54.startHide";
+function startCard(g){ try{ if(localStorage.getItem(SKEY)) return; }catch(e){}
+  const d=document.createElement("div"); d.className="hsStart"; d.id="hsStart";
+  d.innerHTML=`<b>👋 Start here</b><small>New to chess? Do these three in order.</small><div class="hsSteps"><button type="button" data-st="read">1. Read the guides</button><button type="button" data-st="learn">2. Learn the basics</button><button type="button" data-st="pip">3. Play Pip</button></div><a href="#" class="hsHide">Hide this</a>`;
+  const go={read:()=>{ setMode("app",true); window.CRRead&&CRRead.open(); },learn:()=>{ closeAll(); setMode("app",true); window.CRLearn&&CRLearn.open(); },pip:()=>{ setMode("app",true); window.CRBots&&CRBots._start("pip","w"); }};
+  d.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>go[b.dataset.st]());
+  d.querySelector(".hsHide").onclick=e=>{ e.preventDefault(); try{ localStorage.setItem(SKEY,"1"); }catch(x){} d.remove(); };
+  g.appendChild(d); }
 function build(){ const w=document.querySelector(".wrap"); if(!w||$("hs")) return; const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
   const d=document.createElement("div"); d.id="hs";
   d.innerHTML=`<div class="hsT"><h1><img src="icon-192.png" alt="" class="hsLogo"> The Ultimate Chess App</h1><p class="hsSub">Get better at chess with your own games.</p><div class="hsG" id="hsG"></div></div>
@@ -68,7 +105,7 @@ function watch(){ const mo=new MutationObserver(()=>{ if(mode!=="home"&&mode!=="
 document.addEventListener("click",e=>{ const t=e.target.closest&&e.target.closest('#homeBtn,#trHome,[data-co="exit"]'); if(t) setTimeout(goHome,0); },true);
 window.addEventListener("popstate",()=>{ const s=history.state; if(s&&s.hs&&s.hs!=="app") setMode(s.hs); else goHome(); });
 function nfa(){ const h=$("home"); if(!h||h.querySelector(".nfa40")) return; const d=document.createElement("p"); d.className="nfa40"; d.textContent="Not affiliated with or endorsed by Chess.com or Lichess. For reviewing finished games only — don't use during live games."; h.appendChild(d); }
-function boot(){ build(); nfa(); hookLoad(); watch(); const deep=/ply=|try=|punish=/.test(location.hash); if(deep){ chosen=true; setMode("review"); } else setMode("home");
+function boot(){ build(); nfa(); hookLoad(); watch(); const deep=/ply=|try=|punish=/.test(location.hash); if(deep||window.__crWantReview){ chosen=true; setMode("review"); } else { try{ if(!B.classList.contains("nogame")&&window.ReviewApp&&ReviewApp.loadGames().length) chosen=true; }catch(e){} setMode("home"); }
   setTimeout(paint,1500); document.documentElement.classList.remove("hsboot"); window.addEventListener("crgoal",paint); }
 try{ const v=document.getElementById("verV"); if(v&&typeof VERSION!=="undefined") v.textContent=VERSION; }catch(e){}
 window.CRHome={setMode,goHome,mode:()=>mode,paint};

@@ -20,7 +20,15 @@ const CSS=`.p52{display:none;padding:4px 0 80px}.p52.on{display:block}
 .p52 .stars{color:#d4af37;letter-spacing:1px}.p52 .elo{display:inline-block;background:#1b1712;color:#d4af37;border-radius:8px;padding:1px 7px;font-size:12px;font-weight:800;margin-left:4px}
 .p52 input[type=text],.p52 input[type=url],.p52 textarea{width:100%;box-sizing:border-box;font:inherit;font-size:16px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink)}
 .p52 textarea{min-height:84px}
-html.dark-mode .p52 .card,html.dark-mode .p52 .lt,html.dark-mode .p52 .bt:not(.go),html.dark-mode .p52 input,html.dark-mode .p52 textarea{background:#262626;color:#eee;border-color:#3a3a3a}`;
+html.dark-mode .p52 .card,html.dark-mode .p52 .lt,html.dark-mode .p52 .bt:not(.go),html.dark-mode .p52 input,html.dark-mode .p52 textarea{background:#262626;color:#eee;border-color:#3a3a3a}
+#open52{max-width:560px;margin-left:auto;margin-right:auto}#open52 .bd{max-width:none;width:100%}
+#bots52 .playlay{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,280px);gap:12px;align-items:start}
+#bots52 .bd{width:min(100%,calc(100dvh - 220px));max-width:720px}
+#bots52 .b52side{min-width:0}#bots52 .b52side b{display:block;margin-bottom:6px}
+#bots52 .b52ml{font-family:inherit;font-size:15px;background:#f7f5f0;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:min(70vh,640px);overflow:auto;line-height:1.65}
+#bots52 .b52ml .now{background:#fff3cd;border-radius:6px;font-weight:700;padding:0 4px}
+@media(max-width:800px){#bots52 .playlay{grid-template-columns:1fr}#bots52 .bd{width:min(100%,calc(100dvh - 280px),calc(100vw - 24px));max-width:none}#bots52 .b52ml{max-height:168px}}
+html.dark-mode #bots52 .b52ml{background:#262626;color:#eee}html.dark-mode #bots52 .b52ml .now{background:#3a3420}`;
 let pages={}, styled=false;
 function page(id){ if(!styled){ const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); styled=true; }
   if(pages[id]) return pages[id]; const d=document.createElement("div"); d.id=id; d.className="p52";
@@ -60,7 +68,8 @@ function say(kind){ if(!G) return; const l=G.bot.chat[kind]; if(!l||!l.length) r
 function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.CRUltimate){ CRUltimate.clearInvite(); bot=CRUltimate.profile(); }
   p.innerHTML=`<div class="say"><span class="av sm">${bot.avatar}</span><span class="bub" id="b52say"></span></div>
    <div class="mute" style="text-align:center"><b>${E_(bot.name)}</b> <span class="elo">${bot.adaptive?"Level "+bot.level:bot.elo}</span> · ${E_(bot.style)}</div>
-   <div class="bd" id="b52bd"></div><div class="msg" id="b52msg"></div><div class="mute" id="b52mv" style="font-size:12.5px"></div>
+   <div class="playlay"><div><div class="bd" id="b52bd"></div><div class="msg" id="b52msg"></div></div>
+   <div class="b52side card"><b>Moves</b><div class="b52ml" id="b52ml"></div></div></div>
    <div class="row"><button class="bt" id="b52undo">↶ Undo</button><button class="bt" id="b52flip">⇅ Flip board</button><button class="bt" id="b52new">⟲ New game</button><button class="bt" id="b52list">‹ All bots</button></div>`;
   G={bot,me,g:new C(),sel:null,last:null,thinking:false,token:0,over:false};
   G.B=board($("b52bd"),tap); G.B.orient=me; say("start"); if(bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned) $("b52say").textContent="📓 "+CRUltimate.status().learned; draw();
@@ -68,6 +77,8 @@ function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.
   $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot); $("b52list").onclick=()=>{ G=null; list(); };
   try{ window.CRBotEngine&&CRBotEngine.boot().catch(()=>{}); }catch(e){}
   if(me==="b") botMove(); }
+function movesHtml(h){ if(!h.length) return `<span class="mute">No moves yet.</span>`; const last=Math.floor((h.length-1)/2); let s="";
+  for(let i=0;i<h.length;i+=2) s+=`<div class="${i/2===last?"now":""}"><b>${i/2+1}.</b> ${E_(h[i])}${h[i+1]?" "+E_(h[i+1]):""}</div>`; return s; }
 function draw(){ if(!G) return; const g=G.g, hl=[];
   if(G.last) hl.push({sq:G.last.from,c:"#f5c518",o:.4},{sq:G.last.to,c:"#f5c518",o:.5});
   if(G.sel) hl.push({sq:G.sel,c:"#3b6fb6",o:.5});
@@ -75,7 +86,7 @@ function draw(){ if(!G) return; const g=G.g, hl=[];
   G.B.draw(g.fen(),{hl,dots:G.sel?g.moves({square:G.sel,verbose:true}).map(m=>m.to):[]});
   let msg=""; if(g.isCheckmate()) msg=g.turn()===G.me?"Checkmate. "+G.bot.name+" wins. Tap Undo to try again.":"🏆 Checkmate! You win!";
   else if(g.isDraw()||g.isStalemate()) msg="It's a draw."; else if(G.thinking) msg="🤔 "+G.bot.name+" is thinking…"; else if(g.turn()===G.me) msg=g.inCheck()?"You're in check! Your move.":"Your move.";
-  $("b52msg").textContent=msg; const h=g.history(); $("b52mv").textContent=h.length?h.length+" moves played":"";
+  $("b52msg").textContent=msg; const h=g.history(); const ml=$("b52ml"); if(ml){ ml.innerHTML=movesHtml(h); ml.scrollTop=ml.scrollHeight; }
   $("b52undo").disabled=G.thinking||!h.length; }
 function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true;
   if(g.isCheckmate()){ if(g.turn()===G.me) say("won"); else { say("lost"); const R=LS.get(KR,{}); R[G.bot.id]=(R[G.bot.id]||0)+1; LS.set(KR,R); } } else say("draw");
