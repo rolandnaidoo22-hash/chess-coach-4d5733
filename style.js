@@ -28,7 +28,7 @@ function parseGame(g,user){ if(!g.pgn||(g.rules&&g.rules!=="chess")) return null
   const C=CH(), ch=new C(), m=[]; for(const t of sans(g.pgn)){ let r=null; try{ r=ch.move(t,{sloppy:true}); }catch(e){} if(!r) break; m.push(r.san); }
   if(m.length<2) return null; const me=c==="w"?g.white:g.black;
   return {id:g.url||g.uuid||String(g.end_time),c,tc:g.time_class||"?",r:me.result==="win"?1:/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(me.result)?0.5:0,e:me.rating,t:g.end_time||0,m}; }
-async function getJSON(u){ const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error(r.status===404?"No player with that username.":"Couldn't reach the server ("+r.status+")."); return r.json(); }
+async function getJSON(u){ const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error(r.status===404?"User not found.":"Couldn't reach the server ("+r.status+")."); return r.json(); }
 /* full=true: every month; otherwise only the newest archive(s) since the last check */
 async function fetchGames(d,full,onP){ const a=(await getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(d.user.toLowerCase())}/games/archives`)).archives||[];
   const todo=full?a:a.filter(u=>!d.lastMonth||u>=d.lastMonth); const have=new Set(d.games.map(g=>g.id)); let added=0;
@@ -127,7 +127,7 @@ async function addUser(user){ user=(user||"").trim().replace(/^@/,""); const p=U
   p.innerHTML=`<h2>👤 ${E_(user)}</h2><div id="ps52prog" class="card"><b id="ps52t">Looking up ${E_(user)}…</b><div style="height:10px;background:#eee;border-radius:5px;margin-top:6px;overflow:hidden"><i id="ps52f" style="display:block;height:100%;width:3%;background:#d4af37"></i></div></div><div class="row"><button class="bt" id="ps52back">‹ All bots</button></div>`;
   $("ps52back").onclick=()=>CRBots.open();
   const d={user,games:[],an:{},fetched:0,lastMonth:""};
-  if(hidden(user)){ if($("ps52t")) $("ps52t").textContent="⚠️ No player with that username."; return; }
+  if(hidden(user)){ if($("ps52t")) $("ps52t").textContent="⚠️ User not found."; return; }
   try{ await fetchGames(d,true,(t,f)=>{ $("ps52t")&&($("ps52t").textContent=t); $("ps52f")&&($("ps52f").style.width=Math.round(f*100)+"%"); }); }
   catch(e){ if($("ps52t")) $("ps52t").textContent="⚠️ "+e.message; return; }
   if(!d.games.length){ if($("ps52t")) $("ps52t").textContent="No public games found for this player."; return; }
