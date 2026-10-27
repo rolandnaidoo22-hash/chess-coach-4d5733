@@ -10145,7 +10145,7 @@ addEventListener("scroll",chk,{passive:true});addEventListener("resize",chk);set
 // v12b: when a new version is installed, reload once so old and new code never mix
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let reloaded=false;
  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;let t=0;try{t=+sessionStorage.getItem("cr.swr")||0;}catch(e){}if(Date.now()-t<15000)return;try{sessionStorage.setItem("cr.swr",Date.now());}catch(e){}location.reload();});
- navigator.serviceWorker.register("sw.js").then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});}
+ navigator.serviceWorker.register("sw.js").then(r=>{/* v54ux: once the page has settled, quietly fetch the engine into the offline cache so Think First, ideas, Study and the bots work offline later */window.addEventListener("load",()=>setTimeout(()=>{navigator.serviceWorker.ready.then(()=>caches.open("chess-review-v54ux")).then(c=>Promise.all(["stockfish.js","stockfish.wasm"].map(u=>c.match(u).then(m=>m||fetch(u).then(x=>x.ok&&c.put(u,x.clone())))))).catch(()=>{});},8000));r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});}
 </script>
 
 <script defer src="traps.js?v=54ux"></script>
