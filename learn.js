@@ -5,13 +5,13 @@ const $=id=>document.getElementById(id), KEY="chessReview.learn.v1";
 const LS={get(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } },set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)); }catch(e){} }};
 const NAME={k:"King",q:"Queen",r:"Rook",b:"Bishop",n:"Knight",p:"Pawn"};
 const pic=(c,t,sz)=>`<svg viewBox="0 0 45 45" width="${sz||44}" height="${sz||44}"><use href="#pc-${c}${t.toUpperCase()}"/></svg>`;
-const CSS=`#lrn{display:none;padding:4px 0 80px}#lrn.on{display:block}
+const CSS=`#lrn{display:none;padding:4px 0 80px;max-width:560px;margin-left:auto;margin-right:auto}#lrn.on{display:block}
 #lrn h2{font-size:21px;margin:6px 0 4px}#lrn h3{font-size:17px;margin:16px 0 6px}#lrn p{line-height:1.45;margin:6px 0}#lrn .mute{color:var(--mute);font-size:13.5px}
 #lrn .lt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:62px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit;padding:10px 12px;margin:0 0 8px;cursor:pointer}
 #lrn .lt .i{font-size:26px;width:34px;text-align:center}#lrn .lt b{font-size:16px}#lrn .lt small{display:block;color:var(--mute);font-size:12.5px}#lrn .lt .tk{margin-left:auto;font-size:20px}
 #lrn .card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px 12px;margin:8px 0}
 #lrn .pcs{display:grid;grid-template-columns:1fr 1fr;gap:8px}#lrn .pc{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:6px 8px;background:#fff}#lrn .pc b{font-size:15px}#lrn .pc small{display:block;color:var(--mute);font-size:12px;line-height:1.3}
-#lrn .bd{width:100%;max-width:420px;margin:8px auto;touch-action:none;user-select:none}#lrn .bd svg{width:100%;height:auto;display:block;border-radius:6px}
+#lrn .bd{width:100%;max-width:none;margin:8px auto;touch-action:none;user-select:none}#lrn .bd svg{width:100%;height:auto;display:block;border-radius:6px}
 #lrn .msg{min-height:24px;font-weight:700;margin:6px 0}#lrn .ok{color:#2e7d32}#lrn .no{color:#c62828}
 #lrn .row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}#lrn .bt{min-height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-weight:700;padding:0 14px;cursor:pointer}#lrn .bt.on,#lrn .bt.go{background:#2f7d32;color:#fff;border-color:#2f7d32}
 #lrn .tray{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:6px 0}#lrn .tray button{width:44px;height:48px;border:2px solid var(--line);border-radius:10px;background:#fff;padding:0;touch-action:none}#lrn .tray button.sel{border-color:#f5c518;background:#fff8d6}
