@@ -216,7 +216,7 @@ function offer(){ if(LS.get(KO,0)||LS.get(KH,[]).length) return; if($("wel16")||
 function boot(){ const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
   const g=$("hsG"); if(g) new MutationObserver(tile).observe(g,{childList:true}); tile();
   new MutationObserver(()=>{ if(B.classList.contains("hs-home")) close(); }).observe(B,{attributes:true,attributeFilter:["class"]});
-  setTimeout(offer,1500); }
+  /* no auto popup: Skip should land on a home screen that stays still. The tile is always there. */ }
 window.CRAssess={open,start,score,_sets:SETS,nextSet};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(boot,300)); else setTimeout(boot,300);
 })();

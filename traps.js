@@ -39,7 +39,7 @@ function sec(){ return $("co17"); }
 function addCss(){ if($("tr19css")) return; const s=document.createElement("style"); s.id="tr19css"; s.textContent=css; document.head.appendChild(s); }
 
 /* ---------- tile in My Coach home ---------- */
-function injectTile(){ const s=sec(); if(!s) return; const g=s.querySelector(".co17grid"); if(!g||g.querySelector("[data-trap]")) return;
+function injectTile(){ return; /* Trap Radar's only tile is on the home screen */ const s=sec(); if(!s) return; const g=s.querySelector(".co17grid"); if(!g||g.querySelector("[data-trap]")) return;
   const b=document.createElement("button"); b.className="co17tile tr19tile"; b.setAttribute("data-trap","1");
   b.innerHTML=`<span class="ic">🪤</span><b>Trap Radar</b><small>Opening traps in YOUR games: what to watch for, what you can set</small>`;
   b.onclick=()=>open(); g.appendChild(b); }
@@ -113,7 +113,13 @@ function render(){ const s=sec(); if(!s) return; addCss(); s.classList.add("tr19
   const head=`<div class="co17h"><h2>🪤 Trap Radar</h2><div><button class="cbtn" id="tr19back">‹ Back</button></div></div>`;
   let h=head+`<p class="co17sm">For each of your recent online games: the opening traps that could catch <b>you</b>, and the traps <b>you</b> could set. Different for every game, because it follows your real moves.</p>`;
   if(loading) h+=`<div class="tr19sum">Loading your recent games…</div>`;
-  else if(!games||!games.length){ h+=`<div class="tr19sum">${err?E(err):"No games found."} ${!(info().cc||info().li)?"Add your Chess.com username on the home screen first.":""}</div><button class="cbtn full" id="tr19re" style="text-align:center">🔄 Try again</button>`; }
+  else if(!games||!games.length){ const named=!!(info().cc||info().li), T=DB.find(x=>x.id==="scholar")||DB[0];
+    const g={me:"b",opp:"Sample",s:T.m.slice(),op:T.op}, R={T,deep:T.m.length,fell:true,pun:true,role:"watch",cls:"bad",score:1,flag:"Sample: Black never stops the attack on f7, so the queen mates."};
+    st={a:{res:[R]},g};
+    h+=`<p class="co17sm">Trap Radar reads your recent games and shows opening traps that can catch you, and traps you can set.</p>`;
+    h+=`<div class="tr19sum">${err?E(err):named?"No games found yet.":"Add your username and this uses your real games."}</div>`;
+    h+=`<p class="tr19sub"><b>Sample preview</b> · ${E(T.n)}, from the built-in list. Not from your games.</p>`+card(R,g,0);
+    h+=`<button class="cbtn full pri" id="tr19add" style="text-align:center">Add your Chess.com username</button><button class="cbtn full" id="tr19re" style="text-align:center">🔄 Try again</button>`; }
   else { const A=games.map(g=>analyse(g)); const cnt={bad:0,miss:0,good:0};
     A.forEach(a=>a.res.forEach(r=>{ if(r.fell&&r.role==="watch"&&r.pun) cnt.bad++; else if(r.fell&&r.role==="set"&&!r.pun) cnt.miss++; else if(r.fell&&r.role==="set"&&r.pun) cnt.good++; }));
     h+=`<div class="tr19sum">Last ${games.length} games: ⚠️ fell into a trap <b>${cnt.bad}</b>× · ❗ missed a trap you could spring <b>${cnt.miss}</b>× · 🎉 caught someone <b>${cnt.good}</b>×</div><div class="tr19games">`;
@@ -131,6 +137,7 @@ function render(){ const s=sec(); if(!s) return; addCss(); s.classList.add("tr19
   s.innerHTML=h; window.scrollTo(0,Math.min(window.scrollY,s.offsetTop));
   $("tr19back").onclick=()=>{ s.classList.remove("tr19"); window.Coach17&&Coach17.open("home"); };
   const re=$("tr19re"); if(re) re.onclick=()=>load(true);
+  const add=$("tr19add"); if(add) add.onclick=()=>{ if(window.R16) R16.welcome(); };
   s.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ sel=+b.dataset.g; render(); });
   s.querySelectorAll(".tr19c").forEach(c=>{ const R=st.a.res[+c.dataset.n], T=R.T;
     const go=i=>{ i=Math.max(0,Math.min(T.m.length,i)); c.dataset.at=i; c.querySelector(".tr19bd").innerHTML=boardSvg(i?T.f[i-1]:START,st.g.me==="b",lastSq(T,i));
