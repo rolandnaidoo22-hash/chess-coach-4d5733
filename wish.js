@@ -40,11 +40,12 @@ function estimate(tc,o,target){ const h=o.h||{w:[],l:[],res:[]}; const gw=avg(h.
   return {gap,gw,gl,own,net,p,games,needP,n:res.length}; }
 function milestones(r){ const M=[400,600,800,1000,1200,1500,1800,2000,2200,2500]; return `<div class="ms">${M.map(m=>`<span class="${r>=m?"on":(M.find(x=>x>r)===m?"nx":"")}">${m===2500?"GM 2500":m}</span>`).join("")}</div>`; }
 function paintGoal(){ document.querySelectorAll(".wgoal").forEach(box=>{
-  const t=LSg(GK,null), help=box.dataset.help==="1";
+  const t=(window.CRGoal?CRGoal.get():LSg(GK,null))||null, help=box.dataset.help==="1";
   let h=`<h3>🎯 Rating goal</h3><div class="in"><input inputmode="numeric" placeholder="Type a goal, e.g. 500" value="${t?t:""}" aria-label="Rating goal"><button type="button">Go</button></div>`;
   if(help) h+=`<div class="tc"><b>How this works:</b> I read your ratings from Chess.com and your last games. For each win you usually gain about the same points as you lose for a loss (against players near your level). So the gap ÷ points per game ≈ how many <b>more wins than losses</b> you need. It's only an <b>estimate</b>: your opponents and luck change it.</div>`;
   if(t) h+=`<div class="wsaved" style="font-weight:800;color:#2f7d32;margin:2px 0 6px">✅ Your goal is saved: ${t}${box.dataset.saved==="1"?" — Road to "+t+" updated everywhere":""}</div>`;
-  if(!t) h+=`<small>Type the rating you want (you can also type “500 help”).</small>`;
+  if(!t) h+=`<small>Type the rating you want (you can also type “500 help”). Your coach, plans, Think First and progress all use this one number.</small>`;
+  else if(!user()) h+=`<div class="tc" style="filter:grayscale(1);opacity:.8">🔒 <b>How far am I from ${t}?</b><br><small>Add your Chess.com username and this shows your ratings, the points still to go and about how many games it takes.</small><br><button type="button" class="wgAdd" style="margin-top:6px">Add your username</button></div>`;
   else if(GS.loading&&!GS.data) h+=`<small>Getting your ratings from Chess.com…</small>`;
   else if(GS.err) h+=`<small>${E(GS.err)}</small>`;
   else if(GS.data){ let any=false;
@@ -58,13 +59,15 @@ function paintGoal(){ document.querySelectorAll(".wgoal").forEach(box=>{
       h+=`</div>`; });
     if(!any) h+=`<small>No rated games found on Chess.com.</small>`;
     const mt=Object.keys(GS.data).sort((a,b)=>((GS.data[b].h||{}).n||0)-((GS.data[a].h||{}).n||0))[0], mr=GS.data[mt].r; h+=`<small>Path to GM (your ${mt} rating ${mr}; green = done, yellow = next):</small>${milestones(mr)}`; }
-  box.innerHTML=h; const inp=box.querySelector("input"), go=()=>{ const v=inp.value||"", m=v.match(/\d{3,4}/); box.dataset.help=/help|\?/i.test(v)?"1":"0";
+  box.innerHTML=h; const wa=box.querySelector(".wgAdd"); if(wa) wa.onclick=()=>{ window.CRAcct&&CRAcct.ask(()=>{ GS.data=null; GS.err=""; loadRatings(); }); };
+  const inp=box.querySelector("input"), go=()=>{ const v=inp.value||"", m=v.match(/\d{3,4}/); box.dataset.help=/help|\?/i.test(v)?"1":"0";
       if(m){ const n=Math.max(100,Math.min(3300,+m[0])); LSs(GK,n); box.dataset.saved="1"; goalSync(); } if(!GS.data&&!GS.loading) loadRatings(); else paintGoal(); };
   box.querySelector("button").onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter") go(); }; }); }
-function goalSync(){ const g=LSg(GK,null)||800;
-  document.querySelectorAll("[data-goal]").forEach(e=>{ if(e.textContent!==String(g)) e.textContent=g; });
-  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let x; while((x=w.nextNode())){ if(/Road to \d{3,4}\b/.test(x.nodeValue)) x.nodeValue=x.nodeValue.replace(/Road to \d{3,4}\b/g,"Road to "+g); }
+function goalSync(){ const g=(window.CRGoal?CRGoal.get():+LSg(GK,null))||0;
+  document.querySelectorAll("[data-goal]").forEach(e=>{ const t=String(g||e.dataset.f||"your goal"); if(e.textContent!==t) e.textContent=t; });
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let x; while((x=w.nextNode())){ if(/Road to \d{3,4}\b/.test(x.nodeValue)) x.nodeValue=x.nodeValue.replace(/Road to \d{3,4}\b/g,"Road to "+(g||"your goal")); }
   window.dispatchEvent(new CustomEvent("crgoal",{detail:g})); }
+window.addEventListener("crgoal",()=>{ try{ paintGoal(); }catch(e){} });
 window.addEventListener("storage",e=>{ if(e.key&&e.key.indexOf("wish.goal")>=0){ paintGoal(); goalSync(); } });
 function injectGoal(){ const home=$("home"); if(!home||home.querySelector(".wgoal")) return; if(!document.getElementById("wgcss")){ const s=document.createElement("style"); s.id="wgcss"; s.textContent=GCSS; document.head.appendChild(s); }
   const d=document.createElement("div"); d.className="wgoal"; const anchor=$("co17go")||home.firstElementChild; home.insertBefore(d,anchor?anchor.nextSibling:null);

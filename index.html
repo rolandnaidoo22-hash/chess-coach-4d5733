@@ -9372,7 +9372,7 @@ function startPlayer(){ if(!window.CRUser) return; const owner=CRUser.isOwnerOfE
     if(G.length){ try{ loadData(ReviewApp.upgrade(G[0].data)); ReviewApp.renderGames(G[0].id); }catch(e){ console.error(e); } }
     else { document.body.classList.add("nogame"); const paste=$("paste"); if(paste) paste.classList.add("open"); const h=$("home"); if(h&&!$("ng16")) h.insertAdjacentHTML("afterend",`<div class="card ng16" id="ng16"><b>No game open yet.</b> Use <b>📋 Review a new game</b> below to load your games from Chess.com or Lichess, or paste a PGN. <button type="button" class="btn" id="ngSample">See a sample review</button></div>`);
       const ns=$("ngSample"); if(ns) ns.onclick=()=>{ document.body.classList.remove("nogame"); const ng=$("ng16"); if(ng) ng.remove(); window.__crWantReview=true; try{ loadData(window.EXAMPLE_DATA); }catch(e){ console.error(e); } }; } }
-  try{ if(window.Trainer) Trainer.renderHome(); }catch(e){} if(!CRUser.id()) welcome(); }
+  try{ if(window.Trainer) Trainer.renderHome(); }catch(e){} if(!CRUser.id()){ if(window.CROnb) CROnb.start(); else { window.__crOnbWant=1; setTimeout(()=>{ if(!window.CROnb&&!CRUser.id()) welcome(); },6000); } } }
 window.R16={welcome,userBarHtml,wireUserBar,engineInto,explorerInto,evalBarHtml,whiteScore,scoreWords,scoreTxt,lineSteps,buildPgn:()=>inReview()?buildPgn():"",gifEncode,boardSvgStr,svgToCanvas,timeFlags,heatData,sanWords,plyText,makeGif,O,refresh,liFetchUrl,liFetchUser};
 try{ startPlayer(); }catch(e){ console.error(e); }
 })();
@@ -9463,9 +9463,9 @@ function fullOff(restore){ if(!document.body.classList.contains("co17full")) ret
 function hide(restore){ if(sec) sec.classList.remove("on"); stopPz(); fullOff(restore); }
 function open(v,arg){ ensure(); const fromTr=!!($("tr")&&$("tr").classList.contains("on")); if(fromTr&&!document.body.classList.contains("co17full")) fullY0=0; try{ Tn().close(); }catch(e){} try{ if(window.PatternsUI) PatternsUI.close(); }catch(e){} const p=$("paste"); if(p) p.classList.remove("open","gopen");
   stopPz(); sec.classList.add("on"); fullOn(); view=v||"home"; IMP.pauseFor(false); (VIEWS[view]||VIEWS.home)(arg); window.scrollTo(0,0); setTimeout(()=>window.scrollTo(0,0),30); }
-function GOAL(){ try{ const v=+JSON.parse(localStorage.getItem("chessReview.wish.goal.v1")); return v>=100&&v<=3300?v:800; }catch(e){ return 800; } }
+function GOAL(){ return window.CRGoal?CRGoal.get():GSET(); } /* v55: one saved value, no 800 default */
 function GSET(){ try{ const v=+JSON.parse(localStorage.getItem("chessReview.wish.goal.v1")); return v>=100&&v<=3300?v:0; }catch(e){ return 0; } }
-function GSP(f){ return `<span data-goal>${GSET()||f||GOAL()}</span>`; }
+function GSP(f){ f=f||"your goal"; return `<span data-goal data-f="${f}">${GSET()||f}</span>`; }
 function head(title,back){ return `<div class="co17h"><h2>${title}</h2><div><button class="cbtn" data-co="${back||"home"}">${back==="exit"?"🏠 Back to Home":"‹ Back"}</button></div></div>`; }
 function wire(){ sec.querySelectorAll("[data-co]").forEach(b=>b.onclick=()=>{ const v=b.dataset.co; if(v==="exit"){ hide(true); } else open(v); }); }
 function cardHtml(){ const s=S(), P=plan(), t=todayState(s), n=t?t.done.length:0, sk=streak(s);
@@ -10062,7 +10062,7 @@ function grokPayload(G,H){ const m=G.d.meta, me=G.me, info=(window.CRUser&&CRUse
   const R=recs().slice(0,20), patterns=[]; if(R.length){ const cnt={}; R.forEach(r=>toArr(r.ev).forEach(x=>cnt[x.k]=(cnt[x.k]||0)+1)); Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([k,n])=>patterns.push(`${KIND[k]||k}: ${n} times in his last ${R.length} games`)); const acc=avg(R.map(r=>+r.acc).filter(x=>!isNaN(x))); if(acc) patterns.push(`average accuracy ${Math.round(acc)}% over the last ${R.length} games`); const tt=R.filter(r=>r.timeTrouble).length; if(tt) patterns.push(`short of time (under 1 minute) in ${tt} of ${R.length} games`); }
   const openings=[]; try{ const C=LS.get(OK_,null); if(C&&C.g){ const T=trackerData(C), grp={}; T.forEach(g=>{ const k=(g.me==="w"?"As White: ":"As Black: ")+fam(g.mine); (grp[k]=grp[k]||[]).push(g); }); Object.entries(grp).filter(([,a])=>a.length>=3).sort((a,b)=>b[1].length-a[1].length).slice(0,6).forEach(([k,a])=>{ const st=groupStats(a,a[0].me); openings.push(`${k}: ${a.length} games, ${st.W} won / ${st.D} drawn / ${st.L} lost`); }); } }catch(x){}
   const on=strip(openingNote(G)); if(on) openings.unshift("This game: "+on);
-  return {v:1,user:info.cc||(me==="w"?m.white:m.black),colour:me,rating:(me==="w"?m.white_elo:m.black_elo)||"",opponent:me==="w"?m.black:m.white,result:res+" ("+m.result+")",date:m.date||"",timeControl:m.time_control||"",opening:m.opening||"",pgn:pgn.trim(),accuracy:G.acc==null?null:Math.round(G.acc),counts:G.counts,phases:G.ph.map((x,j)=>({name:phN[j],words:phW(x)})),mistakes,patterns,alerts:(H&&H.out||[]).map(strip),openings}; }
+  return {v:2,goal:(window.CRGoal?CRGoal.get():GSET())||0,user:info.cc||(me==="w"?m.white:m.black),colour:me,rating:(me==="w"?m.white_elo:m.black_elo)||"",opponent:me==="w"?m.black:m.white,result:res+" ("+m.result+")",date:m.date||"",timeControl:m.time_control||"",opening:m.opening||"",pgn:pgn.trim(),accuracy:G.acc==null?null:Math.round(G.acc),counts:G.counts,phases:G.ph.map((x,j)=>({name:phN[j],words:phW(x)})),mistakes,patterns,alerts:(H&&H.out||[]).map(strip),openings}; }
 function mdHtml(t){ const L=String(t||"").replace(/\r/g,"").split("\n"); let h="", inL=false; const inl=x=>e_(x).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g,"$1<i>$2</i>");
   const close=()=>{ if(inL){ h+="</ul>"; inL=false; } };
   L.forEach(raw=>{ let x=raw.trim(); if(!x){ close(); return; } let mm; x=x.replace(/^\*\*(#{1,6}\s+.*?)\*\*$/,"$1");
@@ -10091,7 +10091,7 @@ async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=g
     Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)).slice(30).forEach(k=>delete C[k]); LS.set(CGR,C); const st=S(); st.aiLast=Object.assign({},st.aiLast||{},{[id]:pv}); save(st);
     if($("gmGrokBox")===box) grokShow(c,G); }
   catch(e){ if($("gmGrokBox")!==box) return; if(b){ b.disabled=false; b.innerHTML="🤖 Try the AI coach again"; }
-    box.innerHTML=`<div class="co17note">😕 The AI coach couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try again later.<br><span class="co17sm">${e_(String(e.message||e).slice(0,80))}</span></div>`;
+    box.innerHTML=`<div class="co17note">😕 The AI coach couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try again later.<br><span class="co17sm">${e_((m=>/too many|429/i.test(m)?"Too many requests just now. Wait a minute and try again.":/abort/i.test(m)?"It took too long to answer.":/failed to fetch|network|load failed/i.test(m)?"Couldn't reach the coach. Check your internet.":/origin/i.test(m)?"This copy of the app isn't allowed to use the coach.":"The coach service had a problem.")(String(e.message||e)))}</span></div>`;
     const rh=$("gmRuleHead"); if(rh) setTimeout(()=>rh.scrollIntoView({block:"start",behavior:"smooth"}),300); } }
 function grokWire(G,H,arg){ const b=$("gmGrok"); if(!b) return; const C=grokCache(), id=grokId(G), last=(S().aiLast||{})[id]; const c=C[id+"|"+(last||"gemini")]||C[id+"|gemini"]||C[id+"|grok"];
   if(c&&c.text){ grokShow(c,G); } b.onclick=()=>grokAsk(G,H,"gemini");
@@ -10151,9 +10151,10 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="traps.js?v=54ux"></script>
 <script defer src="board3d.js?v=54ux"></script>
 <script defer src="imp.js?v=54ux"></script>
-<script defer src="wish.js?v=54ux"></script>
+<script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
 <script defer src="home.js?v=54ux"></script>
+<script defer src="onboard.js?v=55"></script>
 <script defer src="v42.js?v=54ux"></script>
 <script defer src="assess.js?v=54ux"></script>
 <script defer src="v46.js?v=54ux"></script>
