@@ -107,7 +107,7 @@ function demoChart(){ const ex=window.EXAMPLE_DATA; if(!ex||!ex.plies) return `<
     ${lineChart(vals,{c:"#3b6fb6"})}
     <p class="lg">Each point is one move of the demo game. Yours will be one point per game you review.</p></div>
     <button class="v42b pri full" id="v42add" type="button">Add your Chess.com or Lichess username</button>`; }
-function openCharts(sel){ const G=games(); const cls={}; G.forEach(g=>{ const c=tcClass(g.tc); cls[c]=(cls[c]||0)+1; });
+function openCharts(sel){ if(window.CRCharts&&!sel) return CRCharts.open(); const G=games(); const cls={}; G.forEach(g=>{ const c=tcClass(g.tc); cls[c]=(cls[c]||0)+1; });
   const order=Object.keys(cls).sort((a,b)=>cls[b]-cls[a]); sel=sel&&cls[sel]?sel:order[0]; const L=G.filter(g=>tcClass(g.tc)===sel);
   const el=L.map(g=>g.myElo||null), ac=L.map(g=>g.acc==null?null:Math.round(g.acc)); const avg=ac.map((v,i)=>{ const w=ac.slice(Math.max(0,i-4),i+1).filter(x=>x!=null); return w.length?w.reduce((a,b)=>a+b,0)/w.length:null; });
   const eF=el.filter(Boolean), aF=ac.filter(x=>x!=null); const mean=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
@@ -203,7 +203,7 @@ function reviewBits(){ const c=document.querySelector("section.main .controls");
 /* ---------- home tiles ---------- */
 const TILES=[["v42pod","📅","Puzzle of the day",()=>{ const s=podState(); return s&&s.v===1?"✅ Solved today":"Plus mate in 2 and 3"; },openPuzzles],
  ["v42xp","🏅","Level & badges",()=>{ const s=stats(); return `Level ${s.lvl} ${s.cur[1]} · ${s.xp} XP`; },openXP],
- ["v42ch","📊","My charts",()=>"Rating and accuracy",()=>openCharts()]];
+ ["v42ch","📊","My charts",()=>"Rating, openings, mistakes",()=>openCharts()]];
 function tiles(){ const g=$("hsG"); if(!g||g.querySelector("[data-v42t]")) return; const ref=g.querySelector('[data-hs="goal"]')||null;
   TILES.forEach(([id,i,t,sub,fn])=>{ const b=document.createElement("button"); b.type="button"; b.dataset.v42t=id; b.innerHTML=`<span class="i">${i}</span><span><b>${t}</b><br><small>${E_(sub())}</small></span>`; b.onclick=()=>{ try{ fn(); }catch(e){ console.error(e); } }; g.insertBefore(b,ref); }); }
 function boot(){ const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); applyTheme();
@@ -211,7 +211,7 @@ function boot(){ const st=document.createElement("style"); st.textContent=CSS; d
   new MutationObserver(()=>{ if(B.classList.contains("hs-home")||!B.classList.contains("hs-app")) closePanel(); if(!B.classList.contains("hs-review")) stopRP(); }).observe(B,{attributes:true,attributeFilter:["class"]});
   ["tr","lrn"].forEach(id=>{ const e=$(id); if(e) new MutationObserver(()=>{ if(e.classList.contains("on")) closePanel(); }).observe(e,{attributes:true,attributeFilter:["class"]}); });
   reviewBits(); }
-window.V42={level,attachPlay,toast,stats,openXP,openPuzzles,openCharts,podPuzzle,applyTheme,_q:{qBest,qWhy,qThreat}};
+window.V42={_panel:panel,_close:closePanel,_legacyCharts:()=>openCharts("x"),level,attachPlay,toast,stats,openXP,openPuzzles,openCharts,podPuzzle,applyTheme,_q:{qBest,qWhy,qThreat}};
 try{ boot(); }catch(e){ console.error(e); }
 })();
 

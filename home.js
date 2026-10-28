@@ -64,7 +64,7 @@ const TILES=[
  ["board","♟","Board training",()=>"Squares and your real board",()=>{ setMode("app",true); T().open("sec","boardtrain"); }],
  ["v45","🎯","Find my level",levelSub,()=>{ setMode("app",true); window.CRAssess&&CRAssess.open(); },"",{"data-v45t":"1"}],
  ["v46mo","📖","My Openings",()=>"Which openings win you games",()=>{ setMode("app",true); window.CROpen&&CROpen.open(false); },"",{"data-v46t":"1"}],
- ["v42ch","📊","My charts",()=>"Rating and accuracy",()=>{ setMode("app",true); window.V42&&V42.openCharts(); },"",{"data-v42t":"v42ch"}],
+ ["v42ch","📊","My charts",()=>"Rating, openings, mistakes",()=>{ setMode("app",true); window.V42&&V42.openCharts(); },"",{"data-v42t":"v42ch"}],
  ["progress","📈","My progress",()=>"Patterns, openings, streak",()=>{ setMode("app",true); T().open("sec","progress"); }],
  ["v42xp","🏅","Level & badges",()=>"XP, badges, board colours",()=>{ setMode("app",true); window.V42&&V42.openXP(); },"",{"data-v42t":"v42xp"}],
  ["goal","🎯","Rating goal",goalSub,()=>{ closeAll(); setMode("goal",true); }],

@@ -233,5 +233,5 @@ function practice(d,R){ if(!window.CRStyle||!window.CRBots) return; const src={u
 function drillLine(d,st){ const C=U().CH(), ch=new C(), moves=[]; st.seq.forEach((s,i)=>{ const before=ch.fen(), m=ch.move(s); moves.push([m.san,CROpenings._explain(m,before,ch.fen(),i)]); });
   const id="study-"+d.src+"-"+d.user.toLowerCase()+(st.k&&st.k!=="steer"?"-"+st.k:""), line={id,name:`Beat ${d.user}`+(st.title&&st.k!=="steer"?`: ${st.title.toLowerCase()}`:""),icon:"🔍",side:st.you,sub:st.k&&st.k!=="steer"?`${st.title} (${st.n} games)`:`Their weakest line (they score ${pct(st.s)} in ${st.n} games)`,tags:"study "+d.user,moves};
   const K="chessReview.v52.myLines", L=U().LS.get(K,[]).filter(x=>x.id!==id); L.push(line); U().LS.set(K,L); CROpenings._drill(id); }
-window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load};
+window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load,fetchAll};
 })();
