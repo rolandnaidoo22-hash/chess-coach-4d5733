@@ -18,20 +18,20 @@ function parsePgn(pgn){ const H={}; pgn.replace(/^\[(\w+)\s+"([^"]*)"\]/gm,(_,k,
 function replay(sans){ const C=U().CH(), ch=new C(), m=[]; for(const t of sans){ let r=null; try{ r=ch.move(t,{sloppy:true}); }catch(e){} if(!r) break; m.push(r.san); } return m; }
 function tcOf(tc){ if(!tc||tc==="-") return "daily"; const [b,i]=tc.split("+").map(Number), e=b+40*(i||0); return e<180?"bullet":e<480?"blitz":e<1500?"rapid":"classical"; }
 function slugName(u){ const s=(u||"").split("/openings/")[1]; return s?decodeURIComponent(s).replace(/-\d.*$/,"").replace(/-/g," "):""; }
-function rec(site,id,c,tc,res,how,e,oe,t,P,name){ const m=replay(P.sans); if(m.length<2) return null;
-  const myClk=P.clk.filter((x,i)=>(i%2?"b":"w")===c); return {id,site,c,tc,r:res,how,e:+e||0,oe:+oe||0,t,m,clk:myClk,name}; }
+function rec(site,id,c,tc,res,how,e,oe,t,P,name,opn){ const m=replay(P.sans); if(m.length<2) return null;
+  const myClk=P.clk.filter((x,i)=>(i%2?"b":"w")===c); return {id,site,c,tc,r:res,how,e:+e||0,oe:+oe||0,t,m,clk:myClk,name,op:opn||""}; }
 function fromChessCom(g,user){ if(!g.pgn||(g.rules&&g.rules!=="chess")) return null; const u=user.toLowerCase();
   const c=g.white&&g.white.username.toLowerCase()===u?"w":g.black&&g.black.username.toLowerCase()===u?"b":null; if(!c) return null;
   const me=c==="w"?g.white:g.black, op=c==="w"?g.black:g.white, P=parsePgn(g.pgn);
   const res=me.result==="win"?1:/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(me.result)?0.5:0;
   const why=res===1?op.result:me.result, how=res===0.5?"draw":why==="timeout"?"time":why==="resigned"?"resign":why==="checkmated"?"mate":why==="abandoned"?"abandon":"other";
-  return rec("c",g.url||String(g.end_time),c,g.time_class||"?",res,how,me.rating,op.rating,(g.end_time||0)*1000,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||P.H.Opening||slugName(P.H.ECOUrl)); }
+  return rec("c",g.url||String(g.end_time),c,g.time_class||"?",res,how,me.rating,op.rating,(g.end_time||0)*1000,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||P.H.Opening||slugName(P.H.ECOUrl),op&&op.username); }
 function fromLichess(pgn,user){ const P=parsePgn(pgn), H=P.H, u=user.toLowerCase(); if(H.Variant&&H.Variant!=="Standard") return null;
   const c=(H.White||"").toLowerCase()===u?"w":(H.Black||"").toLowerCase()===u?"b":null; if(!c) return null;
   const res=H.Result==="1/2-1/2"?0.5:(H.Result==="1-0")===(c==="w")?1:0, last=P.sans[P.sans.length-1]||"";
   const how=res===0.5?"draw":H.Termination==="Time forfeit"?"time":H.Termination==="Abandoned"?"abandon":/#$/.test(last)?"mate":H.Termination==="Normal"?"resign":"other";
   const t=Date.parse((H.UTCDate||"").replace(/\./g,"-")+"T"+(H.UTCTime||"00:00:00")+"Z")||0;
-  return rec("l",H.Site||H.GameId||String(t),c,tcOf(H.TimeControl),res,how,c==="w"?H.WhiteElo:H.BlackElo,c==="w"?H.BlackElo:H.WhiteElo,t,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||H.Opening||""); }
+  return rec("l",H.Site||H.GameId||String(t),c,tcOf(H.TimeControl),res,how,c==="w"?H.WhiteElo:H.BlackElo,c==="w"?H.BlackElo:H.WhiteElo,t,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||H.Opening||"",c==="w"?H.Black:H.White); }
 /* ---------- fetch (public games only) ---------- */
 async function getJ(u,site){ const r=await fetch(u,{cache:"no-store"}); if(r.status===404) throw new Error("User not found."); if(r.status===429) throw new Error(`${site} is busy right now. Try again in a minute.`); if(!r.ok) throw new Error(`Couldn't reach ${site} (${r.status}).`); return r.json(); }
 async function fetchChessCom(user,onP,own){ if(!own&&window.CRHidden&&CRHidden(user)) throw new Error("User not found."); const a=((await getJ(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`,"Chess.com")).archives||[]).slice().reverse(), out=[];

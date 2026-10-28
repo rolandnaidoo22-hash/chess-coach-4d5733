@@ -18,8 +18,8 @@ async function fetchGames(w){ const out=[], notes=[];
   const seen=new Set(), gs=out.filter(g=>g&&!seen.has(g.id)&&seen.add(g.id)).sort((a,b)=>a.t-b.t).slice(-MAXKEEP); return {games:gs,notes}; }
 function saveGames(c){ for(let i=0;i<4;i++){ if(LS.set(KG,c)) return; c.games=c.games.slice(Math.ceil(c.games.length/4)); } }
 let busy=false;
-async function load(force){ const w=who(), k=keyOf(w); let c=LS.get(KG,null); if(c&&c.k!==k) c=null;
-  if(c&&!force&&Date.now()-c.t<REFRESH) return c;
+async function load(force){ const w=who(), k=keyOf(w); let c=LS.get(KG,null); if(c&&c.k!==k) c=null; const stale=c&&c.games&&c.games.length&&!("op" in c.games[c.games.length-1]);
+  if(c&&!force&&!stale&&Date.now()-c.t<REFRESH) return c;
   try{ const r=await fetchGames(w); if(!r.games.length&&c) return Object.assign(c,{note:r.notes.join(" ")||"Couldn't refresh; showing saved games."});
     c={k,t:Date.now(),games:r.games,notes:r.notes}; saveGames(c); return c; }
   catch(e){ if(c) return Object.assign(c,{note:"Offline or couldn't refresh: showing your saved games."}); throw e; } }
@@ -41,8 +41,25 @@ const GO={
   pawn:["👑 Practise: Pawn endgames",()=>window.Trainer&&Trainer.open("pawn")],
   lessons:["🎓 Practise: Checkmate & king-safety lessons",()=>window.Trainer&&Trainer.open("sec","lessons")],
   drills:["⚡ Practise: Quick drills",()=>window.Trainer&&Trainer.open("sec","drills")],
+  def:["🛡 Practise: Save yourself",()=>window.CRThink&&CRThink._def()],
+  blunders:["🩹 Practise: Puzzles from my blunders",()=>window.CRBlunders&&CRBlunders.open()],
+  session:["☀️ Practise: Today's session",()=>window.CRThink&&CRThink._daily()],
   puzzles:["🧩 Practise: Puzzles from your mistakes",()=>window.Trainer&&Trainer.open("sec","puzzles")]};
 function card(id,q,body,take,n,go){ return `<div class="card c56" id="c56-${id}"><h3>${E_(q)}</h3><div class="c56n">${E_(n)}</div>${body}<p class="c56t">${take}</p>${go?`<button class="v42b pri full c56go" data-go="${go}">${GO[go][0]}</button>`:""}</div>`; }
+/* ---------- v57: hung pieces + streak ---------- */
+function cHung(G){ const B=window.CRBlunders; if(!B||!window.CRGuard) return ""; const S=B.hungSeries(G), gu=B.guard(), A=anAll(), set=G.slice(-ANN), done=set.filter(g=>A[g.id]).length;
+  const nG=S.filter(x=>x.src==="g").length, nB=S.length-nG, q="Am I hanging fewer pieces?";
+  const warnTxt=(gu.heed||gu.ign)?` Blunder check vs bots: you took back ${gu.heed||0} and played on ${gu.ign||0} time${(gu.ign||0)===1?"":"s"}.`:"";
+  if(S.length<2){ return card("hung",q,`<p class="c56na">${nG?"":"Not analysed yet. "}Needs at least 2 checked games or bot games.</p>${done<set.length?`<button class="v42b full c56an">🔎 Analyse my ${set.length} newest games</button><div class="c56pg"></div>`:""}`,"Play a bot game or check your games to start this chart."+warnTxt,`${nG} checked games · ${nB} bot games`,"def"); }
+  const L=S.slice(-20), mx=Math.max(1,...L.map(x=>x.n)), h=Math.floor(L.length/2), avg=a=>a.reduce((x,y)=>x+y.n,0)/Math.max(1,a.length), a1=avg(L.slice(0,h)), a2=avg(L.slice(h)), f=x=>(Math.round(x*10)/10).toString();
+  const body=`<div class="c57hb">${L.map(x=>`<div title="${new Date(x.t).toLocaleDateString("en-GB")}"><em>${x.n}</em><i class="${x.src}" style="height:${Math.max(3,70*x.n/mx)}px"></i><small>${new Date(x.t).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</small></div>`).join("")}</div>
+   <span class="c56lg"><b class="c57k g"></b> your games (checked) · <b class="c57k b"></b> bot games · oldest on the left</span>`;
+  const take=L.length<6?`Only ${L.length} games so far. Average ${f(avg(L))} hung pieces a game.`:a2<a1-.15?`<b>Yes.</b> Down from ${f(a1)} to ${f(a2)} hung pieces a game. Keep it up.`:a2>a1+.15?`<b>No, more lately:</b> up from ${f(a1)} to ${f(a2)} a game. Practise spotting threats.`:`<b>About the same:</b> ${f(a2)} a game. Practise spotting threats to bring it down.`;
+  return card("hung",q,body,take+warnTxt,`${nG} checked games · ${nB} bot games · a hung piece = a move that let them win a piece (rule check)`,"def"); }
+function cStreak(){ const B=window.CRBlunders; if(!B) return ""; const s=B.streak();
+  const body=`<div class="c57st">${s.last.map(d=>`<i class="${d.on?"on":""}" title="${d.d}"></i>`).join("")}</div><span class="c56lg">Last 28 days, oldest first. Green = you trained that day.</span>`;
+  const take=s.n?`<b>${s.n}-day streak</b> 🔥 Best ever: ${s.best} days. Do today's session to keep it going.`:s.total?`No streak right now. Best ever: ${s.best} days. Start a new one today.`:`No training days yet. Do today's session to start a streak.`;
+  return card("streak","Am I training every day?",body,take,`${s.total} training day${s.total===1?"":"s"} in total`,"session"); }
 /* ---------- the six charts ---------- */
 function cRating(G,sel){ const tk=g=>(g.site==="l"||/lichess\.org/.test(g.id)?"Lichess ":"Chess.com ")+tcN(g.tc), cls={}; G.forEach(g=>{ if(g.e) cls[tk(g)]=(cls[tk(g)]||0)+1; }); const order=Object.keys(cls).sort((a,b)=>cls[b]-cls[a]); sel=cls[sel]?sel:order[0];
   if(!sel) return card("rating","Am I actually improving?","","No rated games found yet.","0 games","think");
@@ -102,14 +119,16 @@ const CSS=`.c56 h3{margin:0 0 2px;font-size:16px}.c56n{font-size:12.5px;color:va
 .c56bt{position:relative;background:#eee;border-radius:6px;height:14px;overflow:hidden}.c56bt i{display:block;height:100%;border-radius:6px}.c56bt em{position:absolute;left:6px;top:2px;font-style:normal;font-size:12px;color:#111;text-shadow:0 0 3px #fff}
 .c56st{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#eee}.c56st i{display:block;height:100%}.c56lg{display:block;color:var(--mute,#777);font-size:12px;margin-top:4px}.c56sm{color:#b26a00}
 .c56tb{width:100%;border-collapse:collapse;font-size:13.5px}.c56tb td,.c56tb th{border-bottom:1px solid #e5e5e5;padding:5px 4px;text-align:left}.c56tb td+td,.c56tb th+th{text-align:center}
-.c56bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:6px 0 2px}.c56bar i{display:block;height:100%;background:#2e7d32}.c56tc{flex-wrap:wrap}#c56root{max-width:100%;overflow-x:hidden;padding-bottom:90px}`;
+.c56bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:6px 0 2px}.c56bar i{display:block;height:100%;background:#2e7d32}.c56tc{flex-wrap:wrap}.c57hb{display:flex;align-items:flex-end;gap:3px;height:110px}.c57hb div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0}.c57hb i{display:block;width:80%;border-radius:3px 3px 0 0}.c57hb i.g,.c57k.g{background:#c62828}.c57hb i.b,.c57k.b{background:#3b6fb6}.c57hb em{font-style:normal;font-size:11px;font-weight:700}.c57hb small{font-size:8.5px;color:var(--mute,#777);white-space:nowrap;overflow:hidden}
+.c57k{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle}.c57st{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}.c57st i{display:block;aspect-ratio:1;border-radius:4px;background:#e5e5e5}.c57st i.on{background:#2e7d32}
+#c56root{max-width:100%;overflow-x:hidden;padding-bottom:90px}`;
 function css(){ if($("c56css")) return; const s=document.createElement("style"); s.id="c56css"; s.textContent=CSS; document.head.appendChild(s); }
 let DATA=null, SEL=null;
 function shell(inner){ css(); return V42._panel(`<div id="c56root"><h2>📈 My charts</h2>${inner}</div>`); }
 function paint(){ const c=DATA; if(!c) return; const G=c.games, A=anAll(), w=who();
   const src=[w.cc&&`Chess.com: ${E_(w.cc)}`,w.li&&`Lichess: ${E_(w.li)}`].filter(Boolean).join(" · ");
   const d=shell(`<p class="sub">Your ${G.length} newest public games (${src}). Each chart answers one question and points at one thing to practise.${c.note?`<br><small>${E_(c.note)}</small>`:""}${c.notes&&c.notes.length?`<br><small>${E_(c.notes.join(" "))}</small>`:""}</p>
-   ${G.length?[cRating(G,SEL),cPhase(G,A),cOpen(G),cColour(G),cEnds(G),cAcc(G,A)].join(""):`<div class="card"><p>No games found for ${src}.</p></div>`}
+   ${G.length?[cRating(G,SEL),cPhase(G,A),cOpen(G),cColour(G),cEnds(G),cAcc(G,A),cHung(G),cStreak()].join(""):`<div class="card"><p>No games found for ${src}.</p></div>`}
    <div class="row"><button class="v42b full" id="c56rf">🔄 Refresh games</button></div>`);
   d.querySelectorAll(".c56tc [data-tc]").forEach(b=>b.onclick=()=>{ SEL=b.dataset.tc; paint(); });
   d.querySelectorAll(".c56go").forEach(b=>b.onclick=()=>{ const f=GO[b.dataset.go][1]; V42._close(); try{ f(); }catch(e){ console.warn(e); } });

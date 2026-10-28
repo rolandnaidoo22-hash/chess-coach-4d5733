@@ -70,12 +70,12 @@ function reason0(P,u){ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)
 const clsOf=(P,u)=>{ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)===u.slice(0,4))]; return t?t[0]:"m"; };
 const tagOf=(P,u)=>{ const t=P.m[u]||P.m[Object.keys(P.m).find(k=>k.slice(0,4)===u.slice(0,4))]; return t?t[2]:"S"; };
 /* ---------- positions from the player's own reviewed games, checked live with the app's Stockfish ---------- */
-function ownMoments(){ const out=[]; try{ Object.values(window.PatternStore?PatternStore.all():{}).forEach(r=>(r.ev||[]).forEach(e=>{ if(e.fen&&e.best&&e.best!==e.uci&&/^(missmate|misstac|miss|hang|fell)$/.test(e.k)) out.push({id:r.id+"|"+e.ply,f:e.fen,best:e.best,k:e.k,src:/lichess\.org/i.test(String(r.pgn||"").slice(0,400)+String(r.id||""))?"Lichess":""}); })); }catch(e){}
+function ownMoments(){ const out=[]; try{ if(window.CRBlunders) out.push(...CRBlunders.moments()); }catch(e){} try{ Object.values(window.PatternStore?PatternStore.all():{}).forEach(r=>(r.ev||[]).forEach(e=>{ if(e.fen&&e.best&&e.best!==e.uci&&/^(missmate|misstac|miss|hang|fell)$/.test(e.k)) out.push({id:r.id+"|"+e.ply,f:e.fen,best:e.best,k:e.k,src:/lichess\.org/i.test(String(r.pgn||"").slice(0,400)+String(r.id||""))?"Lichess":""}); })); }catch(e){}
   const seen=new Set(); return out.filter(x=>{ const k=x.f.split(" ").slice(0,4).join(" "); if(seen.has(k)) return false; seen.add(k); return true; }); }
 async function liveCheck(o){ const E=window.CRBotEngine; await E.boot(); const g=new (CH())(o.f), me=g.turn(), n=Math.min(24,g.moves().length);
   const list=await E.candidates(o.f,n,2500); if(!list.length) return null; const best=list[0].score, m={};
   for(const x of list){ const d=best-x.score; const cls=(d<=30||(best>90000&&x.score>90000))?"b":(d<=120&&x.score>-150)?"g":"m"; let tg=x.score>90000?"M":x.score<-90000?"A":cls==="m"?"S":"F"; m[x.uci]=[cls,"",tg]; }
-  const P={id:"own:"+o.id,f:o.f,lm:"",lab:o.src?"From your "+o.src+" game":"From your game",best:list[0].uci,m,t:threatJS(o.f),own:true,live:true}; return P; }
+  const P={id:o.lp?o.id:"own:"+o.id,f:o.f,lm:o.lm||"",pf:o.pf,lab:o.lab||(o.src?"From your "+o.src+" game":"From your game"),best:list[0].uci,m,t:threatJS(o.f),own:!o.lp,live:true,bl:o.bl,isDef:o.isDef}; return P; }
 async function liveReply(P,u){ if(!P.live) return; const t=P.m[u]; if(t&&t[0]!=="m") return; const E=window.CRBotEngine; const g=new (CH())(P.f); const m=vmove(P.f,u); g.move({from:m.from,to:m.to,promotion:m.promotion});
   try{ const r=await E.candidates(g.fen(),1,800); const x=r[0]; if(!x) return; const c=g.get(x.uci.slice(2,4)); const tg=x.score>90000?"A":(c&&VAL[c.type]>=1)?"L"+c.type:"S"; P.m[u]=["m",x.uci,tg]; }catch(e){} }
 /* ---------- state for one position ---------- */
@@ -95,13 +95,15 @@ function page(){ return U().show("tf54"); }
 function open(){ W=null; stopTimer(); const p=page(), s=S(), E_=U().E_; const st=stats();
   p.innerHTML=`<h2>🧠 Think First</h2><p class="mute">Stop moving on instinct. Four quick steps before every move, until they become a habit.</p>
   <div class="tfsteps">${STEPS.map((n,i)=>`<div><b>${i+1}</b><span>${["What do they want?","Checks, captures, threats","Pick 2–3 moves","Move, then safety check"][i]}</span></div>`).join("")}</div>
-  <button class="lt tfgo" id="tfDaily"><span class="i">☀️</span><span><b>Today's 10-minute session</b><small>${s.sess&&s.sess.d===today()&&s.sess.done?"Done today ✅ Play again any time":"6 positions, 2 defence puzzles, 1 speed drill"}</small></span></button>
+  <button class="lt tfgo" id="tfDaily"><span class="i">☀️</span><span><b>Today's 10-minute session</b><small>${s.sess&&s.sess.d===today()&&s.sess.done?"Done today ✅ Play again any time":"5 of your own mistakes, 3 defence puzzles, 1 checks drill · 10–15 min"}</small></span></button>
   <button class="lt" id="tfOne"><span class="i">🎯</span><span><b>Practise one position</b><small>Level ${s.lvl}: ${LV[s.lvl]}</small></span></button>
+  <button class="lt" id="tfBl"><span class="i">🩹</span><span><b>Puzzles from my blunders</b><small>Big mistakes from your own games</small></span></button>
+  <button class="lt" id="tfDef"><span class="i">🛡</span><span><b>Save yourself</b><small>They have a threat. Find the move that stops it.</small></span></button>
   <button class="lt" id="tfSpeed"><span class="i">⚡</span><span><b>Find all the checks</b><small>20 seconds, tap every check</small></span></button>
   <h3>Your level</h3><div class="row" id="tfLv">${[1,2,3].map(l=>`<button class="bt ${s.lvl===l?"go":""}" data-l="${l}" ${l>s.max?"disabled":""}>${l>s.max?"🔒 ":""}${l}. ${LV[l]}</button>`).join("")}</div>
   <p class="mute">${s.max<3?`Move up after 10 positions in a row with no missed check or capture. Now: ${s.run}/10.`:"All levels unlocked."} ${["","All four steps, with hints.","Same steps, no hints, 30 seconds a step.","Just move. The app only steps in when you are about to hang a piece or miss a mate."][s.lvl]}</p>
   ${statsHtml(st)}`;
-  $("tfDaily").onclick=daily; $("tfOne").onclick=()=>{ W={lvl:S().lvl}; play(pickBank(bank(),1)[0]); }; $("tfSpeed").onclick=()=>{ W={lvl:S().lvl}; speed(); };
+  $("tfDaily").onclick=daily; $("tfOne").onclick=()=>{ W={lvl:S().lvl}; play(pickBank(bank(),1)[0]); }; $("tfSpeed").onclick=()=>{ W={lvl:S().lvl}; speed(); }; $("tfBl").onclick=()=>window.CRBlunders&&CRBlunders.open(); $("tfDef").onclick=defOne;
   p.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{ const s=S(); s.lvl=+b.dataset.l; save(s); open(); }); }
 /* ---------- stats ---------- */
 function stats(){ const s=S(), H=s.hist||[]; const days=[...new Set(s.days||[])].sort(); let streak=0; { let d=new Date(); for(;;){ const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); if(days.includes(k)){ streak++; d.setDate(d.getDate()-1); } else if(!streak&&k===today()){ d.setDate(d.getDate()-1); } else break; } }
@@ -273,15 +275,24 @@ function speed(P){ stopTimer(); if(!P){ const c=bank().filter(p=>{ const n=forci
   startTimer(20,end); }
 /* ---------- daily session ---------- */
 async function daily(){ const lvl=S().lvl; W={lvl}; const p=page(); p.innerHTML=`<h2>☀️ Today's session</h2><p class="mute" id="tfLd">Getting your positions ready…</p>`;
-  const q=[]; let own=ownMoments().sort(()=>Math.random()-.5).slice(0,4), nOwn=0;
-  for(const o of own){ if(nOwn>=3) break; try{ const P=await Promise.race([liveCheck(o),new Promise(r=>setTimeout(()=>r(null),9000))]); if(P&&Object.keys(P.m).length>=3){ q.push(P); nOwn++; } }catch(e){} }
-  pickBank(bank(),6-q.length).forEach(P=>q.push(P));
-  pickBank((TFBANK.def||[]),2).forEach(P=>q.push(Object.assign({},P,{isDef:true,lab:"Stop the threat"})));
+  const q=[]; const om=ownMoments(), bl=om.filter(o=>o.bl).slice(0,8), rest=om.filter(o=>!o.bl).sort(()=>Math.random()-.5); let own=bl.concat(rest).slice(0,8), nOwn=0;
+  for(const o of own){ if(nOwn>=5) break; if($("tfLd")) $("tfLd").textContent=`Getting your positions ready… ${nOwn}/5`; try{ const P=await Promise.race([liveCheck(o),new Promise(r=>setTimeout(()=>r(null),9000))]); if(P&&Object.keys(P.m).length>=3){ q.push(P); nOwn++; } }catch(e){} }
+  pickBank(bank(),5-q.length).forEach(P=>q.push(P));
+  const dl=await defLive(1); pickBank((TFBANK.def||[]),3-dl.length).forEach(P=>q.push(Object.assign({},P,{isDef:true,lab:"Save yourself"}))); dl.forEach(P=>q.push(P));
   q.push({speed:true}); W.sess={i:0,q,nOwn,log:[],lvl}; run(); }
-function run(){ const s=W.sess; const P=s.q[s.i]; if(!P) return summary(); W.st={}; if(P.speed) return speed(); if(P.isDef) introDef(P); else play(P); }
-function introDef(P){ play(P); setTimeout(()=>{ const h=document.querySelector("#tf54 .tfq"); if(h) h.insertAdjacentHTML("beforebegin",`<div class="card tfdef">🛡 <b>Defence puzzle.</b> Their threat is real. Your best move must stop it.</div>`); },0); }
+function run(){ const s=W.sess; const P=s.q[s.i]; if(!P) return summary(); W.st={}; if(P.speed) return speed(); if(P.isDef) introDef(P); else { play(P); if(P.bl&&window.CRBlunders) CRBlunders.decorate(P); } }
+async function defLive(n){ const out=[]; if(!window.CRBlunders) return out; const s=S(), seen=s.seen||{}; const pool=CRBlunders.defPool().slice().sort((a,b)=>(seen[a.id]||0)-(seen[b.id]||0)||Math.abs(a.r-1300)-Math.abs(b.r-1300)+(Math.random()-.5)*400);
+  for(const o of pool.slice(0,n+2)){ if(out.length>=n) break; try{ const P=await Promise.race([liveCheck(o),new Promise(r=>setTimeout(()=>r(null),9000))]); if(P){ P.isDef=true; P.lab="Save yourself"; markSeen(o.id); out.push(P); } }catch(e){} } return out; }
+async function defOne(){ const p=page(); p.innerHTML=`<h2>🛡 Save yourself</h2><p class="mute" id="tfLd">Getting a position ready…</p>`; W={lvl:S().lvl,defMode:true};
+  let P=null; if(Math.random()<.6) P=(await defLive(1))[0]; if(!P){ const b=pickBank(TFBANK.def||[],1)[0]; P=b&&Object.assign({},b,{isDef:true,lab:"Save yourself"}); } if(!P) return open(); W.defMode=true; introDef(P); }
+async function ownOne(o,after){ const p=page(); p.innerHTML=`<h2>🩹 Your blunder</h2><p class="mute">Getting the position ready…</p>`; W={lvl:S().lvl};
+  let P=null; try{ P=await liveCheck(o); }catch(e){} if(!P){ p.innerHTML+=`<p>Couldn't check this position. Try again.</p>`; return; } W.after=after; play(P); CRBlunders.decorate(P); }
+function introDef(P){ play(P); setTimeout(()=>{ const h=document.querySelector("#tf54 .tfq"); if(h) h.insertAdjacentHTML("beforebegin",`<div class="card tfdef">🛡 <b>Defence puzzle.</b> Their threat is real. Your best move must stop it.</div>`); },0);
+  const r=$("tf54"); if(!r) return; const ob=new MutationObserver(()=>{ const o=$("tfOut"); if(o&&o.innerHTML.trim()&&!r.querySelector(".tfdefw")){ ob.disconnect(); let t=""; try{ const th=P.t||threatJS(P.f); t=th?threatText(P.f,th):"They had a hidden threat, like a mating attack. Only the best move stops it."; }catch(e){}
+    o.insertAdjacentHTML("afterbegin",`<div class="card tfdef tfdefw"><b>🛡 What they threatened</b><p>${U().E_(t)}</p><p class="mute">The best defence was <b>${U().E_(phrase(P.f,P.best||P.sol))}</b>. Before every move, ask: what does their last move attack?</p></div>`); } });
+  ob.observe(r,{childList:true,subtree:true}); setTimeout(()=>ob.disconnect(),6e5); }
 function sessNote(n){ if(W.sess) W.sess.log.push(n); }
-function next(){ if(!W.sess){ const P=pickBank(bank(),1)[0]; W.st={}; play(P); return; } W.sess.i++; run(); }
+function next(){ if(!W.sess&&W.after){ const f=W.after; W.after=null; return f(); } if(!W.sess&&W.defMode) return defOne(); if(!W.sess){ const P=pickBank(bank(),1)[0]; W.st={}; play(P); return; } W.sess.i++; run(); }
 const TOMORROW={"backward captures":"backward captures","knight checks":"knight checks","diagonal checks":"diagonal attacks","diagonal captures":"diagonal attacks","diagonal threats":"diagonal attacks","long-distance moves":"long-distance moves","queen checks":"queen checks","quiet threats":"quiet threats","pawn captures":"pawn captures","pawn threats":"pawn threats"};
 function summary(){ stopTimer(); const s=W.sess, L=s.log, p=page(); const sp=L.filter(x=>x.s1!=null), threats=sp.filter(x=>x.s1).length;
   const m={}; L.forEach(x=>(x.cats||[]).forEach(([k,miss])=>{ const c=m[k]||(m[k]={n:0,miss:0}); c.n++; if(miss) c.miss++; }));
@@ -312,5 +323,5 @@ const CSS=`#tf54 .tfh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;mar
 html.dark-mode .tfstats div,html.dark-mode .tfchip:not(.on),html.dark-mode .tfcnt span{background:#262626;color:#eee}html.dark-mode .tftray{background:#1d2633}html.dark-mode .tfpause,html.dark-mode .tfup,html.dark-mode .tfdef{background:#2a2a2a!important}`;
 { const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); }
 try{ U().onClose(()=>{ stopTimer(); }); }catch(e){}
-window.CRThink={open,sub,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_finish:u=>{ W.st=Object.assign({marked:[],tray:[],F:[],cats:[]},W.st,{s4:null}); step4(W.P); W.st.s4=null; return finish(W.P,u,null); },_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
+window.CRThink={open,sub,_own:ownOne,_def:defOne,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_finish:u=>{ W.st=Object.assign({marked:[],tray:[],F:[],cats:[]},W.st,{s4:null}); step4(W.P); W.st.s4=null; return finish(W.P,u,null); },_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
 })();
