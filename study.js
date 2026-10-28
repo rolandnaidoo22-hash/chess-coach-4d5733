@@ -34,11 +34,11 @@ function fromLichess(pgn,user){ const P=parsePgn(pgn), H=P.H, u=user.toLowerCase
   return rec("l",H.Site||H.GameId||String(t),c,tcOf(H.TimeControl),res,how,c==="w"?H.WhiteElo:H.BlackElo,c==="w"?H.BlackElo:H.WhiteElo,t,P,(window.CRECO&&CRECO.label(CRECO.lookup(P.sans)))||H.Opening||""); }
 /* ---------- fetch (public games only) ---------- */
 async function getJ(u,site){ const r=await fetch(u,{cache:"no-store"}); if(r.status===404) throw new Error("User not found."); if(r.status===429) throw new Error(`${site} is busy right now. Try again in a minute.`); if(!r.ok) throw new Error(`Couldn't reach ${site} (${r.status}).`); return r.json(); }
-async function fetchChessCom(user,onP){ if(window.CRHidden&&CRHidden(user)) throw new Error("User not found."); const a=((await getJ(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`,"Chess.com")).archives||[]).slice().reverse(), out=[];
+async function fetchChessCom(user,onP,own){ if(!own&&window.CRHidden&&CRHidden(user)) throw new Error("User not found."); const a=((await getJ(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`,"Chess.com")).archives||[]).slice().reverse(), out=[];
   for(let i=0;i<a.length&&out.length<MAXG;i++){ onP&&onP(`Chess.com: reading month ${i+1}`,Math.min(.95,out.length/MAXG)); let j; try{ j=await getJ(a[i],"Chess.com"); }catch(e){ if(/busy/.test(e.message)) throw e; continue; }
     (j.games||[]).slice().reverse().forEach(g=>{ if(out.length<MAXG){ const x=fromChessCom(g,user); if(x) out.push(x); } }); }
   return out; }
-async function fetchLichess(user,onP){ if(window.CRHidden&&CRHidden(user)) throw new Error("User not found."); onP&&onP("Lichess: downloading games",.3);
+async function fetchLichess(user,onP,own){ if(!own&&window.CRHidden&&CRHidden(user)) throw new Error("User not found."); onP&&onP("Lichess: downloading games",.3);
   const r=await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${MAXG}&clocks=true&opening=true&pgnInJson=false`,{headers:{Accept:"application/x-chess-pgn"},cache:"no-store"});
   if(r.status===404) throw new Error("User not found."); if(r.status===429) throw new Error("Lichess is busy right now. Try again in a minute."); if(!r.ok) throw new Error(`Couldn't reach Lichess (${r.status}).`);
   return splitPgn(await r.text()).map(p=>fromLichess(p,user)).filter(Boolean); }
@@ -47,14 +47,16 @@ const kOf=(user,src)=>PFX+src+"."+user.toLowerCase();
 function load(user,src){ if(window.CRHidden&&CRHidden(user)) return null; return U().LS.get(kOf(user,src),null); }
 function save(d){ for(let t=0;t<4;t++){ try{ localStorage.setItem(kOf(d.user,d.src),JSON.stringify(d)); return; }catch(e){ if(d.games.length<40) return; d.games.splice(0,Math.ceil(d.games.length/4)); } } }
 function remember(user,src){ const r=U().LS.get(KR,[]).filter(x=>!(x.u.toLowerCase()===user.toLowerCase()&&x.s===src)); r.unshift({u:user,s:src}); U().LS.set(KR,r.slice(0,6)); }
-async function fetchAll(user,src,onP){ const games=[], notes=[];
-  if(src.includes("c")) try{ games.push(...await fetchChessCom(user,onP)); }catch(e){ notes.push(e.message); }
-  if(src.includes("l")) try{ games.push(...await fetchLichess(user,onP)); }catch(e){ notes.push(e.message); }
+async function fetchAll(user,src,onP,own){ const games=[], notes=[];
+  if(src.includes("c")) try{ games.push(...await fetchChessCom(user,onP,own)); }catch(e){ notes.push(e.message); }
+  if(src.includes("l")) try{ games.push(...await fetchLichess(user,onP,own)); }catch(e){ notes.push(e.message); }
   games.sort((a,b)=>a.t-b.t); const notes2=[...new Set(notes)]; return {games,notes:notes2}; }
 async function rapidOf(user,src){ const out=[];
   if(src.includes("c")) try{ const r=await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/stats`); if(r.ok){ const j=await r.json(); const x=j.chess_rapid&&j.chess_rapid.last; if(x&&x.rating) out.push({s:"c",r:x.rating}); } }catch(e){}
   if(src.includes("l")) try{ const r=await fetch(`https://lichess.org/api/user/${encodeURIComponent(user)}`,{headers:{Accept:"application/json"}}); if(r.ok){ const j=await r.json(); const x=j.perfs&&j.perfs.rapid; if(x&&x.rating&&x.games) out.push({s:"l",r:x.rating}); } }catch(e){}
   return out; }
+/* Charts: the player's OWN saved accounts only (never a typed-in name). Study and the style bot keep the hidden-name block. */
+function fetchOwn(src){ const A=window.CRAcct, n=A?(src==="c"?A.cc():A.li()):""; if(!n) return Promise.resolve({games:[],notes:[]}); return fetchAll(n,src,null,true); }
 /* ---------- plain English ---------- */
 function say(san,color){ const side=color==="w"?"White":"Black"; if(/^O-O-O/.test(san)) return `${side} castles queen's side`; if(/^O-O/.test(san)) return `${side} castles king's side`;
   const p=/^[KQRBN]/.test(san)?NM[san[0].toLowerCase()]:"pawn", sq=(san.match(/[a-h][1-8](?=[=+#]*$|=)/)||san.match(/[a-h][1-8]/g)||[""]).slice(-1)[0];
@@ -233,5 +235,5 @@ function practice(d,R){ if(!window.CRStyle||!window.CRBots) return; const src={u
 function drillLine(d,st){ const C=U().CH(), ch=new C(), moves=[]; st.seq.forEach((s,i)=>{ const before=ch.fen(), m=ch.move(s); moves.push([m.san,CROpenings._explain(m,before,ch.fen(),i)]); });
   const id="study-"+d.src+"-"+d.user.toLowerCase()+(st.k&&st.k!=="steer"?"-"+st.k:""), line={id,name:`Beat ${d.user}`+(st.title&&st.k!=="steer"?`: ${st.title.toLowerCase()}`:""),icon:"🔍",side:st.you,sub:st.k&&st.k!=="steer"?`${st.title} (${st.n} games)`:`Their weakest line (they score ${pct(st.s)} in ${st.n} games)`,tags:"study "+d.user,moves};
   const K="chessReview.v52.myLines", L=U().LS.get(K,[]).filter(x=>x.id!==id); L.push(line); U().LS.set(K,L); CROpenings._drill(id); }
-window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load,fetchAll};
+window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load,fetchOwn};
 })();

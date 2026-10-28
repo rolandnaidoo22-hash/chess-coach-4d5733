@@ -13,8 +13,8 @@ function who(){ const A=window.CRAcct; if(!A) return {cc:"",li:""}; return {cc:(
 const keyOf=w=>(w.cc||"").toLowerCase()+"|"+(w.li||"").toLowerCase();
 /* ---------- data ---------- */
 async function fetchGames(w){ const out=[], notes=[];
-  if(w.cc){ const r=await CRStudy.fetchAll(w.cc,"c"); out.push(...r.games); notes.push(...r.notes.map(n=>"Chess.com: "+n)); }
-  if(w.li){ const r=await CRStudy.fetchAll(w.li,"l"); out.push(...r.games); notes.push(...r.notes.map(n=>"Lichess: "+n)); }
+  if(w.cc){ const r=await CRStudy.fetchOwn("c"); out.push(...r.games); notes.push(...r.notes.map(n=>"Chess.com: "+n)); }
+  if(w.li){ const r=await CRStudy.fetchOwn("l"); out.push(...r.games); notes.push(...r.notes.map(n=>"Lichess: "+n)); }
   const seen=new Set(), gs=out.filter(g=>g&&!seen.has(g.id)&&seen.add(g.id)).sort((a,b)=>a.t-b.t).slice(-MAXKEEP); return {games:gs,notes}; }
 function saveGames(c){ for(let i=0;i<4;i++){ if(LS.set(KG,c)) return; c.games=c.games.slice(Math.ceil(c.games.length/4)); } }
 let busy=false;
