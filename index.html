@@ -9681,7 +9681,7 @@ function week(R,s,off){ const m=monday(new Date()); m.setDate(m.getDate()-7*off)
 async function road(){ const s=S(), R=recs(); sec.innerHTML=head(`🛣 Road to ${GSP("your goal")}`)+`<p class="co17sm">Loading your rating…</p>`; wire();
   const rating=await fetchRating(); if(view!=="road"||!sec.classList.contains("on")) return; const s2=S(), ST=stages(R,s2,rating), r=rating?rating.r:(R[0]&&R[0].myElo)||null;
   const cur=ST.find(x=>!r||r<x.b)||ST[2], pos=r?Math.max(0,Math.min(100,r<500?(r-300)/200*33.33:r<800?33.33+(r-500)/300*33.33:66.67+(r-800)/400*33.33)):0;
-  let h=head(`🛣 Road to ${GSP("your goal")}`)+`<p>Your rating: <b>${r||"?"}</b>${rating?` (${e_(rating.k)})`:""}. Your goal: <b>${GSP("not set yet")}</b> <small>(change it in the 🎯 Rating goal box)</small>.</p><div class="co17ck"><span class="b" data-goalok>${r&&GSET()&&r>=GOAL()?"✅":"⬜"}</span><span>🎯 Reach your goal: <b>${GSP("not set yet")}</b><small>now: ${r||"?"}</small></span></div><p> Long goal: grandmaster, one step at a time.</p>
+  let h=head(`🛣 Road to ${GSP("your goal")}`)+`<p>Your rating: <b>${r||"?"}</b>${rating?` (${e_(rating.k)})`:""}. Your goal: <b>${GSP("not set yet")}</b> <small>(change it in ⚙ Settings)</small>.</p><div class="co17ck"><span class="b" data-goalok>${r&&GSET()&&r>=GOAL()?"✅":"⬜"}</span><span>🎯 Reach your goal: <b>${GSP("not set yet")}</b><small>now: ${r||"?"}</small></span></div><p> Long goal: grandmaster, one step at a time.</p>
    <div class="co17ms"><span>300</span><span>500</span><span>800</span><span>1200</span></div><div class="co17road"><i style="width:${pos}%"></i><em style="left:${pos}%">♟</em></div>
    <p class="co17sm" style="display:flex;justify-content:space-between"><span>start</span><span>stop hanging</span><span>stage 2</span><span>next</span></p>`;
   ST.forEach(x=>{ const done=x.c.filter(c=>c.ok).length; h+=`<h3>${x===cur?"👉 ":""}${x.a} → ${x.b}: ${e_(x.t)} <span class="co17sm">(${done}/${x.c.length})</span></h3>`;
@@ -10154,7 +10154,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
 <script defer src="home.js?v=54ux"></script>
-<script defer src="onboard.js?v=55"></script>
+<script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=54ux"></script>
 <script defer src="assess.js?v=54ux"></script>
 <script defer src="v46.js?v=54ux"></script>

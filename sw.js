@@ -1,6 +1,6 @@
 // Chess Review service worker: keeps the app usable offline.
 // Page: network first (so updates show up), falling back to the cached copy when offline.
-const CACHE = "chess-review-v55onb";
+const CACHE = "chess-review-v55onb2";
 // Heavy files (engine wasm, 3D, piece models, bot profile) load the first time they're used, then the fetch handler caches them. Don't download them all during install.
 const ASSETS = ["./", "./index.html", "./accounts.js", "./onboard.js", "./ideas.js", "./privacy.html", "./STOCKFISH-LICENSE.txt", "./openings-names.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon.svg", "./icon-maskable-192.png", "./icon-maskable-512.png", "./apple-touch-icon.png", "./traps.js", "./imp.js", "./wish.js", "./learn.js", "./home.js", "./thinkfirst.js", "./thinkfirst-data.js", "./v42.js", "./assess.js", "./v46.js", "./v47.js", "./board3d.js", "./stockfish.js", "./bots-data.js", "./ultimate.js", "./bots-engine.js", "./bots.js", "./openings-data.js", "./openings.js", "./read.js", "./style.js","./style-model.js","./study.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(ASSETS.map(a => c.add(a)))).then(() => self.skipWaiting())); });

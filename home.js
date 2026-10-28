@@ -68,13 +68,13 @@ const TILES=[
  ["progress","📈","My progress",()=>"Patterns, openings, streak",()=>{ setMode("app",true); T().open("sec","progress"); }],
  ["v42xp","🏅","Level & badges",()=>"XP, badges, board colours",()=>{ setMode("app",true); window.V42&&V42.openXP(); },"",{"data-v42t":"v42xp"}],
  ["goal","🎯","Rating goal",goalSub,()=>{ closeAll(); setMode("goal",true); }],
- ["set","⚙","Settings",()=>"Username, board style",()=>{ closeAll(); setMode("set",true); }]];
+ ["set","⚙","Settings",()=>"Username, rating goal, board",()=>{ closeAll(); setMode("set",true); }]];
 /* Most-used coaching actions first, then play, train, and progress. */
 const ORDER=[
  ["Review",["coach","review","games","trap"]],
  ["Play",["bots52","corban52","ultimo52","play"]],
  ["Train",["start54","tf54","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
- ["Progress",["v45","v46mo","v42ch","progress","v42xp","goal","set"]]];
+ ["Progress",["v45","v46mo","v42ch","progress","v42xp","set"]]];
 function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
   ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);
     ids.forEach(id=>{ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;
