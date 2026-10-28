@@ -146,7 +146,7 @@ async function analyse(d){ if(running) return; running=d; const todo=newest(d).f
     const pr=$("st52pr"); if(pr) pr.innerHTML=progBar(d); if(k===todo.length){ save(d); paint(d); } else if(k%5===0) save(d); } } finally { save(d); running=null; } }
 function progBar(d){ const L=layer2(d); return L.ready?"":`<div class="mute">Checking the ${L.N} newest games for big mistakes in the background (newest first): ${L.k} of ${L.N}</div><div style="height:8px;background:#eee;border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(100*L.k/L.N)}%;background:#d4af37"></i></div>`; }
 const H=(t,c)=>`<div class="sh" style="background:${c}">${t}</div>`;
-function paint(d){ const p=U().show("study52"), R=report(d), y=window.scrollY, me=R.me, op=R.opp, L2=R.L2;
+function paint(d){ const p=U().show("study52"), R=report(d); R.scen=scenarios(d,R); const y=window.scrollY, me=R.me, op=R.opp, L2=R.L2;
   const wdl=`<div class="wdl"><i style="width:${100*R.w/R.n}%;background:#2e7d32"></i><i style="width:${100*R.dr/R.n}%;background:#9e9e9e"></i><i style="width:${100*R.l/R.n}%;background:#c62828"></i></div>`;
   const fm=R.form.map(x=>`<span class="fm" style="background:${x==="W"?"#2e7d32":x==="D"?"#757575":"#c62828"}">${x}</span>`).join("");
   const rap=R.rapid.length?R.rapid.map(x=>`<span class="elo" style="font-size:15px">Rapid ${x.r} <small>${SITE[x.s]}${x.from==="game"?", latest rapid game":""}</small></span>`).join(" "):`<span class="mute">No rapid rating</span>`;
@@ -175,20 +175,63 @@ function paint(d){ const p=U().show("study52"), R=report(d), y=window.scrollY, m
    <div class="card"><b>Shakiest phase</b>${ph}<div class="mute" style="font-size:12px">${PHDEF}</div></div>
    ${H("🏆 How to beat them","#2e7d32")}
    <div class="card"><ol style="margin:4px 0;padding-left:20px">${R.tips.map(x=>`<li style="margin:8px 0">${x}</li>`).join("")}</ol>
-    ${R.steer?`<div style="margin:6px auto;width:170px">${board(R.steer.seq,R.steer.you,170)}</div><div class="row"><button class="bt go" id="st52dr" style="flex:1">🎯 Drill this line</button></div>`:""}</div>
+</div>
+   ${scHtml(R.scen)}
    <div class="row"><button class="bt go" id="st52ps" style="flex:1">🤖 Play their style</button></div>
    <div class="row"><button class="bt" id="st52rf">🔄 Refresh games</button><button class="bt" id="st52bk">‹ Study someone else</button></div></div>`;
   window.scrollTo(0,y);
   $("st52rf").onclick=()=>study(d.user,d.src,true); $("st52bk").onclick=open;
-  if($("st52dr")) $("st52dr").onclick=()=>drillLine(d,R.steer);
+  try{ scMount(d,R.scen); }catch(e){ console.warn("scenarios",e); }
   $("st52ps").onclick=()=>practice(d,R); }
 /* a generic practice bot: their openings + mistake rates, never their name */
+
+/* ---------- v55: "How to beat them" scenario boards, built only from their real games + the app's engine ---------- */
+function scenarios(d,R){ const S=[], L2=R.L2;
+  if(R.steer) S.push({k:"steer",icon:"🎯",title:"Steer into their worst line",you:R.steer.you,seq:R.steer.seq,n:R.steer.n,
+    s:R.steer.s,sample:`${R.steer.n} games in this exact line · they score ${pct(R.steer.s)}`,their:R.steer.you==="w"?"b":"w"});
+  /* their most repeated engine-found mistake in the opening */
+  if(!L2.ready) S.push({k:"mist",icon:"⚠️",title:"Their repeated mistake",na:true});
+  else { const C={}; newest(d).forEach(g=>{ const a=d.an[g.id]; if(!a) return; a.forEach(([ply,ph,loss])=>{ if(loss<200||ply>24) return; const k=g.c+"|"+g.m.slice(0,ply+1).join(" "); const x=C[k]||(C[k]={c:g.c,seq:g.m.slice(0,ply+1),n:0,loss:0}); x.n++; x.loss+=loss; }); });
+    const best=Object.values(C).filter(x=>x.n>=2).sort((a,b)=>b.n-a.n||b.loss/b.n-a.loss/a.n)[0];
+    if(best){ const pre=best.seq.slice(0,-1).join(" "), reach=d.games.filter(g=>g.c===best.c&&g.m.slice(0,best.seq.length-1).join(" ")===pre).length;
+      S.push({k:"mist",icon:"⚠️",title:"Punish their repeated mistake",you:best.c==="w"?"b":"w",their:best.c,seq:best.seq,mistake:true,n:best.n,
+        sample:`They played this ${best.n} times in ${reach} games that reached this position (engine-checked, ${L2.N} newest games)`}); }
+    else S.push({k:"mist",icon:"⚠️",title:"Their repeated mistake",none:true,sample:`Engine checked their ${L2.N} newest games: no early mistake repeated twice or more.`}); }
+  /* how they defend against 1.e4 / 1.d4 (or how they start as White) */
+  const df=(R.vsE4[0]&&{x:R.vsE4[0],t:"How they defend against 1.e4"})||(R.vsD4[0]&&{x:R.vsD4[0],t:"How they defend against 1.d4"})||(R.white[0]&&{x:R.white[0],t:"How they start as White"});
+  if(df&&!(R.steer&&R.steer.seq.join()===df.x.seq.join())){ const their=df.x.g[0].c; S.push({k:"def",icon:"🛡",title:df.t,you:their==="w"?"b":"w",their,seq:df.x.seq,n:df.x.g.length,
+    sample:`${df.x.g.length} of their games follow these moves · they score ${pct(score(df.x.g))}`}); }
+  S.forEach(sc=>{ if(sc.seq&&sc.seq.length&&(sc.seq.length%2===0)!==(sc.you==="w")) sc.seq=sc.seq.slice(0,-1); });
+  return S.slice(0,3); }
+function scSteps(sc){ const C=U().CH(), ch=new C(), st=[{fen:ch.fen(),arrows:[],note:`Start position. You are ${side(sc.you)}. Tap Next to follow their real games.`}];
+  sc.seq.forEach((san,i)=>{ const before=ch.fen(); let m=null; try{ m=ch.move(san); }catch(e){} if(!m) return; const theirs=m.color===sc.their, last=i===sc.seq.length-1;
+    let why=""; try{ why=window.CROpenings?CROpenings._explain(m,before,ch.fen(),i):""; }catch(e){} why=String(why||"").replace(/<[^>]+>/g,"");
+    const note=theirs?(last&&sc.mistake?`They usually play ${san} here. The app's engine says this is a mistake.`:`They usually play ${san} here.`)+(why?" "+why:""):`You play ${san}.`+(why?" "+why:"");
+    st.push({fen:ch.fen(),arrows:[{u:m.from+m.to,c:theirs?(last&&sc.mistake?"#e53935":"#ef6c00"):"#1e88e5"}],note,san}); });
+  return st; }
+async function scReply(fen){ await CRBotEngine.boot(); const l=await CRBotEngine.candidates(fen,1,1200); const x=l&&l[0]; if(!x||!x.uci) return null;
+  const C=U().CH(), ch=new C(fen), before=ch.fen(); let m=null; try{ m=ch.move({from:x.uci.slice(0,2),to:x.uci.slice(2,4),promotion:x.uci[4]||"q"}); }catch(e){} if(!m) return null;
+  let why=""; try{ why=window.CROpenings?String(CROpenings._explain(m,before,ch.fen(),20)||"").replace(/<[^>]+>/g,""):""; }catch(e){} return {m,fen:ch.fen(),why}; }
+function scHtml(S){ if(!S.length) return ""; return `<style>.sc55 .scbw svg,.sc55 .scbw>div{width:100%!important;height:auto!important;max-width:100%}.sc55 .scr{align-items:center;justify-content:space-between}</style><h3 style="margin:12px 0 4px">♟ Scenario boards</h3><p class="mute" style="margin:0 0 6px">Built from their real games. Tap Next and Back; arrows show each move. Blue = you, orange = them, red = their mistake, green = your best reply (from the app's engine).</p>`+
+  S.map((sc,i)=>`<div class="card sc55" id="sc55-${i}" data-k="${sc.k}"><b>${sc.icon} ${E_(sc.title)}</b>${sc.na?`<p class="mute">Not analysed yet. The app's engine is still checking their games; this board appears when it's done.</p>`:sc.none?`<p class="mute">${E_(sc.sample)}</p>`:
+   `<div class="mute" style="font-size:12.5px">${E_(sc.sample)}</div><div class="scb"></div><div class="scn"></div><div class="row scr"><button class="bt scP">‹ Back</button><span class="scc"></span><button class="bt go scN">Next ›</button></div><div class="row"><button class="bt scD" style="flex:1">🎯 Drill this</button></div>`}</div>`).join(""); }
+function scMount(d,S){ S.forEach((sc,i)=>{ const el=$("sc55-"+i); if(!el||sc.na||sc.none) return; const st=scSteps(sc); let k=0, reply=null, rq=false;
+  const draw=()=>{ const s=st[k]; el.querySelector(".scb").innerHTML=`<div class="scbw" style="max-width:340px;margin:6px auto">${U().mini(s.fen,sc.you,{arrows:s.arrows})}</div>`; el.querySelector(".scn").textContent=s.note; el.querySelector(".scc").textContent=`${k+1} / ${st.length}`;
+    el.querySelector(".scP").disabled=k===0; el.querySelector(".scN").disabled=k===st.length-1&&!!reply&&reply!=="wait"; };
+  const addReply=()=>{ if(rq) return; rq=true; reply="wait"; const end=st[st.length-1]; st.push({fen:end.fen,arrows:[],note:"Working out your best reply with the app's engine…"}); draw();
+    scReply(end.fen).then(r=>{ const s=st[st.length-1]; if(!r){ s.note="The engine couldn't find a reply right now. Try again later."; reply=null; rq=false; st.pop(); draw(); return; }
+      reply=r; s.fen=end.fen; s.arrows=[{u:r.m.from+r.m.to,c:"#2e7d32"}]; s.san=r.m.san; s.note=`Hit back with ${r.m.san}`+(r.why?` because ${r.why.charAt(0).toLowerCase()+r.why.slice(1)}`:".")+" (The app's engine's choice.)"; draw(); })
+    .catch(()=>{ st.pop(); reply=null; rq=false; draw(); }); };
+  el.querySelector(".scP").onclick=()=>{ if(k>0){ k--; draw(); } };
+  el.querySelector(".scN").onclick=()=>{ if(k<st.length-1){ k++; draw(); if(k===st.length-1&&!rq) addReply(); } else if(!rq){ addReply(); k=st.length-1; draw(); } };
+  el.querySelector(".scD").onclick=()=>{ const seq=sc.seq.slice(); if(reply&&reply.m) seq.push(reply.m.san); drillLine(d,{seq,you:sc.you,s:sc.s!=null?sc.s:0,n:sc.n,k:sc.k,title:sc.title}); };
+  draw(); }); }
 function practice(d,R){ if(!window.CRStyle||!window.CRBots) return; const src={user:"practice",games:d.games,an:d.an};
   const rs=d.games.filter(g=>g.e).slice(-30), elo=rs.length?Math.round(rs.reduce((s,g)=>s+g.e,0)/rs.length/10)*10:0;
   const av=`<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="#37474f"/><text x="32" y="43" font-size="30" text-anchor="middle">🤖</text></svg>`;
   CRBots._startBot({id:"practice-partner",name:"Practice partner",elo,style:"Plays the openings and habits from the report",avatar:av,chat:{start:["Let's play."],capture:["Got one."],check:["Check."],lost:["Good game, you won."],won:["Good game."],draw:["A draw."]},pick:CRStyle.makePicker(src,0)},R.steer?R.steer.you:"w"); }
 function drillLine(d,st){ const C=U().CH(), ch=new C(), moves=[]; st.seq.forEach((s,i)=>{ const before=ch.fen(), m=ch.move(s); moves.push([m.san,CROpenings._explain(m,before,ch.fen(),i)]); });
-  const id="study-"+d.src+"-"+d.user.toLowerCase(), line={id,name:`Beat ${d.user}`,icon:"🔍",side:st.you,sub:`Their weakest line (they score ${pct(st.s)} in ${st.n} games)`,tags:"study "+d.user,moves};
+  const id="study-"+d.src+"-"+d.user.toLowerCase()+(st.k&&st.k!=="steer"?"-"+st.k:""), line={id,name:`Beat ${d.user}`+(st.title&&st.k!=="steer"?`: ${st.title.toLowerCase()}`:""),icon:"🔍",side:st.you,sub:st.k&&st.k!=="steer"?`${st.title} (${st.n} games)`:`Their weakest line (they score ${pct(st.s)} in ${st.n} games)`,tags:"study "+d.user,moves};
   const K="chessReview.v52.myLines", L=U().LS.get(K,[]).filter(x=>x.id!==id); L.push(line); U().LS.set(K,L); CROpenings._drill(id); }
 window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load};
 })();
