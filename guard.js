@@ -22,7 +22,7 @@ const F="abcdefgh"; function ray(sq,df,dr){ const out=[]; let f=F.indexOf(sq[0])
 function pinBy(g,sq,me){ const p=g.get(sq); if(!p||!"brq".includes(p.type)) return null; const dirs=[];
   if("rq".includes(p.type)) dirs.push([1,0],[-1,0],[0,1],[0,-1]); if("bq".includes(p.type)) dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);
   for(const [df,dr] of dirs){ let first=null; for(const s of ray(sq,df,dr)){ const q=g.get(s); if(!q) continue; if(!first){ if(q.color!==me||q.type==="k"||q.type==="p") break; first={s,q}; continue; }
-      if(q.color===me&&(q.type==="k"||VAL[q.type]>VAL[first.q.type])&&VAL[p.type]<=(q.type==="k"?99:VAL[q.type])) return {s:first.s,t:first.q.type,behind:q.type}; break; } }
+      if(q.color===me&&(q.type==="k"||VAL[q.type]>VAL[first.q.type])&&VAL[p.type]<=(q.type==="k"?99:VAL[q.type])&&!(g.turn()===me&&g.moves({square:first.s,verbose:true}).some(x=>x.to===sq))) return {s:first.s,t:first.q.type,behind:q.type}; break; } }
   return null; }
 function forkBy(g,sq,me){ const p=g.get(sq); if(!p) return null; const hit=[];
   g.board().flat().forEach(x=>{ if(!x||x.color!==me) return; if(x.type!=="k"&&VAL[x.type]<3) return; if(!g.attackers(x.square,opp(me)).includes(sq)) return;
