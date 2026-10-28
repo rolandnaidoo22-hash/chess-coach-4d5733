@@ -10002,27 +10002,25 @@ function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.l
   const phN=["Opening","Middlegame","Endgame"], phW=x=>!x?"not reached":x.bad===0?(x.a>=75?"Strong":"Solid"):x.bad===1?"One slip":"Shaky ("+x.bad+" big mistakes)";
   h+=`<div class="co17row"><select id="gmPick" style="font-size:16px;min-height:48px;border-radius:10px;max-width:100%">${L.slice(0,15).map((g,j)=>`<option value="${j}" ${j===k?"selected":""}>${e_(g.date)} · vs ${e_(g.d.meta.user_color==="w"?g.d.meta.black:g.d.meta.white)}</option>`).join("")}</select></div>
    ${GROK_URL()?`<button class="co17grokB" id="gmGrok">🤖 Ask AI coach</button><div id="gmGrokBox"></div><p class="co17sm" id="gmRuleHead">Below: the app's own quick report (no internet needed).</p>`:""}
-   <h3>1️⃣ Executive Summary</h3><div class="co17mis"><p>vs <b>${e_(opp)}</b> · ${e_(m.date)} · you were ${me==="w"?"White":"Black"} · <b>${res}</b></p>
+   ${window.CR58?CR58.snap(G):""}<h3>1️⃣ Executive Summary</h3><div class="co17mis"><p>vs <b>${e_(opp)}</b> · ${e_(m.date)} · you were ${me==="w"?"White":"Black"} · <b>${res}</b></p>
    <p style="font-size:20px">Overall grade: <b>${grade(G.acc==null?null:G.acc-3*G.counts.b-1.5*G.counts.m)}</b> <span class="co17sm">(accuracy ${G.acc==null?"–":Math.round(G.acc)+"%"}, lowered for each blunder and mistake)</span></p>
    <p>${G.counts.b} blunder${G.counts.b===1?"":"s"}, ${G.counts.m} mistake${G.counts.m===1?"":"s"}, ${G.counts.x} missed chance${G.counts.x===1?"":"s"}.</p>
    <table class="co17tab">${G.ph.map((x,j)=>`<tr><td>${phN[j]}</td><td style="text-align:left">${phW(x)}</td></tr>`).join("")}</table>
    <p>🎯 <b>Main theme of this game:</b> ${e_(theme)}.</p>${res==="Win"?"<p>Well played: you won. Now let's make the win cleaner.</p>":res==="Draw"?"<p>A fighting draw. A few moments decided it.</p>":"<p>Losses are where we learn the most. Here's what decided it.</p>"}</div>
-   <h3>2️⃣ Critical Moments</h3>`;
+   ${window.CR58?CR58.strengths(G):""}<h3>2️⃣ Critical Moments</h3><p class="co17sm">Why each mistake happened and how to stop it. The moves and better moves are in Review my game: tap the link under each one.</p>`;
   if(!G.errs.length) h+=`<div class="co17good">No blunders or mistakes found. Excellent, careful game!</div>`;
   G.errs.forEach((e,n)=>{ const p=e.p, mv=`${Math.ceil((+p.ply||e.i+1)/2)}${p.color==="w"?".":"…"}${p.san}`; let rule=""; try{ rule=Tn().ruleForPly(G.P,e.i,me); }catch(x){}
     const Dt=duties(p,me,+p.phase===0), best=p.best_san?`${Math.ceil((+p.ply||e.i+1)/2)}${p.color==="w"?".":"…"}${p.best_san}`:null;
     h+=`<div class="co17mis"><h4>${n+1}. <b>${e_(mv)}</b> ${p.cls==="blunder"?"(blunder)":p.cls==="miss"?"(missed chance)":"(mistake)"}</h4>
-     <div class="co17board">${boardHtml(p.fen_before,me,{arrows:[{u:p.uci,c:"#c62828"},...(p.best_uci&&p.best_uci!==p.uci?[{u:p.best_uci,c:"#2f7d32"}]:[])]})}</div>
-     <p class="co17sm">Before: ${e_(evWords(p.eval_before))} → after: ${e_(evWords(p.eval))}</p>
-     <span class="lab">🔍 Diagnosis</span><p>${e.what.map(x=>x.startsWith("<")||/<b>/.test(x)?x:e_(x)).join(" ")}</p><p><i>Likely thought process:</i> ${e.think}</p>
-     ${best?`<span class="lab">💡 GM Solution: <b>${e_(best)}</b></span><ul class="co17list">${Dt.map(x=>`<li>It ${x}.</li>`).join("")}</ul>${p.best_line?`<p class="co17sm">A likely continuation: ${e_(p.best_line)}</p>`:""}`:""}
-     <span class="lab">📐 Underlying Principle: ${e_(e.prin)}</span>
-     <div class="rule">📌 <b>Rule of Thumb:</b> ${e_(rule||EXR.general)}</div></div>`; });
+     <span class="lab">🔍 Why it happened</span><p>${e.what.map(x=>x.startsWith("<")||/<b>/.test(x)?x:e_(x)).join(" ")}</p><p><i>Likely thought process:</i> ${e.think}</p>
+     <span class="lab">🛠 How to fix it: ${e_(e.prin)}</span>
+     <div class="rule">📌 <b>Rule of Thumb:</b> ${e_(rule||EXR.general)}</div>
+     <button class="cr58link" data-rv="${e.i+1}">See move ${e_(mv)} in Review my game ›</button></div>`; });
   const ex=exFor(top?top.kind:"general"), base=H.R.length?avg(H.R.map(r=>toArr(r.ev).filter(x=>ex.kinds.includes(x.k)).length)):0;
   h+=`<h3>3️⃣ Coach Insights & Pattern Alert</h3><div class="co17mis">${H.out.length?H.out.map(x=>`<p>⚠️ ${x}</p>`).join(""):"<p>No repeating pattern from your recent games showed up in this game. 👍</p>"}${openingNote(G)?`<p>📖 ${openingNote(G)}</p>`:""}
    <p><b>Your exercise for the next 5 games:</b> ${e_(ex.t)}</p>${s.ex&&s.ex.k===ex.k?"":`<button class="cbtn full pri" id="gmEx" style="text-align:center">🎯 Start tracking this exercise</button>`}${exProgress(s)}</div>
-   <button class="cbtn full blue" id="gmAI" style="text-align:center">🤖 Ask an AI coach about this game</button><div id="gmAIbox"></div>`;
-  sec.innerHTML=h; wire(); $("gmPick").onchange=()=>gm({k:+$("gmPick").value});
+   ${window.CR58?CR58.since()+CR58.checkin():""}<button class="cbtn full blue" id="gmAI" style="text-align:center">🤖 Ask an AI coach about this game</button><div id="gmAIbox"></div>`;
+  sec.innerHTML=h; sec.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.rv; hide(); try{ loadData(G.d); }catch(x){ console.error(x); } setTimeout(()=>{ try{ go(i,true); }catch(x){} },120); }); wire(); $("gmPick").onchange=()=>gm({k:+$("gmPick").value});
   const eb=$("gmEx"); if(eb) eb.onclick=()=>{ const s2=S(); s2.ex={k:ex.k,t:ex.t,kinds:ex.kinds,from:dkey(),base}; save(s2); gm({k}); };
   $("gmAI").onclick=()=>aiBox(G); grokWire(G,H,arg); }
 const AIPROMPT="You are an elite, adaptive Grandmaster Chess Coach. Your mission is to provide deep, educational, and actionable post-mortem analysis for the player. Rather than giving simple or surface-level feedback, you explain the strategic, tactical, and psychological reasoning behind moves to help the player genuinely learn and improve. YOUR COACHING METHODOLOGY: 1. DEEP EDUCATIONAL DIAGNOSIS: Explain WHY a move was bad and the thought process that likely led to it. 2. POSITIONAL & STRATEGIC PRINCIPLES: Connect specific moves to broader chess principles (e.g., King Safety, Pawn Structure, Weak Squares, Piece Coordination, Overloaded Defenders). 3. WHY THE BEST MOVE WORKS: Clearly articulate what the engine's recommended move achieves. 4. PATTERN & WEAKNESS RECOGNITION: Compare current mistakes to the player's historical habits and recurring blunder themes. 5. CONCRETE ACTIONABLE RULES: End every major breakdown with a simple Rule of Thumb. RESPONSE FORMAT: Section 1: Executive Summary & Performance Breakdown (Overall Game Grade & Phase Assessment; Primary Tactical/Strategic Theme). Section 2: Deep Critical Moment Analysis, for each critical error: The Diagnosis; The GM Solution; The Underlying Principle. Section 3: Adaptive Coach Insights & Historical Pattern Alert, plus 1 targeted exercise/mindset rule for the next 5 games. TONE: Encouraging, insightful, structured, instructive. Use clear chess notation. Translate engine numbers into natural human explanations.";
@@ -10062,7 +10060,7 @@ function grokPayload(G,H){ const m=G.d.meta, me=G.me, info=(window.CRUser&&CRUse
   const R=recs().slice(0,20), patterns=[]; if(R.length){ const cnt={}; R.forEach(r=>toArr(r.ev).forEach(x=>cnt[x.k]=(cnt[x.k]||0)+1)); Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([k,n])=>patterns.push(`${KIND[k]||k}: ${n} times in his last ${R.length} games`)); const acc=avg(R.map(r=>+r.acc).filter(x=>!isNaN(x))); if(acc) patterns.push(`average accuracy ${Math.round(acc)}% over the last ${R.length} games`); const tt=R.filter(r=>r.timeTrouble).length; if(tt) patterns.push(`short of time (under 1 minute) in ${tt} of ${R.length} games`); }
   const openings=[]; try{ const C=LS.get(OK_,null); if(C&&C.g){ const T=trackerData(C), grp={}; T.forEach(g=>{ const k=(g.me==="w"?"As White: ":"As Black: ")+fam(g.mine); (grp[k]=grp[k]||[]).push(g); }); Object.entries(grp).filter(([,a])=>a.length>=3).sort((a,b)=>b[1].length-a[1].length).slice(0,6).forEach(([k,a])=>{ const st=groupStats(a,a[0].me); openings.push(`${k}: ${a.length} games, ${st.W} won / ${st.D} drawn / ${st.L} lost`); }); } }catch(x){}
   const on=strip(openingNote(G)); if(on) openings.unshift("This game: "+on);
-  return {v:2,goal:(window.CRGoal?CRGoal.get():GSET())||0,user:info.cc||(me==="w"?m.white:m.black),colour:me,rating:(me==="w"?m.white_elo:m.black_elo)||"",opponent:me==="w"?m.black:m.white,result:res+" ("+m.result+")",date:m.date||"",timeControl:m.time_control||"",opening:m.opening||"",pgn:pgn.trim(),accuracy:G.acc==null?null:Math.round(G.acc),counts:G.counts,phases:G.ph.map((x,j)=>({name:phN[j],words:phW(x)})),mistakes,patterns,alerts:(H&&H.out||[]).map(strip),openings}; }
+  return {v:3,goal:(window.CRGoal?CRGoal.get():GSET())||0,user:info.cc||(me==="w"?m.white:m.black),colour:me,rating:(me==="w"?m.white_elo:m.black_elo)||"",opponent:me==="w"?m.black:m.white,result:res+" ("+m.result+")",date:m.date||"",timeControl:m.time_control||"",opening:m.opening||"",pgn:pgn.trim(),accuracy:G.acc==null?null:Math.round(G.acc),counts:G.counts,phases:G.ph.map((x,j)=>({name:phN[j],words:phW(x)})),mistakes,patterns,alerts:(H&&H.out||[]).map(strip),openings}; }
 function mdHtml(t){ const L=String(t||"").replace(/\r/g,"").split("\n"); let h="", inL=false; const inl=x=>e_(x).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g,"$1<i>$2</i>");
   const close=()=>{ if(inL){ h+="</ul>"; inL=false; } };
   L.forEach(raw=>{ let x=raw.trim(); if(!x){ close(); return; } let mm; x=x.replace(/^\*\*(#{1,6}\s+.*?)\*\*$/,"$1");
@@ -10153,7 +10151,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=57bl"></script>
+<script defer src="home.js?v=58rv"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10164,18 +10162,20 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=57bl"></script>
+<script defer src="bots.js?v=58rv"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=57bl"></script>
-<script defer src="charts.js?v=57bl"></script>
+<script defer src="study.js?v=58rv"></script>
+<script defer src="charts.js?v=58rv"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=57bl"></script>
-<script defer src="guard.js?v=57bl"></script>
-<script defer src="blunders.js?v=57bl"></script>
+<script defer src="thinkfirst.js?v=58rv"></script>
+<script defer src="guard.js?v=58rv"></script>
+<script defer src="blunders.js?v=58rv"></script>
+<script defer src="review58.js?v=58rv"></script>
+<script defer src="coach58.js?v=58rv"></script>
 </body>
 </html>

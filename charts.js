@@ -63,14 +63,18 @@ function cStreak(){ const B=window.CRBlunders; if(!B) return ""; const s=B.strea
 /* ---------- the six charts ---------- */
 function cRating(G,sel){ const tk=g=>(g.site==="l"||/lichess\.org/.test(g.id)?"Lichess ":"Chess.com ")+tcN(g.tc), cls={}; G.forEach(g=>{ if(g.e) cls[tk(g)]=(cls[tk(g)]||0)+1; }); const order=Object.keys(cls).sort((a,b)=>cls[b]-cls[a]); sel=cls[sel]?sel:order[0];
   if(!sel) return card("rating","Am I actually improving?","","No rated games found yet.","0 games","think");
-  const L=G.filter(g=>tk(g)===sel&&g.e), v=L.map(g=>g.e), k=Math.min(10,Math.floor(v.length/2));
+  const L0=G.filter(g=>tk(g)===sel&&g.e), sN=settleN(L0.map(g=>g.e)), skOn=skipOn(), L=skOn&&sN?L0.slice(sN):L0, v=L.map(g=>g.e), k=Math.min(10,Math.floor(v.length/2));
+  const sk=sN?`<label class="c58sk"><input type="checkbox" ${skOn?"checked":""}> Skip my first ${sN} settling games</label><p class="c58ex">New accounts jump a lot while the site works out your level (everyone starts at about the same number). ${skOn?`These first ${sN} games are hidden so the trend is fair.`:`They are shown now, so the start of the line looks steeper than your real progress.`}</p>`:"";
   const chips=`<div class="v42chips c56tc">${order.map(c=>`<button data-tc="${c}" class="${c===sel?"on":""}">${c} (${cls[c]})</button>`).join("")}</div>`;
   let take="Need at least 4 rated games in one time control to tell.";
   if(k>=2){ const a=Math.round(mean(v.slice(0,k))), b=Math.round(mean(v.slice(-k))), d=b-a, sw=Math.round(Math.max(...v.slice(-k))-Math.min(...v.slice(-k)));
     take=d>=25?`Yes: your last ${k} games average <b>${b}</b>, up <b>${d}</b> from <b>${a}</b> in your first ${k}. Keep the habit that got you here.`
       :d<=-25?`Down: your last ${k} games average <b>${b}</b>, ${-d} below <b>${a}</b> in your first ${k}. Slow down and check every move.`
       :`Flat: <b>${a}</b> → <b>${b}</b> (${d>=0?"+":""}${d}). Swings of up to ${sw} points are good and bad days, not real change. A steady thinking routine is what moves it.`; }
-  return card("rating","Am I actually improving, or just having good and bad days?",chips+line([{v,c:"#3b6fb6",w:2.2}],{label:"rating"}),take,`${sel} rating · ${L.length} games`,"think"); }
+  return card("rating","Am I actually improving, or just having good and bad days?",chips+sk+line([{v,c:"#3b6fb6",w:2.2}],{label:"rating"}),take,`${sel} rating · ${L.length} games${skOn&&sN?` (${sN} settling games skipped)`:""}`,"think"); }
+function settleN(v){ if(v.length<12) return 0; const d=v.slice(1).map((x,i)=>Math.abs(x-v[i])), later=d.slice(25).length>=5?d.slice(25):d.slice(Math.floor(d.length/2)), srt=later.slice().sort((a,b)=>a-b), base=srt[Math.floor(srt.length/2)]||8, th=Math.max(40,3*base);
+  let jumps=0,lastJ=-1; d.slice(0,25).forEach((x,i)=>{ if(x>=th){ jumps++; lastJ=i; } }); if(jumps<2) return 0; const n=lastJ+1; return v.length-n>=6?n:0; }
+function skipOn(){ try{ return localStorage.getItem("chessReview.v58.skipSettle")!=="0"; }catch(e){ return true; } }
 function cPhase(G,A){ const set=G.slice(-ANN), done=set.filter(g=>A[g.id]);
   if(done.length<set.length||!done.length) return card("phase","Where do I lose games: opening, middlegame or endgame?",`<p class="c56na">Not analysed yet. ${done.length} of ${set.length} newest games checked by the app's engine.</p><button class="v42b full c56an">🔎 Analyse my ${set.length} newest games</button><div class="c56pg"></div>`,"No numbers until the engine has checked your games.",`${set.length} newest games`,null);
   const P={o:{n:0,b:0,l:"Opening"},m:{n:0,b:0,l:"Middlegame"},e:{n:0,b:0,l:"Endgame"}}; done.forEach(g=>A[g.id].forEach(([ply,ph,loss])=>{ const x=P[ph]; if(x){ x.n++; if(loss>=BIG) x.b++; } }));
@@ -119,7 +123,7 @@ const CSS=`.c56 h3{margin:0 0 2px;font-size:16px}.c56n{font-size:12.5px;color:va
 .c56bt{position:relative;background:#eee;border-radius:6px;height:14px;overflow:hidden}.c56bt i{display:block;height:100%;border-radius:6px}.c56bt em{position:absolute;left:6px;top:2px;font-style:normal;font-size:12px;color:#111;text-shadow:0 0 3px #fff}
 .c56st{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#eee}.c56st i{display:block;height:100%}.c56lg{display:block;color:var(--mute,#777);font-size:12px;margin-top:4px}.c56sm{color:#b26a00}
 .c56tb{width:100%;border-collapse:collapse;font-size:13.5px}.c56tb td,.c56tb th{border-bottom:1px solid #e5e5e5;padding:5px 4px;text-align:left}.c56tb td+td,.c56tb th+th{text-align:center}
-.c56bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:6px 0 2px}.c56bar i{display:block;height:100%;background:#2e7d32}.c56tc{flex-wrap:wrap}.c57hb{display:flex;align-items:flex-end;gap:3px;height:110px}.c57hb div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0}.c57hb i{display:block;width:80%;border-radius:3px 3px 0 0}.c57hb i.g,.c57k.g{background:#c62828}.c57hb i.b,.c57k.b{background:#3b6fb6}.c57hb em{font-style:normal;font-size:11px;font-weight:700}.c57hb small{font-size:8.5px;color:var(--mute,#777);white-space:nowrap;overflow:hidden}
+.c56bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:6px 0 2px}.c56bar i{display:block;height:100%;background:#2e7d32}.c56tc{flex-wrap:wrap}.c58sk{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700;font-size:14px}.c58sk input{width:22px;height:22px}.c58ex{font-size:12.5px;color:var(--mute,#666);margin:0 0 6px}.c57hb{display:flex;align-items:flex-end;gap:3px;height:110px}.c57hb div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0}.c57hb i{display:block;width:80%;border-radius:3px 3px 0 0}.c57hb i.g,.c57k.g{background:#c62828}.c57hb i.b,.c57k.b{background:#3b6fb6}.c57hb em{font-style:normal;font-size:11px;font-weight:700}.c57hb small{font-size:8.5px;color:var(--mute,#777);white-space:nowrap;overflow:hidden}
 .c57k{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle}.c57st{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}.c57st i{display:block;aspect-ratio:1;border-radius:4px;background:#e5e5e5}.c57st i.on{background:#2e7d32}
 #c56root{max-width:100%;overflow-x:hidden;padding-bottom:90px}`;
 function css(){ if($("c56css")) return; const s=document.createElement("style"); s.id="c56css"; s.textContent=CSS; document.head.appendChild(s); }
@@ -131,6 +135,7 @@ function paint(){ const c=DATA; if(!c) return; const G=c.games, A=anAll(), w=who
    ${G.length?[cRating(G,SEL),cPhase(G,A),cOpen(G),cColour(G),cEnds(G),cAcc(G,A),cHung(G),cStreak()].join(""):`<div class="card"><p>No games found for ${src}.</p></div>`}
    <div class="row"><button class="v42b full" id="c56rf">🔄 Refresh games</button></div>`);
   d.querySelectorAll(".c56tc [data-tc]").forEach(b=>b.onclick=()=>{ SEL=b.dataset.tc; paint(); });
+  d.querySelectorAll(".c58sk input").forEach(b=>b.onchange=()=>{ try{ localStorage.setItem("chessReview.v58.skipSettle",b.checked?"1":"0"); }catch(e){} paint(); });
   d.querySelectorAll(".c56go").forEach(b=>b.onclick=()=>{ const f=GO[b.dataset.go][1]; V42._close(); try{ f(); }catch(e){ console.warn(e); } });
   d.querySelectorAll(".c56an").forEach(b=>b.onclick=()=>{ b.disabled=true; b.textContent="Checking…"; analyse(G); });
   if(running) analyse(G); /* no-op; repaint progress */
@@ -141,5 +146,5 @@ async function open(force){ const w=who();
   shell(`<div class="card"><p>Reading your public games…</p></div>`);
   try{ DATA=await load(force); paint(); }
   catch(e){ shell(`<div class="card"><p>Couldn't load your games: ${E_(e.message||e)}</p><button class="v42b full" id="c56rt">Try again</button></div>`); $("c56rt").onclick=()=>open(true); } }
-window.CRCharts={open,_load:load,_accOf:accOf};
+window.CRCharts={open,_load:load,_accOf:accOf,_settleN:settleN};
 })();

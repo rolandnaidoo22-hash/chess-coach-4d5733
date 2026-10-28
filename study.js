@@ -205,10 +205,24 @@ function scenarios(d,R){ const S=[], L2=R.L2;
     sample:`${df.x.g.length} of their games follow these moves · they score ${pct(score(df.x.g))}`}); }
   S.forEach(sc=>{ if(sc.seq&&sc.seq.length&&(sc.seq.length%2===0)!==(sc.you==="w")) sc.seq=sc.seq.slice(0,-1); });
   return S.slice(0,3); }
-function scSteps(sc){ const C=U().CH(), ch=new C(), st=[{fen:ch.fen(),arrows:[],note:`Start position. You are ${side(sc.you)}. Tap Next to follow their real games.`}];
+const NM58={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"}, VAL58={p:1,n:3,b:3,r:5,q:9,k:0};
+function because58(m,before,after,i){ const C=U().CH(); let A; try{ A=new C(after); }catch(e){ return ""; } const R=[], op=m.color==="w"?"b":"w";
+  if(m.san.startsWith("O-O")) R.push("castles: the king gets safe and a rook joins the game");
+  else if(m.captured){ let safe=true; try{ safe=!A.moves({verbose:true}).some(x=>x.to===m.to); }catch(e){} R.push(`takes the ${NM58[m.captured]}`+(safe?" and nothing can take back":` (it can be taken back, so it is a trade${VAL58[m.piece]>VAL58[m.captured]?" that gives up more than it wins":""})`)); }
+  if(/\+/.test(m.san)) R.push("gives check, so the other side must answer it first");
+  try{ const fen=A.fen().split(" "); fen[1]=m.color; const B=new C(fen.join(" ")); const hit=B.moves({verbose:true}).filter(x=>x.from===m.to&&x.captured&&x.captured!=="k"&&VAL58[x.captured]>=3).map(x=>NM58[x.captured]); if(hit.length&&!m.captured) R.push(`attacks the ${[...new Set(hit)].join(" and ")}`); }catch(e){}
+  if(!R.length&&"nb".includes(m.piece)&&/[18]/.test(m.from[1])) R.push(`brings a ${NM58[m.piece]} out${/^[cdef][3-6]$/.test(m.to)?" towards the centre":""}`);
+  if(!R.length&&m.piece==="p"&&/^[de][45]$/.test(m.to)) R.push("claims the centre with a pawn");
+  if(m.piece!=="k"&&"nb".includes(m.piece)&&i<16&&/^[fg][18]$/.test(m.from)) R.push("clears the way to castle short");
+  if(!R.length) return "";
+  const t=R.slice(0,2).join(", and "); return "Because it "+t+"."; }
+function freq58(d,their,seq,j){ try{ const gs=(d&&d.games||[]).filter(g=>g.c===their&&g.m&&g.m.length>j); const pre=seq.slice(0,j); const at=gs.filter(g=>pre.every((x,k)=>g.m[k]===x)); if(at.length<2) return "";
+  const same=at.filter(g=>g.m[j]===seq[j]); if(!same.length) return ""; const sc=Math.round(100*same.reduce((x,g)=>x+(g.r===1?1:g.r===.5?.5:0),0)/same.length);
+  return ` They chose it in ${same.length} of ${at.length} games from here and scored ${sc}% after it.`; }catch(e){ return ""; } }
+function scSteps(sc,d){ const C=U().CH(), ch=new C(), st=[{fen:ch.fen(),arrows:[],note:`Start position. You are ${side(sc.you)}. Tap Next to follow their real games.`}];
   sc.seq.forEach((san,i)=>{ const before=ch.fen(); let m=null; try{ m=ch.move(san); }catch(e){} if(!m) return; const theirs=m.color===sc.their, last=i===sc.seq.length-1;
-    let why=""; try{ why=window.CROpenings?CROpenings._explain(m,before,ch.fen(),i):""; }catch(e){} why=String(why||"").replace(/<[^>]+>/g,"");
-    const note=theirs?(last&&sc.mistake?`They usually play ${san} here. The app's engine says this is a mistake.`:`They usually play ${san} here.`)+(why?" "+why:""):`You play ${san}.`+(why?" "+why:"");
+    let why=""; try{ why=window.CROpenings?CROpenings._explain(m,before,ch.fen(),i):""; }catch(e){} why=String(why||"").replace(/<[^>]+>/g,""); let bc=""; try{ bc=because58(m,before,ch.fen(),i); }catch(e){} if(bc) why=bc+(why&&!/^Because/.test(why)?" "+why:""); const fq=theirs?freq58(d,sc.their,sc.seq,i):"";
+    const note=theirs?(last&&sc.mistake?`They usually play ${san} here. The app's engine says this is a mistake.`:`They usually play ${san} here.`)+(why?" "+why:"")+fq:`You play ${san}.`+(why?" "+why:"");
     st.push({fen:ch.fen(),arrows:[{u:m.from+m.to,c:theirs?(last&&sc.mistake?"#e53935":"#ef6c00"):"#1e88e5"}],note,san}); });
   return st; }
 async function scReply(fen){ await CRBotEngine.boot(); const l=await CRBotEngine.candidates(fen,1,1200); const x=l&&l[0]; if(!x||!x.uci) return null;
@@ -217,7 +231,7 @@ async function scReply(fen){ await CRBotEngine.boot(); const l=await CRBotEngine
 function scHtml(S){ if(!S.length) return ""; return `<style>.sc55 .scbw svg,.sc55 .scbw>div{width:100%!important;height:auto!important;max-width:100%}.sc55 .scr{align-items:center;justify-content:space-between}</style><h3 style="margin:12px 0 4px">♟ Scenario boards</h3><p class="mute" style="margin:0 0 6px">Built from their real games. Tap Next and Back; arrows show each move. Blue = you, orange = them, red = their mistake, green = your best reply (from the app's engine).</p>`+
   S.map((sc,i)=>`<div class="card sc55" id="sc55-${i}" data-k="${sc.k}"><b>${sc.icon} ${E_(sc.title)}</b>${sc.na?`<p class="mute">Not analysed yet. The app's engine is still checking their games; this board appears when it's done.</p>`:sc.none?`<p class="mute">${E_(sc.sample)}</p>`:
    `<div class="mute" style="font-size:12.5px">${E_(sc.sample)}</div><div class="scb"></div><div class="scn"></div><div class="row scr"><button class="bt scP">‹ Back</button><span class="scc"></span><button class="bt go scN">Next ›</button></div><div class="row"><button class="bt scD" style="flex:1">🎯 Drill this</button></div>`}</div>`).join(""); }
-function scMount(d,S){ S.forEach((sc,i)=>{ const el=$("sc55-"+i); if(!el||sc.na||sc.none) return; const st=scSteps(sc); let k=0, reply=null, rq=false;
+function scMount(d,S){ S.forEach((sc,i)=>{ const el=$("sc55-"+i); if(!el||sc.na||sc.none) return; const st=scSteps(sc,d); let k=0, reply=null, rq=false;
   const draw=()=>{ const s=st[k]; el.querySelector(".scb").innerHTML=`<div class="scbw" style="max-width:340px;margin:6px auto">${U().mini(s.fen,sc.you,{arrows:s.arrows})}</div>`; el.querySelector(".scn").textContent=s.note; el.querySelector(".scc").textContent=`${k+1} / ${st.length}`;
     el.querySelector(".scP").disabled=k===0; el.querySelector(".scN").disabled=k===st.length-1&&!!reply&&reply!=="wait"; };
   const addReply=()=>{ if(rq) return; rq=true; reply="wait"; const end=st[st.length-1]; st.push({fen:end.fen,arrows:[],note:"Working out your best reply with the app's engine…"}); draw();
@@ -235,5 +249,5 @@ function practice(d,R){ if(!window.CRStyle||!window.CRBots) return; const src={u
 function drillLine(d,st){ const C=U().CH(), ch=new C(), moves=[]; st.seq.forEach((s,i)=>{ const before=ch.fen(), m=ch.move(s); moves.push([m.san,CROpenings._explain(m,before,ch.fen(),i)]); });
   const id="study-"+d.src+"-"+d.user.toLowerCase()+(st.k&&st.k!=="steer"?"-"+st.k:""), line={id,name:`Beat ${d.user}`+(st.title&&st.k!=="steer"?`: ${st.title.toLowerCase()}`:""),icon:"🔍",side:st.you,sub:st.k&&st.k!=="steer"?`${st.title} (${st.n} games)`:`Their weakest line (they score ${pct(st.s)} in ${st.n} games)`,tags:"study "+d.user,moves};
   const K="chessReview.v52.myLines", L=U().LS.get(K,[]).filter(x=>x.id!==id); L.push(line); U().LS.set(K,L); CROpenings._drill(id); }
-window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load,fetchOwn};
+window.CRStudy={open,study,report,parsePgn,fromLichess,fromChessCom,load,fetchOwn,_scSteps:scSteps};
 })();
