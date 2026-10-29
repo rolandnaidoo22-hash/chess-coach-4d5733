@@ -16,7 +16,7 @@ function summary(){ ensure(); const el=$("rv59sum"); if(!el||!M) return; const m
   const res=M.result==="1/2-1/2"?"Draw":M.result==="*"?"Unfinished":(M.result==="1-0")===(me==="w")?"You won":"You lost";
   let acc=S.accuracy, oacc=S.opp_accuracy; try{ if(S.v7){ acc=S.v7[me].accuracy; oacc=S.v7[me==="w"?"b":"w"].accuracy; } }catch(e){}
   const top=(()=>{ const m=mine(), own=new Set(m.map(x=>x.i+1)), t=(S.top||[]).filter(t=>own.has(t.ply)); if(t.length) return t.slice(0,3);
-    return m.map(x=>({ply:x.i+1,cls:x.p.cls,label:x.p.label||x.p.san,l:+(x.p.cp_loss||x.p.loss||0)})).sort((a,b)=>b.l-a.l||(a.cls==="blunder"?-1:1)).slice(0,3).sort((a,b)=>a.ply-b.ply); })(), work=(S.work_on||[])[0], n=mine().length;
+    return m.map(x=>({ply:x.i+1,cls:x.p.cls,label:x.p.label||x.p.san,l:+(x.p.cpl||x.p.cp_loss||0)})).sort((a,b)=>b.l-a.l||(a.cls==="blunder"?-1:1)).slice(0,3).sort((a,b)=>a.ply-b.ply); })(), work=(S.work_on||[])[0], n=mine().length;
   el.innerHTML=`<div class="rv59res"><b>${E_(res)}</b> vs ${E_(opp)}${M.termination?`<small>${E_(M.termination)}</small>`:""}</div>
    <div class="rv59acc"><div><b>${acc!=null&&acc!==""?Math.round(acc)+"%":"–"}</b><span>your accuracy</span></div><div><b>${oacc!=null&&oacc!==""?Math.round(oacc)+"%":"–"}</b><span>opponent</span></div></div>
    <h3>Biggest mistakes</h3>${top.length?`<ol class="rv59top">${top.map(t=>`<li><span class="badge b-${t.cls}">${({blunder:"??",mistake:"?",miss:"✖",inaccuracy:"?!"})[t.cls]||"!"}</span><span class="rv59l">${E_(t.label)}</span><button type="button" class="rv59show" data-ply="${t.ply}">Show me ›</button></li>`).join("")}</ol>`:`<p>No real mistakes. Great game!</p>`}

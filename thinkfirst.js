@@ -95,7 +95,7 @@ function page(){ return U().show("tf54"); }
 function open(){ W=null; stopTimer(); const p=page(), s=S(), E_=U().E_; const st=stats();
   p.innerHTML=`<h2>🧠 Think First</h2><p class="mute">Stop moving on instinct. Five quick steps before every move, until they become a habit.</p>
   <div class="tfsteps">${STEPS.map((n,i)=>`<div><b>${i+1}</b><span>${["What do they want?","Checks, captures, threats","Pick 2–3 moves","Cross out the ones that fail","Move, then safety check"][i]}</span></div>`).join("")}</div>
-  <button class="lt tfgo" id="tfDaily"><span class="i">☀️</span><span><b>Today's 10-minute session</b><small>${s.sess&&s.sess.d===today()&&s.sess.done?"Done today ✅ Play again any time":"5 of your own mistakes, 3 defence puzzles, 1 checks drill · 10–15 min"}</small></span></button>
+  ${window.CRLearn60?CRLearn60.rulesHtml():""}${window.CRLearn60&&CRLearn60.due().length?`<p class="mute">🗓 ${CRLearn60.due().length} mistake repeat(s) due in today's session.</p>`:""}<button class="lt tfgo" id="tfDaily"><span class="i">☀️</span><span><b>Today's 10-minute session</b><small>${s.sess&&s.sess.d===today()&&s.sess.done?"Done today ✅ Play again any time":"5 of your own mistakes, 3 defence puzzles, 1 checks drill · 10–15 min"}</small></span></button>
   <button class="lt" id="tfOne"><span class="i">🎯</span><span><b>Practise one position</b><small>Level ${s.lvl}: ${LV[s.lvl]}</small></span></button>
   <button class="lt" id="tfBl"><span class="i">🩹</span><span><b>Puzzles from my blunders</b><small>Big mistakes from your own games</small></span></button>
   <button class="lt" id="tfDef"><span class="i">🛡</span><span><b>Save yourself</b><small>They have a threat. Find the move that stops it.</small></span></button>
@@ -133,7 +133,7 @@ function record(r){ const s=S(); r.d=today(); s.hist=(s.hist||[]).concat([r]).sl
 async function play(P){ stopTimer(); if(!P){ open(); return; } W=Object.assign(W||{},{P,t0:Date.now(),st:{}}); if(!W.lvl) W.lvl=S().lvl; if(!P.own) markSeen(P.id);
   if(W.lvl===3) return silent(P); step1(P); }
 function step1(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl; let pick=null;
-  p.innerHTML=`${head(P,1)}<p class="tfq">Before you think about your move, what is your opponent threatening?</p>
+  p.innerHTML=`${head(P,1)}${window.CRLearn60?CRLearn60.rulesHtml():""}<p class="tfq">Before you think about your move, what is your opponent threatening?</p>
    <p class="mute">${P.lm?`They just played <b>${phrase(fenBefore(P),P.lm)}</b> (blue arrow). `:""}Tap the piece that is attacking, or tap No threat.</p>
    <div class="bd" id="tfB"></div><div class="msg" id="tfM"></div>
    <div class="row"><button class="bt" id="tfNo">No threat</button><button class="bt go" id="tfOk" disabled>Check my answer</button>${L===1?`<button class="bt" id="tfHint">💡 Hint</button>`:""}</div><div id="tfOut"></div>`;
@@ -270,7 +270,7 @@ $("tfN").onclick=next; $("tfH").onclick=()=>{ W.sess=null; open(); }; $("tfOut")
 /* ---------- Level 3: silent ---------- */
 function silentIdeas(){ return `<details class="card tfadv" id="tfAdv"><summary><b>Silent level: advanced ideas</b></summary><p>💡 <b>Targets:</b> which of their pieces is loose, and is their king short of cover?</p><p>1. <b>Pause where the forcing line ends.</b> Follow the checks and captures until they run out. Stop there and judge that position fresh, as if it were a new puzzle: who is safer, who has more?</p><p>2. <b>Try a different order.</b> Play the same moves in another order in your head. Sometimes one order works and the other gives them a check or a capture in between.</p></details>`; }
 function silent(P){ const p=page(), g=new (CH())(P.f), me=g.turn(); let sel=null, paused=false;
-  p.innerHTML=`${head(P,0)}<p class="tfq">Your move.</p><p class="mute">${P.lm?`They just played ${phrase(fenBefore(P),P.lm)}.`:""} Think it through, then move.</p>${silentIdeas()}<div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
+  p.innerHTML=`${head(P,0)}${window.CRLearn60?CRLearn60.rulesHtml():""}<p class="tfq">Your move.</p><p class="mute">${P.lm?`They just played ${phrase(fenBefore(P),P.lm)}.`:""} Think it through, then move.</p>${silentIdeas()}<div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
   const B=boardIn($("tfB"),sq=>{ if(paused||W.st.s4!=null) return; const pc=g.get(sq); if(pc&&pc.color===me&&sel!==sq&&!(sel&&g.moves({square:sel,verbose:true}).some(m=>m.to===sq))){ sel=sq; draw(); return; }
     if(!sel) return; const m=g.moves({square:sel,verbose:true}).find(m=>m.to===sq); sel=null; if(!m){ draw(); return; } go(uciOf(m)); });
   B.orient=me; const draw=()=>B.draw(P.f,{arrows:lmArrow(P),hl:sel?[{sq:sel,c:"#f5c518",o:.6}]:[],dots:sel?g.moves({square:sel,verbose:true}).map(m=>m.to):[]}); draw();
@@ -311,6 +311,7 @@ function speed(P){ stopTimer(); if(!P){ const c=bank().filter(p=>{ const n=forci
 async function daily(){ const lvl=S().lvl; W={lvl}; const p=page(); p.innerHTML=`<h2>☀️ Today's session</h2><p class="mute" id="tfLd">Getting your positions ready…</p>`;
   const q=[]; const om=ownMoments(), bl=om.filter(o=>o.bl).slice(0,8), rest=om.filter(o=>!o.bl).sort(()=>Math.random()-.5); let own=bl.concat(rest).slice(0,8), nOwn=0;
   for(const o of own){ if(nOwn>=5) break; if($("tfLd")) $("tfLd").textContent=`Getting your positions ready… ${nOwn}/5`; try{ const P=await Promise.race([liveCheck(o),new Promise(r=>setTimeout(()=>r(null),9000))]); if(P&&Object.keys(P.m).length>=3){ q.push(P); nOwn++; } }catch(e){} }
+  try{ const rp=window.CRLearn60?CRLearn60.due().slice(0,2):[]; for(const o of rp){ if($("tfLd")) $("tfLd").textContent="Getting your repeats ready…"; const P=await Promise.race([liveCheck(o),new Promise(r=>setTimeout(()=>r(null),9000))]); if(P){ P.lab=o.lab; P.rep=1; q.unshift(P); CRLearn60.markShown(o.rid); } } }catch(e){}
   pickBank(bank(),5-q.length).forEach(P=>q.push(P));
   const dl=await defLive(1); pickBank((TFBANK.def||[]),3-dl.length).forEach(P=>q.push(Object.assign({},P,{isDef:true,lab:"Save yourself"}))); dl.forEach(P=>q.push(P));
   q.push({speed:true}); W.sess={i:0,q,nOwn,log:[],lvl}; run(); }

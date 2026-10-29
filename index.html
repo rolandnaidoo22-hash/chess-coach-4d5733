@@ -10131,7 +10131,7 @@ function init(){ if(!$("home")||!window.Trainer) return; ensure();
   const s=S(); if(s.auto) setTimeout(()=>autoImport(false),2500);
   if(location.hash==="#coach") setTimeout(()=>open("home"),200);
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ bar(); remCheck(); } }); }
-window.Coach17={_tapBoard:tapBoard,open,hide,plan,PAWN,REP,autoImport,_state:S,_imp:IMP,_stages:()=>stages(recs(),S(),S().rating),_week:o=>week(recs(),S(),o),_lastGame:lastGame,_icsText:icsText,_pz:()=>pzCur,_classify:s=>classify(s.split(" ")),_track:()=>trackerData(LS.get(OK_,null)),_gm:k=>{ const G=gmData(gmGames()[k||0].d); return {acc:G.acc,errs:G.errs.map(e=>({kind:e.kind,what:e.what,think:e.think,prin:e.prin,duties:duties(e.p,G.me,+e.p.phase===0)}))}; },_ai:k=>aiText(gmData(gmGames()[k||0].d)),_grokPayload:k=>{ const G=gmData(gmGames()[k||0].d); return grokPayload(G,history(G)); },_md:mdHtml,_games:()=>gmGames().slice(0,15).map((g,k)=>{ const m=g.d.meta, me=m.user_color||"w"; return {k,id:g.id,date:g.date,src:g.src,opp:me==="w"?m.black:m.white,colour:me,res:m.result==="1/2-1/2"?"Draw":(m.result==="1-0")===(me==="w")?"Win":"Loss",opening:m.opening||""}; })};
+window.Coach17={_tapBoard:tapBoard,_all:()=>gmGames(),open,hide,plan,PAWN,REP,autoImport,_state:S,_imp:IMP,_stages:()=>stages(recs(),S(),S().rating),_week:o=>week(recs(),S(),o),_lastGame:lastGame,_icsText:icsText,_pz:()=>pzCur,_classify:s=>classify(s.split(" ")),_track:()=>trackerData(LS.get(OK_,null)),_gm:k=>{ const G=gmData(gmGames()[k||0].d); return {acc:G.acc,errs:G.errs.map(e=>({kind:e.kind,what:e.what,think:e.think,prin:e.prin,duties:duties(e.p,G.me,+e.p.phase===0)}))}; },_ai:k=>aiText(gmData(gmGames()[k||0].d)),_grokPayload:k=>{ const G=gmData(gmGames()[k||0].d); return grokPayload(G,history(G)); },_md:mdHtml,_games:()=>gmGames().slice(0,15).map((g,k)=>{ const m=g.d.meta, me=m.user_color||"w"; return {k,id:g.id,date:g.date,src:g.src,opp:me==="w"?m.black:m.white,colour:me,res:m.result==="1/2-1/2"?"Draw":(m.result==="1-0")===(me==="w")?"Win":"Loss",opening:m.opening||""}; })};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else setTimeout(init,0);
 })();
 </script>
@@ -10151,7 +10151,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=59lv"></script>
+<script defer src="home.js?v=60ln"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10162,22 +10162,23 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=59lv"></script>
+<script defer src="bots.js?v=60ln"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=59lv"></script>
-<script defer src="charts.js?v=59lv"></script>
+<script defer src="study.js?v=60ln"></script>
+<script defer src="charts.js?v=60ln"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=59lv"></script>
-<script defer src="guard.js?v=59lv"></script>
-<script defer src="blunders.js?v=59lv"></script>
-<script defer src="review58.js?v=59lv"></script>
-<script defer src="coach58.js?v=59lv"></script>
-<script defer src="review59.js?v=59lv"></script>
-<script defer src="coach59.js?v=59lv"></script>
+<script defer src="thinkfirst.js?v=60ln"></script>
+<script defer src="guard.js?v=60ln"></script>
+<script defer src="blunders.js?v=60ln"></script>
+<script defer src="review58.js?v=60ln"></script>
+<script defer src="coach58.js?v=60ln"></script>
+<script defer src="review59.js?v=60ln"></script>
+<script defer src="coach59.js?v=60ln"></script>
+<script defer src="learn60.js?v=60ln"></script>
 </body>
 </html>
