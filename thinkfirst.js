@@ -7,7 +7,7 @@
 const $=id=>document.getElementById(id), U=()=>window.CR52, K="chessReview.tf.v1";
 const NM={k:"king",q:"queen",r:"rook",b:"bishop",n:"knight",p:"pawn"}, VAL={p:1,n:3,b:3,r:5,q:9,k:0};
 const COL={c:"#d23c3c",x:"#e07b00",t:"#f5c518"}, TNAME={c:"check",x:"capture",t:"threat"};
-const STEPS=["Danger scan","Forcing moves","Shortlist","Choose and check"];
+const STEPS=["Danger scan","Forcing moves","Shortlist","Cross out","Choose and check"];
 const LV={1:"Guided",2:"Quick",3:"Silent"}, TIME=30;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
@@ -85,7 +85,7 @@ function bank(){ return (window.TFBANK&&TFBANK.main)||[]; }
 function pickBank(list,n,avoid){ const s=S(), seen=s.seen||{}; const L=list.filter(p=>!(avoid||[]).includes(p.id)).sort((a,b)=>(seen[a.id]||0)-(seen[b.id]||0)||Math.random()-.5); return L.slice(0,n); }
 function markSeen(id){ const s=S(); s.seen=s.seen||{}; s.seen[id]=(s.seen[id]||0)+1; save(s); }
 function head(P,step){ const s=S(), L=W.lvl; return `<div class="tfh"><span class="tfl">Level ${L}: ${LV[L]}</span>${W.sess?`<span class="tfl">Session ${W.sess.i+1}/${W.sess.q.length}</span>`:""}<span class="tfl tag">${U().E_(P.lab)}</span><span id="tfT" class="tfT"></span></div>
- ${step?`<div class="tfst">${STEPS.map((n,i)=>`<i class="${i+1<step?"done":i+1===step?"on":""}">${i+1}</i>`).join("")}</div><h3>Step ${step} of 4: ${STEPS[step-1]}</h3>`:""}`; }
+ ${step?`<div class="tfst">${STEPS.map((n,i)=>`<i class="${i+1<step?"done":i+1===step?"on":""}">${i+1}</i>`).join("")}</div><h3>Step ${step} of ${STEPS.length}: ${STEPS[step-1]}</h3>`:""}`; }
 function startTimer(sec,onEnd){ stopTimer(); const el=$("tfT"); if(!el) return; let left=sec; el.textContent="⏱ "+left; el.classList.remove("low");
   timer=setInterval(()=>{ left--; const e=$("tfT"); if(!e){ stopTimer(); return; } e.textContent="⏱ "+Math.max(0,left); e.classList.toggle("low",left<=10); if(left<=0){ stopTimer(); onEnd(); } },1000); }
 function boardIn(el,onTap){ const B=U().board(el,onTap); return B; }
@@ -93,16 +93,21 @@ function lmArrow(P){ return P.lm?[{u:P.lm,c:"blue"}]:[]; }
 /* ---------- the page ---------- */
 function page(){ return U().show("tf54"); }
 function open(){ W=null; stopTimer(); const p=page(), s=S(), E_=U().E_; const st=stats();
-  p.innerHTML=`<h2>🧠 Think First</h2><p class="mute">Stop moving on instinct. Four quick steps before every move, until they become a habit.</p>
-  <div class="tfsteps">${STEPS.map((n,i)=>`<div><b>${i+1}</b><span>${["What do they want?","Checks, captures, threats","Pick 2–3 moves","Move, then safety check"][i]}</span></div>`).join("")}</div>
+  p.innerHTML=`<h2>🧠 Think First</h2><p class="mute">Stop moving on instinct. Five quick steps before every move, until they become a habit.</p>
+  <div class="tfsteps">${STEPS.map((n,i)=>`<div><b>${i+1}</b><span>${["What do they want?","Checks, captures, threats","Pick 2–3 moves","Cross out the ones that fail","Move, then safety check"][i]}</span></div>`).join("")}</div>
   <button class="lt tfgo" id="tfDaily"><span class="i">☀️</span><span><b>Today's 10-minute session</b><small>${s.sess&&s.sess.d===today()&&s.sess.done?"Done today ✅ Play again any time":"5 of your own mistakes, 3 defence puzzles, 1 checks drill · 10–15 min"}</small></span></button>
   <button class="lt" id="tfOne"><span class="i">🎯</span><span><b>Practise one position</b><small>Level ${s.lvl}: ${LV[s.lvl]}</small></span></button>
   <button class="lt" id="tfBl"><span class="i">🩹</span><span><b>Puzzles from my blunders</b><small>Big mistakes from your own games</small></span></button>
   <button class="lt" id="tfDef"><span class="i">🛡</span><span><b>Save yourself</b><small>They have a threat. Find the move that stops it.</small></span></button>
   <button class="lt" id="tfSpeed"><span class="i">⚡</span><span><b>Find all the checks</b><small>20 seconds, tap every check</small></span></button>
   <h3>Your level</h3><div class="row" id="tfLv">${[1,2,3].map(l=>`<button class="bt ${s.lvl===l?"go":""}" data-l="${l}" ${l>s.max?"disabled":""}>${l>s.max?"🔒 ":""}${l}. ${LV[l]}</button>`).join("")}</div>
-  <p class="mute">${s.max<3?`Move up after 10 positions in a row with no missed check or capture. Now: ${s.run}/10.`:"All levels unlocked."} ${["","All four steps, with hints.","Same steps, no hints, 30 seconds a step.","Just move. The app only steps in when you are about to hang a piece or miss a mate."][s.lvl]}</p>
-  ${statsHtml(st)}`;
+  <p class="mute">${s.max<3?`Move up after 10 positions in a row with no missed check or capture. Now: ${s.run}/10.`:"All levels unlocked."} ${["","All five steps, with hints.","Same steps, no hints, 30 seconds a step.","Just move. The app only steps in when you are about to hang a piece or miss a mate."][s.lvl]}</p>
+  ${statsHtml(st)}
+  <details class="card tfcred" id="tfCred"><summary><b>Where these habits come from</b></summary>
+   <p><b>Asking what they want first</b> (prophylaxis): an idea made famous by Aron Nimzowitsch and later taught in depth by the trainer Mark Dvoretsky.</p>
+   <p><b>Listing candidate moves before you calculate:</b> Alexander Kotov popularised this in his book <i>Think Like a Grandmaster</i>. Here it is simply a habit: name 2–3 moves before you choose.</p>
+   <p><b>Crossing out moves that fail</b> (elimination): a method Dvoretsky taught for narrowing the choice quickly.</p>
+   <p class="mute">The steps and wording in this app are our own simplified version for club players.</p></details>`;
   $("tfDaily").onclick=daily; $("tfOne").onclick=()=>{ W={lvl:S().lvl}; play(pickBank(bank(),1)[0]); }; $("tfSpeed").onclick=()=>{ W={lvl:S().lvl}; speed(); }; $("tfBl").onclick=()=>window.CRBlunders&&CRBlunders.open(); $("tfDef").onclick=defOne;
   p.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{ const s=S(); s.lvl=+b.dataset.l; save(s); open(); }); }
 /* ---------- stats ---------- */
@@ -146,7 +151,7 @@ function fenBefore(P){ if(P.pf) return P.pf; // rebuild the position before thei
   try{ const C=CH(); const g=new C(P.f); const sq=P.lm.slice(2,4), fr=P.lm.slice(0,2), pc=g.get(sq); if(!pc) return P.f; const h=new C(P.f); h.remove(sq); h.put(pc,fr); const f=h.fen().split(" "); f[1]=pc.color; f[3]="-"; return f.join(" "); }catch(e){ return P.f; } }
 function step2(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, F=forcing(P.f), marked=[]; let sel=null;
   const tot=k=>F.filter(f=>f.k===k).length, got=k=>marked.filter(u=>{ const f=F.find(f=>f.u===u); return f&&f.k===k; }).length;
-  p.innerHTML=`${head(P,2)}<p class="tfq">Tap every check, capture and threat YOU have.</p><p class="mute">Tap your piece, then the square. Tap a marked move again to remove it.</p>
+  p.innerHTML=`${head(P,2)}${targetsTip(P.f,L)}<p class="tfq">Tap every check, capture and threat YOU have.</p><p class="mute">Tap your piece, then the square. Tap a marked move again to remove it.</p>
    <div class="tfleg"><span style="background:${COL.c}"></span>Check <span style="background:${COL.x}"></span>Capture <span style="background:${COL.t}"></span>Threat</div>
    <div class="tfcnt" id="tfC"></div><div class="bd" id="tfB"></div><div class="msg" id="tfM"></div>
    <div class="row"><button class="bt go" id="tfOk">I found them all</button></div><div id="tfOut"></div>`;
@@ -181,7 +186,7 @@ function step3(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, M=W.
   const chip=(u,inTray)=>{ const f=W.st.F.find(f=>f.u===u); return `<button class="tfchip" data-u="${u}" style="border-color:${f?COL[f.k]:"#2e9b4f"}">${U().E_(phrase(P.f,u))}${inTray?" ✕":""}</button>`; };
   function paint(){ const left=M.filter(u=>!tray.includes(u)); $("tfCh").innerHTML=left.length?left.map(u=>chip(u,false)).join(""):`<span class="mute">${M.length?"All your marked moves are in the tray.":"You didn't mark any moves in Step 2. Add a quiet move instead."}</span>`;
     $("tfTr").innerHTML=`<b>Shortlist ${tray.length}/3${quiet?" + 1 quiet":""}</b>`+(tray.map(u=>chip(u,true)).join("")+(quiet?`<button class="tfchip" data-q="1" style="border-color:#2e9b4f">${U().E_(phrase(P.f,quiet))} ✕</button>`:"")||`<span class="mute">Drop moves here</span>`);
-    $("tfOk").disabled=!(tray.length||quiet); draw(); wire(); }
+    $("tfOk").disabled=!(tray.length||quiet); $("tfOk").textContent=(tray.length+(quiet?1:0))>=2?"Next: Step 4 ›":"Next: Step 5 ›"; draw(); wire(); }
   function toggle(u){ if(tray.includes(u)) tray.splice(tray.indexOf(u),1); else if(tray.length<3) tray.push(u); else { $("tfM").textContent="Up to 3. Remove one first."; return; } paint(); }
   function wire(){ document.querySelectorAll("#tfTr [data-q]").forEach(b=>b.onclick=()=>{ quiet=null; paint(); });
     document.querySelectorAll(".tfchip[data-u]").forEach(b=>{ let sx=0,sy=0,drag=false;
@@ -190,11 +195,38 @@ function step3(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, M=W.
       b.onpointerup=e=>{ const u=b.dataset.u; if(!drag){ toggle(u); return; } b.style.transform=""; const r=$("tfTr").getBoundingClientRect(), inT=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
         if(inT!==tray.includes(u)) toggle(u); else paint(); }; }); }
   $("tfQ").onclick=()=>{ qmode=true; $("tfM").className="msg"; $("tfM").textContent="Tap your piece, then the square for your quiet move."; $("tfB").scrollIntoView({block:"center",behavior:"smooth"}); };
-  $("tfOk").onclick=()=>{ stopTimer(); W.st.tray=tray.slice(); W.st.quiet=quiet; const list=tray.concat(quiet?[quiet]:[]); W.st.s3=list.some(u=>clsOf(P,u)==="b")?1:list.some(u=>clsOf(P,u)==="g")?.5:0; step4(P); };
+  $("tfOk").onclick=()=>{ stopTimer(); W.st.tray=tray.slice(); W.st.quiet=quiet; const list=tray.concat(quiet?[quiet]:[]); W.st.s3=list.some(u=>clsOf(P,u)==="b")?1:list.some(u=>clsOf(P,u)==="g")?.5:0; W.st.out=[]; if(list.length>=2) stepX(P); else { W.st.sx=null; step4(P); } };
   if(L===1&&M.length) $("tfM").textContent="Hint: put the move that wins the most, or stops their threat, first."; paint();
   if(L===2) startTimer(TIME,()=>{ if(!tray.length&&!quiet&&M.length) tray.push(M[0]); if(!tray.length&&!quiet){ const any=g.moves({verbose:true})[0]; quiet=uciOf(any); } $("tfOk").disabled=false; $("tfOk").click(); }); }
-function step4(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, list=W.st.tray.concat(W.st.quiet?[W.st.quiet]:[]); let pick=list.length===1?list[0]:null;
-  p.innerHTML=`${head(P,4)}<p class="tfq">Pick your move.</p><div class="tfchips" id="tfCh">${list.map(u=>`<button class="tfchip" data-u="${u}">${U().E_(phrase(P.f,u))}</button>`).join("")}</div>
+/* v59: "Targets" tip before the move search (a tip, not a named system) */
+function targetsTip(fen,L){ try{ const C=CH(), g=new C(fen), me=g.turn(), th=opp(me), loose=[], B=g.board();
+  B.forEach(r=>r.forEach(q=>{ if(q&&q.color===th&&q.type!=="k"&&q.type!=="p"&&!g.isAttacked(q.square,th)) loose.push(NM[q.type]+" on "+q.square); }));
+  const k=B.flat().find(q=>q&&q.type==="k"&&q.color===th); let weak=""; if(k){ const f="abcdefgh".indexOf(k.square[0]), r=+k.square[1], dir=th==="w"?1:-1; let sh=0;
+    for(let df=-1;df<=1;df++){ const ff=f+df; if(ff<0||ff>7) continue; const sq="abcdefgh"[ff]+(r+dir); const pc=(r+dir>=1&&r+dir<=8)?g.get(sq):null; if(pc&&pc.type==="p"&&pc.color===th) sh++; }
+    const home=th==="w"?r===1:r===8, centre=f>=3&&f<=4; if(g.inCheck()) weak=""; else if(centre&&!home) weak="their king has left home and is out in the open"; else if(centre&&home&&B.flat().filter(q=>q&&q.color===th&&"nb".includes(q.type)&&q.square[1]===(th==="w"?"1":"8")).length<2) weak="their king is still in the middle"; else if(sh<=1) weak="their king has few pawns in front of it"; }
+  let body; if(L>=3) body="Before you search, ask: which of their pieces is loose (nobody guards it), and is their king short of cover?";
+  else { const bits=[]; if(loose.length) bits.push(`loose piece${loose.length>1?"s":""}: <b>${loose.slice(0,3).join(", ")}</b> (nobody guards ${loose.length>1?"them":"it"})`); if(weak) bits.push(weak);
+    body=bits.length?"Look for targets first. "+bits.map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(". ")+". Forcing moves that hit these are worth a closer look.":"Look for targets first: a loose piece (nobody guards it) or a king without cover. None stand out here, so check every forcing move."; }
+  return `<div class="tftip" id="tfTgt">💡 <b>Tip: targets.</b> ${body}</div>`; }catch(e){ return ""; } }
+/* v59: Step 4, cross out the moves that fail (elimination) */
+function stepX(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, list=W.st.tray.concat(W.st.quiet?[W.st.quiet]:[]), out=[];
+  const adv=L>=3?`<div class="card tfadv" id="tfAdv"><b>Silent level: two extra checks</b><p>1. Follow a forcing line (checks and captures) to the point where it stops. Pause there and judge that position as if you were seeing it for the first time: who is safer, who has more?</p><p>2. Try the same moves in a different order. Sometimes the second move works better first, or one order gives them a check in between.</p></div>`:"";
+  p.innerHTML=`${head(P,4)}<p class="tfq">Cross out every candidate that fails.</p><p class="mute">A move fails if it leaves something hanging, lets them check you or win material, or ignores their threat. Keep at least one.</p>${adv}
+   <div class="tfchips tfx" id="tfX">${list.map(u=>`<button class="tfchip" data-u="${u}">${U().E_(phrase(P.f,u))}</button>`).join("")}</div><div class="bd" id="tfB"></div><div class="msg" id="tfM"></div>
+   <div class="row"><button class="bt go" id="tfOk">Done crossing out</button>${L===1?`<button class="bt" id="tfHint">💡 Hint</button>`:""}</div><div id="tfOut"></div>`;
+  const B=boardIn($("tfB"),null); B.orient=me; const draw=()=>B.draw(P.f,{arrows:list.map(u=>({u,c:out.includes(u)?"#999":"green",dash:out.includes(u)}))}); draw();
+  document.querySelectorAll("#tfX .tfchip").forEach(b=>b.onclick=()=>{ if(W.st.sx!==undefined&&W.st.sxDone) return; const u=b.dataset.u;
+    if(out.includes(u)) out.splice(out.indexOf(u),1); else if(out.length<list.length-1) out.push(u); else { $("tfM").className="msg"; $("tfM").textContent="Keep at least one move."; return; }
+    b.classList.toggle("x",out.includes(u)); draw(); });
+  if($("tfHint")) $("tfHint").onclick=()=>{ $("tfM").className="msg"; $("tfM").textContent="For each move, picture the board after it. Can they check you, or take something for free?"; };
+  const done=()=>{ stopTimer(); W.st.sxDone=1; const bad=u=>danger(P.f,u)||clsOf(P,u)==="m"; const right=out.filter(bad).length, wrong=out.filter(u=>!bad(u)).length, missed=list.filter(u=>!out.includes(u)&&bad(u));
+    W.st.out=out.slice(); W.st.sx=list.length?(list.length-wrong-missed.length)/list.length:1;
+    const m=$("tfM"); const lines=[]; if(right) lines.push(`✅ ${right} correctly crossed out.`); if(wrong) lines.push(`⚠️ You crossed out ${out.filter(u=>!bad(u)).map(u=>U().E_(phrase(P.f,u))).join(", ")}, but it holds up.`); if(missed.length) lines.push(`❌ ${missed.map(u=>U().E_(phrase(P.f,u))).join(", ")} fails: it lets them check you or win something.`); if(!lines.length) lines.push("✅ Nothing here fails. Good list.");
+    m.className="msg "+(wrong||missed.length?"no":"ok"); m.innerHTML=lines.join("<br>"); $("tfOk").disabled=true;
+    $("tfOut").innerHTML=`<div class="row"><button class="bt go" id="tfN">Next: Step 5 ›</button></div>`; $("tfN").onclick=()=>step4(P); };
+  $("tfOk").onclick=done; if(L===2) startTimer(TIME,done); }
+function step4(P){ const p=page(), g=new (CH())(P.f), me=g.turn(), L=W.lvl, list=W.st.tray.concat(W.st.quiet?[W.st.quiet]:[]).filter(u=>!(W.st.out||[]).includes(u)); let pick=list.length===1?list[0]:null;
+  p.innerHTML=`${head(P,5)}<p class="tfq">Pick your move.</p><div class="tfchips" id="tfCh">${list.map(u=>`<button class="tfchip" data-u="${u}">${U().E_(phrase(P.f,u))}</button>`).join("")}</div>
    <div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
   const B=boardIn($("tfB"),null); B.orient=me; const draw=o=>B.draw(P.f,o||{arrows:pick?[{u:pick,c:"green"}]:[]});
   const ask=()=>{ draw(); document.querySelectorAll("#tfCh .tfchip").forEach(b=>b.classList.toggle("on",b.dataset.u===pick));
@@ -212,19 +244,20 @@ async function finish(P,u,said){ if(W.st.s4!=null) return; stopTimer(); W.st.s4=
   // which step went wrong
   const s=W.st, best=P.best, bf=(s.F||[]).find(f=>f.u===best.slice(0,4)); let why="";
   const threatMissed=s.s1===0&&P.t;
-  if(cls==="b") why=threatMissed?"You found the right move but skipped Step 1, so you missed their threat.":(said!=null&&!safeOk)?"Right move! But Step 4's safety check answer was off. Look again next time.":"Every step went right. That's the habit.";
+  if(cls==="b") why=threatMissed?"You found the right move but skipped Step 1, so you missed their threat.":(said!=null&&!safeOk)?"Right move! But Step 5's safety check answer was off. Look again next time.":"Every step went right. That's the habit.";
+  else if((s.out||[]).some(u=>u.slice(0,4)===best.slice(0,4))) why=`Step 4 went wrong: you crossed out ${phrase(P.f,best)}, but it was the best move. Cross out a move only when you can say what it allows.`;
   else if(threatMissed&&(tg==="A"||tg[0]==="L")) why="Step 1 went wrong: you missed their threat, and it cost you.";
   else if(bf&&!s.marked.includes(bf.u)) why=`Step 2 went wrong: you didn't spot ${phrase(P.f,best)}, a ${TNAME[bf.k]}.`;
   else if(s.marked.includes(best.slice(0,4))&&!s.tray.includes(best.slice(0,4))) why=`Step 3 went wrong: you marked ${phrase(P.f,best)} but left it off your list.`;
-  else if(s.tray.includes(best.slice(0,4))||s.quiet===best) why=`Step 4 went wrong: ${phrase(P.f,best)} was on your list. Compare more carefully.`;
-  else if(said!=null&&!safeOk) why="Step 4 went wrong: your safety check missed their reply.";
+  else if(s.tray.includes(best.slice(0,4))||s.quiet===best) why=`Step 5 went wrong: ${phrase(P.f,best)} was on your list. Compare more carefully.`;
+  else if(said!=null&&!safeOk) why="Step 5 went wrong: your safety check missed their reply.";
   else why=`The best move was a quiet one: ${phrase(P.f,best)}.`;
   const verdict=cls==="b"?["⭐ Best move","ok"]:cls==="g"?["👍 Good move","ok"]:["❌ Mistake","no"];
   const hungNow=tg==="A"||tg[0]==="L";
   $("tfCh").innerHTML=""; $("tfM").innerHTML="";
   $("tfOut").innerHTML=`<div class="card tfres ${verdict[1]}"><h3 class="${verdict[1]}">${verdict[0]}</h3><p><b>${U().E_(reason(P,u))}</b></p><p>${U().E_(why)}</p>
     ${said!=null?`<p class="mute">Safety check: you said ${said?"Yes":"No"}. ${real?"They do get a check or a capture that wins something.":"They get nothing dangerous."} ${safeOk?"✅":"❌"}</p>`:""}
-    <div class="tfsc">${["Threats","Forcing","Shortlist","Final"].map((n,i)=>{ const v=[s.s1,s.s2,s.s3,s.s4][i]; return `<span class="${v>=.99?"ok":v>0?"mid":"no"}">${n} ${v>=.99?"✓":v>0?"½":"✗"}</span>`; }).join("")}</div></div>
+    <div class="tfsc">${["Threats","Forcing","Shortlist","Cross out","Final"].map((n,i)=>{ const v=[s.s1,s.s2,s.s3,s.sx,s.s4][i]; if(v==null&&i===3) return ""; return `<span class="${v>=.99?"ok":v>0?"mid":"no"}">${n} ${v>=.99?"✓":v>0?"½":"✗"}</span>`; }).join("")}</div></div>
     <div class="row"><button class="bt go" id="tfN">${W.sess?"Next ›":"Next position ›"}</button><button class="bt" id="tfH">Think First home</button></div>`;
   const up=record({id:P.id,ms:Date.now()-W.t0,s1:s.s1,s2:s.s2,s3:s.s3,s4:s.s4,cls,hung:hungNow?1:0,lvl:W.lvl,cleanCX:s.cx,cats:s.cats,def:!!P.isDef});
   if(W.sess) sessNote({s1:s.s1,def:P.isDef,ok:cls!=="m",cats:s.cats});
@@ -235,8 +268,9 @@ async function finish(P,u,said){ if(W.st.s4!=null) return; stopTimer(); W.st.s4=
     CRIdeas.mount(box,G,(af,x,g)=>{ if(!af){ B.draw(P.f,{arrows}); return; } B.draw(af,{arrows:x.a,hl:[{sq:g.uci.slice(0,2),c:"#f2d35b",o:.45},{sq:g.uci.slice(2,4),c:"#f2d35b",o:.55}]}); }); }
 $("tfN").onclick=next; $("tfH").onclick=()=>{ W.sess=null; open(); }; $("tfOut").scrollIntoView({block:"nearest",behavior:"smooth"}); }
 /* ---------- Level 3: silent ---------- */
+function silentIdeas(){ return `<details class="card tfadv" id="tfAdv"><summary><b>Silent level: advanced ideas</b></summary><p>💡 <b>Targets:</b> which of their pieces is loose, and is their king short of cover?</p><p>1. <b>Pause where the forcing line ends.</b> Follow the checks and captures until they run out. Stop there and judge that position fresh, as if it were a new puzzle: who is safer, who has more?</p><p>2. <b>Try a different order.</b> Play the same moves in another order in your head. Sometimes one order works and the other gives them a check or a capture in between.</p></details>`; }
 function silent(P){ const p=page(), g=new (CH())(P.f), me=g.turn(); let sel=null, paused=false;
-  p.innerHTML=`${head(P,0)}<p class="tfq">Your move.</p><p class="mute">${P.lm?`They just played ${phrase(fenBefore(P),P.lm)}.`:""} Think it through, then move.</p><div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
+  p.innerHTML=`${head(P,0)}<p class="tfq">Your move.</p><p class="mute">${P.lm?`They just played ${phrase(fenBefore(P),P.lm)}.`:""} Think it through, then move.</p>${silentIdeas()}<div class="bd" id="tfB"></div><div id="tfAsk"></div><div class="msg" id="tfM"></div><div id="tfOut"></div>`;
   const B=boardIn($("tfB"),sq=>{ if(paused||W.st.s4!=null) return; const pc=g.get(sq); if(pc&&pc.color===me&&sel!==sq&&!(sel&&g.moves({square:sel,verbose:true}).some(m=>m.to===sq))){ sel=sq; draw(); return; }
     if(!sel) return; const m=g.moves({square:sel,verbose:true}).find(m=>m.to===sq); sel=null; if(!m){ draw(); return; } go(uciOf(m)); });
   B.orient=me; const draw=()=>B.draw(P.f,{arrows:lmArrow(P),hl:sel?[{sq:sel,c:"#f5c518",o:.6}]:[],dots:sel?g.moves({square:sel,verbose:true}).map(m=>m.to):[]}); draw();
@@ -312,6 +346,8 @@ const CSS=`#tf54 .tfh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;mar
 .tfsteps{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 12px}.tfsteps div{border-radius:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;padding:8px 10px;display:flex;gap:8px;align-items:center}.tfsteps b{font-size:22px}.tfsteps span{font-size:13px;line-height:1.25;font-weight:700}
 .tfleg{font-size:13px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tfleg span{display:inline-block;width:18px;height:8px;border-radius:4px;margin-left:6px}
 .tfcnt{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.tfcnt span{border:2px solid;border-radius:10px;padding:3px 9px;font-weight:800;font-size:14px;background:#fff}
+.tftip{background:#fff7e0;border:1px solid #e8cf7a;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:14px;color:#3d3210}.tfadv,.tfcred{padding:10px 12px;margin:8px 0;font-size:14px}.tfadv summary,.tfcred summary{cursor:pointer;min-height:32px}.tfadv p,.tfcred p{margin:6px 0}
+.tfx .tfchip.x{text-decoration:line-through;opacity:.55;border-style:dashed}html.dark-mode .tftip{background:#2d2614;color:#eee}
 .tfchips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;min-height:30px}.tfchip{min-height:44px;border-radius:12px;border:2px solid #888;background:#fff;color:var(--ink);font:inherit;font-weight:700;padding:0 12px;touch-action:none;cursor:pointer}.tfchip.on{background:#2f7d32;color:#fff;border-color:#2f7d32}.tfchip.drag{position:relative;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .tftray{border:2px dashed #3b6fb6;border-radius:14px;min-height:64px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#f2f6fd}.tftray b{width:100%;font-size:13px;color:#3b6fb6}
 .tfres.ok{border-color:#2e7d32}.tfres.no{border-color:#c62828}.tfres h3{margin:0 0 4px}.tfsc{display:flex;gap:5px;flex-wrap:wrap}.tfsc span{font-size:12.5px;font-weight:800;border-radius:8px;padding:2px 7px;background:#eee}.tfsc .ok{background:#c8e6c9;color:#1b5e20}.tfsc .mid{background:#fff3c4}.tfsc .no{background:#ffcdd2;color:#b71c1c}
@@ -323,5 +359,5 @@ const CSS=`#tf54 .tfh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;mar
 html.dark-mode .tfstats div,html.dark-mode .tfchip:not(.on),html.dark-mode .tfcnt span{background:#262626;color:#eee}html.dark-mode .tftray{background:#1d2633}html.dark-mode .tfpause,html.dark-mode .tfup,html.dark-mode .tfdef{background:#2a2a2a!important}`;
 { const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); }
 try{ U().onClose(()=>{ stopTimer(); }); }catch(e){}
-window.CRThink={open,sub,_own:ownOne,_def:defOne,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_finish:u=>{ W.st=Object.assign({marked:[],tray:[],F:[],cats:[]},W.st,{s4:null}); step4(W.P); W.st.s4=null; return finish(W.P,u,null); },_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
+window.CRThink={_targets:targetsTip,_stepX:stepX,_W:()=>W,_silent:silent,open,sub,_own:ownOne,_def:defOne,_P:()=>W&&W.P,_play:id=>{ W={lvl:S().lvl}; play((bank().concat(TFBANK.def||[])).find(p=>p.id===id)||bank()[0]); },_speed:()=>{ W={lvl:S().lvl}; speed(); },_daily:daily,_finish:u=>{ W.st=Object.assign({marked:[],tray:[],F:[],cats:[]},W.st,{s4:null}); step4(W.P); W.st.s4=null; return finish(W.P,u,null); },_forcing:forcing,_reason:reason,_bank:()=>TFBANK};
 })();

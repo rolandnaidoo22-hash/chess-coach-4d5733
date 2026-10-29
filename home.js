@@ -58,6 +58,7 @@ const TILES=[
  ["learn","📘","Learn the basics",()=>window.CRLearn?CRLearn.progressText():"Pieces, moves and rules",()=>{ closeAll(); setMode("app",true); window.CRLearn&&CRLearn.open(); }],
  ["open52","♞","Learn openings",()=>"Step by step, then drill",()=>{ setMode("app",true); window.CROpenings&&CROpenings.open(); }],
  ["read52","📖","Read",()=>"Illustrated guides",()=>{ setMode("app",true); window.CRRead&&CRRead.open(); }],
+ ["ask59","💬","Ask coach",()=>"Pick a game, review them all, or ask a question",()=>{ setMode("app",true); window.CRAsk59&&CRAsk59.open(); }],
  ["bl57","🩹","My blunder puzzles",()=>"Big mistakes from your own games",()=>{ setMode("app",true); window.CRBlunders&&CRBlunders.open(); }],
  ["tf54","🧠","Think First",()=>window.CRThink?CRThink.sub():"Four steps before every move",()=>{ setMode("app",true); window.CRThink&&CRThink.open(); }],
  ["corban52","🧢","Corban",()=>"Plays like a real friend",()=>{ setMode("app",true); const b=(window.CRBotsData||[]).find(x=>x.id==="corban"); b&&b.open?b.open():window.CRBots&&CRBots.open(); }],
@@ -72,7 +73,7 @@ const TILES=[
  ["set","⚙","Settings",()=>"Username, rating goal, board",()=>{ closeAll(); setMode("set",true); }]];
 /* Most-used coaching actions first, then play, train, and progress. */
 const ORDER=[
- ["Review",["coach","review","games","trap"]],
+ ["Review",["coach","ask59","review","games","trap"]],
  ["Play",["bots52","corban52","ultimo52","play"]],
  ["Train",["start54","tf54","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
  ["Progress",["v45","v46mo","v42ch","progress","v42xp","set"]]];
