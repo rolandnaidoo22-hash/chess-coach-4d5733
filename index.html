@@ -10084,13 +10084,14 @@ function grokShow(c,G){ const box=$("gmGrokBox"); if(!box) return; const pv=c.pv
 function grokCache(){ const c=LS.get(CGR,{}); if(!c||typeof c!=="object") return {}; Object.keys(c).forEach(k=>{ if(!k.includes("|grok")&&!k.includes("|gemini")&&c[k]&&c[k].text){ const v=c[k]; v.pv="grok"; if(!c[k+"|grok"]) c[k+"|grok"]=v; delete c[k]; } }); return c; }
 function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
 async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
-  if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`<span class="co17spin"></span> Your AI coach is studying your game…`; }
-  box.innerHTML=`<div class="co17note">⏳ This usually takes 10–40 seconds (up to a minute when the free coach is busy). Keep this screen open.</div>`;
-  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),150000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok";
+  if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`Coach is studying your game…`; }
+  box.innerHTML=`<div class="co17note">${window.CRMem?CRMem.loader("Coach is thinking… usually 10–40 seconds. Keep this screen open."):"⏳ Coach is thinking… usually 10–40 seconds. Keep this screen open."}</div>`;
+  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),150000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok"; try{ if(window.CRMem){ const mm=CRMem.summary(); if(mm.length) pl.memory=mm; } }catch(e){}
     const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal}); clearTimeout(to);
     const d=await r.json().catch(()=>({})); if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
     const pv=d.provider==="gemini"?"gemini":"grok", C=grokCache(), c={text:d.report,t:Date.now(),pv,model:d.model,usage:d.usage,fb:prov==="gemini"&&pv==="grok"}; C[id+"|"+pv]=c;
     Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)).slice(30).forEach(k=>delete C[k]); LS.set(CGR,C); const st=S(); st.aiLast=Object.assign({},st.aiLast||{},{[id]:pv}); save(st);
+    try{ const m=G.d.meta, me=m.user_color||"w"; window.CRMem&&CRMem.add({kind:"game",q:"Coach review",a:d.report,gids:[id],game:(m.date||"")+" vs "+(me==="w"?m.black:m.white)}); }catch(e){}
     if($("gmGrokBox")===box) grokShow(c,G); }
   catch(e){ if($("gmGrokBox")!==box) return; if(b){ b.disabled=false; b.innerHTML="🤖 Try the AI coach again"; }
     box.innerHTML=`<div class="co17note">😕 The AI coach couldn't answer right now${navigator.onLine===false?" (you're offline)":""}. No problem: <b>your coach report is right below</b>, made by the app itself. You can try again later.<br><span class="co17sm">${e_((m=>/too many|429/i.test(m)?"Too many requests just now. Wait a minute and try again.":/abort/i.test(m)?"It took too long to answer.":/failed to fetch|network|load failed/i.test(m)?"Couldn't reach the coach. Check your internet.":/origin/i.test(m)?"This copy of the app isn't allowed to use the coach.":"The coach service had a problem.")(String(e.message||e)))}</span></div>`;
@@ -10155,7 +10156,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=60sy"></script>
+<script defer src="home.js?v=61cm"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10166,23 +10167,24 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=60sy"></script>
+<script defer src="bots.js?v=61cm"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=60sy"></script>
-<script defer src="charts.js?v=60sy"></script>
+<script defer src="study.js?v=61cm"></script>
+<script defer src="charts.js?v=61cm"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=60sy"></script>
-<script defer src="guard.js?v=60sy"></script>
-<script defer src="blunders.js?v=60sy"></script>
-<script defer src="review58.js?v=60sy"></script>
-<script defer src="coach58.js?v=60sy"></script>
-<script defer src="review59.js?v=60sy"></script>
-<script defer src="coach59.js?v=60sy"></script>
-<script defer src="learn60.js?v=60sy"></script>
+<script defer src="thinkfirst.js?v=61cm"></script>
+<script defer src="guard.js?v=61cm"></script>
+<script defer src="blunders.js?v=61cm"></script>
+<script defer src="review58.js?v=61cm"></script>
+<script defer src="coach58.js?v=61cm"></script>
+<script defer src="review59.js?v=61cm"></script>
+<script defer src="coach59.js?v=61cm"></script>
+<script defer src="memory61.js?v=61cm"></script>
+<script defer src="learn60.js?v=61cm"></script>
 </body>
 </html>
