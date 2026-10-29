@@ -30,7 +30,16 @@ function open(view){ try{ window.CRHome&&CRHome.setMode("app",true); }catch(e){}
    ${more()}<button class="ac59sec" id="ac59sync">🔄 Check for new games</button>`
    :`<div class="card"><p>No checked games yet. Add your Chess.com username in Settings, or review a game with <b>Review a new game</b>, and it will appear here.</p></div><button class="ac59sec" id="ac59sync">🔄 Check for new games</button>`;
   B.querySelectorAll(".ac59g").forEach(b=>b.onclick=()=>{ try{ Coach17.open("gm",{k:+b.dataset.k}); }catch(e){ console.error(e); } });
-  $("ac59sync").onclick=async()=>{ const b=$("ac59sync"); b.disabled=true; b.textContent="Checking…"; try{ await Coach17.autoImport(true); }catch(e){} open("pick"); }; }
+  $("ac59sync").onclick=()=>sync(); if(SY.on) sync(true); }
+const SY={on:false};
+async function sync(watch){ const b=$("ac59sync"); if(!b) return; b.disabled=true; b.insertAdjacentHTML("afterend",`<p class="mute ac59st" id="ac59st">Checking Chess.com…</p>`);
+  const tick=setInterval(()=>{ const t=$("ac59st"), x=Coach17._imp; if(t&&x&&x.txt) t.textContent=x.txt; },700);
+  if(watch){ while(Coach17._imp&&Coach17._imp.running) await new Promise(r=>setTimeout(r,1000)); clearInterval(tick); SY.on=false; if($("ac59sync")) open("pick"); return; }
+  SY.on=true; const before=games().length, have=new Set(games().map(g=>String(g.id||"").replace(/\/$/,"")));
+  let r; try{ r=await Coach17.autoImport(true,{have}); }catch(e){} clearInterval(tick); SY.on=false;
+  const msg=(Coach17._imp&&Coach17._imp.txt)||"";
+  if(!$("ac59sync")) return; open("pick"); const nb=$("ac59sync"); if(!nb) return;
+  nb.insertAdjacentHTML("afterend",`<p class="mute ac59st">${E_(r==="busy"?"Another game is being checked right now. Try again in a minute.":msg||(games().length>before?"New games added.":"No newer games found."))}</p>`); }
 async function allView(B,L){ let met=null; try{ met=window.CR58?CR58.metrics():null; }catch(e){} if(L.length<3&&!met){ B.innerHTML=`<div class="card"><p>Review all needs at least 3 checked games. You have ${L.length}.</p></div>`; return; }
   const k="chessReview.v59.all", c=(()=>{ try{ return JSON.parse(sessionStorage.getItem(k)||"null"); }catch(e){ return null; } })();
   B.innerHTML=`<p class="mute">One report across your recent games${met?" ("+met.n+" with mistake checks)":""}: the habits that keep costing you, and what to work on.</p><button class="ac59big" id="ac59run">${c?"🔄 Make a new report":"📋 Review all my games"}</button><div id="ac59out" class="card ac59rep" ${c?"":"hidden"}>${c?md(c):""}</div>`;

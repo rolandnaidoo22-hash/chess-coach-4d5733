@@ -164,7 +164,7 @@ async function runStudy(){ if(ST.run) return; const user=((window.CRUser&&CRUser
         try{ const d=await Analyzer.analyzeGame(g.pgn,{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>ST.cancel},pr=>{
             const f=pr.phase==="moves"?0.85*(pr.i/(pr.n||1)):pr.phase==="threats"?0.85+0.15*(pr.i/(pr.n||1)):0, el=(performance.now()-t0)/1000, per=(k+f)>0.3?el/(k+f):null, left=per?Math.round(per*(list.length-k-f)):null;
             ST.txt=`Game ${k+1} of ${list.length} (${g.time_class}, vs ${opp})${left!=null?` · about ${left<90?left+" s":Math.round(left/60)+" min"} left`:""}`; ST.pct=100*(k+f)/list.length; paintStudy(true); });
-          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn);
+          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn); try{ window.CRKeepChecked&&CRKeepChecked(d,g.url,g.end_time); }catch(_){}
           const acc=(d.summary.v7&&d.summary.v7[d.meta.user_color]&&d.summary.v7[d.meta.user_color].accuracy)||d.summary.accuracy||0;
           ST.done.push({opp,tc:g.time_class,acc,url:g.url}); if(!ST.worst||acc<ST.worst.acc) ST.worst={acc,d,opp};
         }catch(err){ if(String(err.message)==="cancelled") break; console.error(err); try{ eng.quit(); }catch(e){} eng=await ReviewApp.getEngine(true); } }
@@ -304,7 +304,7 @@ async function gradeSome(n){ if(CL.run||!window.Analyzer||!window.ReviewApp||!wi
         for(const u of (a.archives||[]).slice(-2).reverse()){ const j=await (await fetch(u)).json(); (j.games||[]).forEach(x=>{ const id=String(x.url).replace(/\/$/,""); if(need.has(id)) pg[id]=x.pgn; }); }
         let eng=await ReviewApp.getEngine();
         for(let k=0;k<todo.length;k++){ const g=todo[k]; if(!pg[g.id]) continue; CL.txt=`Grading game ${k+1} of ${todo.length} (quick check)…`; paintClean(true);
-          try{ const d=await Analyzer.analyzeGame(pg[g.id],{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>false},()=>{}); d.meta.link=g.id; d.meta.pgn=pg[g.id]; PatternStore.put(d,pg[g.id]); }
+          try{ const d=await Analyzer.analyzeGame(pg[g.id],{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>false},()=>{}); d.meta.link=g.id; d.meta.pgn=pg[g.id]; PatternStore.put(d,pg[g.id]); try{ window.CRKeepChecked&&CRKeepChecked(d,g.id,g.t||g.end_time||Math.floor(Date.now()/1000)); }catch(_){} }
           catch(e){ console.error(e); try{ eng.quit(); }catch(_){} eng=await ReviewApp.getEngine(true); } }
       } finally { ReviewApp.setRunning(false); } }
   }catch(e){ console.error(e); }
