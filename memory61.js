@@ -8,7 +8,7 @@ const plain=t=>String(t||"").replace(/[*_#`>]/g,"").replace(/\[(.*?)\]\(.*?\)/g,
 function advice(t){ const L=String(t||"").split(/\n+/).map(x=>x.trim()).filter(Boolean); let i=L.findIndex(x=>/^#+.*(plan|work on|practi|try|next|habit|fix)/i.test(x));
   let a=""; if(i>=0){ const n=L.slice(i+1).find(x=>!/^#/.test(x)); if(n) a=n; }
   if(!a){ const s=plain(t).split(/(?<=[.!?])\s+/).filter(x=>/\b(try|practi[cs]e|before (every|each|you)|work on|focus on|next game|habit|always|make sure|check)\b/i.test(x)); a=s[s.length-1]||""; }
-  return plain(a).replace(/^[-•\d.)\s]+/,"").trim().slice(0,180); }
+  a=plain(a).replace(/^[-•\d.)\s]+/,"").trim(); const c=a.match(/^[^:]{0,60}:\s+(.+)$/s); if(c) a=c[1].trim(); return a.replace(/\s+/g," ").slice(0,180); }
 function add(e){ const L=all(); const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),at:Date.now(),kind:e.kind||"chat",q:String(e.q||"").slice(0,500),a:String(e.a||"").slice(0,2500),gids:(e.gids||[]).slice(0,5).map(String),game:e.game?String(e.game).slice(0,80):"",advice:(e.advice||advice(e.a)).slice(0,180)};
   L.unshift(r); put(L.slice(0,MAX)); return r; }
 function del(id){ put(all().filter(x=>x.id!==id)); }
