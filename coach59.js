@@ -1,7 +1,7 @@
 /* v59: Ask coach: game picker, Review all (multi-game patterns), and a chat that uses the player's own games and stats. */
 (function(){ "use strict"; if(window.CRAsk59) return;
 const $=id=>document.getElementById(id), U=()=>window.CR52, E_=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-const URL_=()=>window.CR59_URL||"https://chess-coach-preview.chess-review.workers.dev";
+const URL_=()=>window.CR59_URL||"https://chess-coach-grok.chess-review.workers.dev";
 const MAXLEN=500, GAP=8000, PER_SESSION=20, KEEP=8, SK="chessReview.v59.chat";
 const LG=(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
 function sess(){ try{ return Object.assign({msgs:[],sent:[],focus:null},JSON.parse(sessionStorage.getItem(SK)||"{}")); }catch(e){ return {msgs:[],sent:[],focus:null}; } }
