@@ -107,7 +107,7 @@ function calm(){ const T=(window.TFBANK&&TFBANK.main)||[], L=T.filter(x=>x.r&&x.
 function turning(){ const G=games(), L=G.slice().reverse().find(g=>g.r===0&&g.tp), d0=L&&L.tp;
   if(!d0){ overlay(`<h3>🔎 Turning point</h3><p>No single big moment was saved for your last loss. It was a close game.</p><button type="button" id="tg64e">Close</button>`); $("tg64e").onclick=()=>$("tg64o").remove(); return; }
   const mvP=(()=>{ try{ const g=new (CH())(d0.fen), m=g.move({from:d0.uci.slice(0,2),to:d0.uci.slice(2,4),promotion:d0.uci[4]||"q"}); return PN[m.piece]; }catch(e){ return "piece"; } })();
-  const line=d0.k==="mate"?`Here, moving your ${mvP} let your opponent give checkmate. Before moving, look at every check they could give.`:`Here, moving your ${mvP} left your ${PN[d0.piece]||"piece"} where it could be taken for free.`;
+  const line=d0.k==="mate"?`Here, moving your ${mvP} let your opponent give checkmate. Before moving, look at every check they could give.`:(PN[d0.piece]===mvP&&d0.sq===d0.uci.slice(2,4))?`Here, your ${mvP} moved to a square where it could be taken for free.`:`Here, moving your ${mvP} left your ${PN[d0.piece]||"piece"} where it could be taken for free.`;
   const d=overlay(`<h3>🔎 That one turning point</h3><p class="mute">From your game against ${E_(L.bot||"the bot")}</p><div class="bs64bd">${CR52.mini(d0.fen,d0.side||"w",{arrows:[{u:d0.uci,c:"#d32f2f"}],hl:d0.sq?[{sq:d0.sq,c:"#f5a623",o:.6}]:[]})}</div><p class="tg64line">${E_(line)}</p><button type="button" id="tg64e">Close</button>`);
   $("tg64e").onclick=()=>d.remove(); }
 /* My Tilt Diary: only patterns with at least 3 games behind them */
