@@ -7,5 +7,5 @@ window.CROPENDATA="A00\tAmar Opening\tNh3\nA00\tAmar Opening: Paris Gambit\tNh3 
   function fromPgn(pgn){ if(/\[SetUp "1"\]|\[FEN /.test(pgn||"")) return null; const t=String(pgn||"").replace(/\[[^\]]*\]/g," ").replace(/\{[^}]*\}/g," ").replace(/\([^)]*\)/g," ").replace(/\$\d+/g," ").replace(/\d+\.(\.\.)?/g," ").replace(/(1-0|0-1|1\/2-1\/2|\*)\s*$/,"");
     return lookup(t.split(/\s+/).filter(Boolean)); }
   const label=r=>r?r.name+" ("+r.eco+")":"";
-  const credit='Opening names: <a href="https://github.com/lichess-org/chess-openings" target="_blank" rel="noopener">Lichess chess-openings</a> (CC0).';
+  const credit='Opening names come from a public-domain (CC0) list of openings, built into the app.';
   window.CRECO={lookup,fromPgn,label,credit}; })();

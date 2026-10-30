@@ -840,7 +840,7 @@ function v7Summary(){const V=S.v7,w=V.w,b=V.b;const uw=UC==="w";
  return h;}
 function buildSummary(){
  $("title").textContent=`${M.white} vs ${M.black}`;$("ver").textContent="";$("ver").style.display="none";
- $("subtitle").textContent=[M.date,M.opening?(M.opening+(M.eco?" ("+M.eco+")":"")):"",`Result ${M.result}`,M.termination].filter(Boolean).join(" · ");
+ { const _e=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])), _o=M.opening?(M.opening+(M.eco?" ("+M.eco+")":"")):""; $("subtitle").innerHTML=[M.date,`Result ${M.result}`,M.termination].filter(Boolean).map(_e).join(" · ")+(_o?`<div class="op62row">📖 ${window.CROpen62?CROpen62.tag(M.opening,_o):_e(_o)}</div>`:""); }
  const cnt=S.counts;let ch="";for(const k of Object.keys(CLS))if(cnt[k]!==undefined)ch+=`<span class="clsname"><span class="badge b-${k}">${CLS[k].sym}</span>${CLS[k].name}</span><span class="n">${cnt[k]||0}</span>`;
  let top=S.top.length?S.top.map(t=>`<li><button class="jump" onclick="go(${t.ply},true)"><span class="badge b-${t.cls}">${CLS[t.cls].sym}</span><b>${esc(t.label)}</b><small>better: ${esc(t.best)}</small></button></li>`).join(""):"<li>No real mistakes. Great game!</li>";
  let work=S.work_on.map(w=>`<li>${esc(w)}</li>`).join("");
@@ -10156,7 +10156,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=61cm"></script>
+<script defer src="home.js?v=62ol"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10167,24 +10167,25 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=61cm"></script>
+<script defer src="bots.js?v=62ol"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=61cm"></script>
-<script defer src="charts.js?v=61cm"></script>
+<script defer src="study.js?v=62ol"></script>
+<script defer src="charts.js?v=62ol"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=61cm"></script>
-<script defer src="guard.js?v=61cm"></script>
-<script defer src="blunders.js?v=61cm"></script>
-<script defer src="review58.js?v=61cm"></script>
-<script defer src="coach58.js?v=61cm"></script>
-<script defer src="review59.js?v=61cm"></script>
-<script defer src="coach59.js?v=61cm"></script>
-<script defer src="memory61.js?v=61cm"></script>
-<script defer src="learn60.js?v=61cm"></script>
+<script defer src="thinkfirst.js?v=62ol"></script>
+<script defer src="guard.js?v=62ol"></script>
+<script defer src="blunders.js?v=62ol"></script>
+<script defer src="review58.js?v=62ol"></script>
+<script defer src="coach58.js?v=62ol"></script>
+<script defer src="review59.js?v=62ol"></script>
+<script defer src="coach59.js?v=62ol"></script>
+<script defer src="memory61.js?v=62ol"></script>
+<script defer src="opening62.js?v=62ol"></script>
+<script defer src="learn60.js?v=62ol"></script>
 </body>
 </html>
