@@ -71,13 +71,32 @@ const os=window.show; if(typeof os==="function") window.show=show=function(){ co
 const tg=()=>Object.assign({on:true,dis:0},LG(KTG,{}));
 const med=a=>{ const s=a.slice().sort((x,y)=>x-y); return s.length?s[Math.floor(s.length/2)]:null; }, avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const late=h=>h>=22||h<5, morning=h=>h>=5&&h<12;
-function games(){ return LG(KB,[]).filter(g=>g&&g.n>=5&&g.spm!=null).sort((a,b)=>a.t-b.t); }
-function baseline(G){ G=G||games(); const calm=G.filter((g,i)=>(i===0||G[i-1].r!==0)&&!late(g.h==null?12:g.h));
-  if(calm.length<3) return {ready:false,calm:calm.length};
-  return {ready:true,calm:calm.length,spm:med(calm.map(g=>g.spm)),rate:avg(calm.map(g=>g.bl/g.n))}; }
-function rushed(g,B){ return B.ready&&g.spm<=0.6*B.spm&&(g.bl/g.n)>=B.rate+Math.max(0.05,B.rate*0.5); }
-function state(){ const G=games(), B=baseline(G), last=G[G.length-1], prev=G[G.length-2], S=tg(), now=Date.now();
-  const hit=!!(last&&prev&&prev.r===0&&rushed(last,B)), recent=!!(last&&now-last.t<6*3600e3);
+/* v64c: also learns from the user's synced online games (read from this phone only). Clock times give seconds per move; games without clocks only count for wins/losses. */
+function clk(pgn){ const out=[], re=/\[%clk (\d+):(\d+):(\d+(?:\.\d+)?)\]/g; let m; while((m=re.exec(pgn||""))) out.push(+m[1]*3600+ +m[2]*60+ +m[3]); return out; }
+function online(){ let u=""; try{ u=JSON.parse(localStorage.getItem("chessReview.currentUser"))||""; }catch(e){ u=localStorage.getItem("chessReview.currentUser")||""; }
+  const A=LG(`chessReview.u.${u}.coach.games.v1`,[]), out=[]; if(!Array.isArray(A)) return out;
+  A.forEach(x=>{ try{ const d=x.data||{}, M=d.meta||{}, me=M.user_color, res=M.result; if(!me||!res) return;
+    const r=res==="1/2-1/2"?0.5:((res==="1-0")===(me==="w")?1:0), pgn=M.pgn||"", hd=k=>{ const z=pgn.match(new RegExp(`\\[${k} "([^"]+)"\\]`)); return z&&z[1]; };
+    const ed=hd("UTCDate")||hd("EndDate"), et=hd("EndTime")||hd("UTCTime"); let t=(+x.t||0)*1000; if(ed&&et){ const z=Date.parse(ed.replace(/\./g,"-")+"T"+et+"Z"); if(z) t=z; }
+    const tc=String(M.time_control||hd("TimeControl")||""), inc=+(tc.split("+")[1]||0), P=(d.plies||[]).filter(p=>p.user), n=P.length;
+    const bl=P.filter(p=>p.cls==="blunder").length, C=clk(pgn); let spm=null;
+    if(!tc.includes("/")&&C.length>=10){ const o=me==="w"?0:1, mine=C.filter((_,i)=>i%2===o), dt=[]; for(let i=1;i<mine.length;i++) dt.push(Math.max(0,mine[i-1]-mine[i]+inc)); if(dt.length>=5) spm=Math.round(avg(dt)*10)/10; }
+    const lost=r===0, mate=lost&&/checkmate/i.test(M.termination||""), top=(d.summary&&d.summary.top||[]).map(q=>(d.plies||[]).find(p=>p.ply===q.ply)).find(p=>p&&p.user);
+    out.push({t,r,spm,n,bl:n?bl:null,mate:mate?1:0,h:new Date(t).getHours(),src:"on",tc,bot:M.white&&M.black?(me==="w"?M.black:M.white):"",tp:lost&&top?{fen:top.fen_before,uci:top.uci,side:me,k:"online"}:null}); }catch(e){} });
+  return out; }
+function all(){ return LG(KB,[]).filter(g=>g&&g.n>=5&&g.spm!=null).map(g=>Object.assign({src:"app"},g)).concat(online()).sort((a,b)=>a.t-b.t); }
+const key=g=>g.src==="on"?"on:"+g.tc:"app";
+/* "right after" = the next game started within 2 hours; a game long after a loss counts as calm */
+const soon=(a,b)=>!!(a&&b&&b.t-a.t<2*3600e3), afterLoss=(G,i)=>i>0&&G[i-1].r===0&&soon(G[i-1],G[i]);
+function bases(G){ const B={}; G.forEach((g,i)=>{ const k=key(g); B[k]=B[k]||{c:[]}; if(g.spm!=null&&g.n>=5&&!afterLoss(G,i)&&!late(g.h==null?12:g.h)) B[k].c.push(g); });
+  for(const k in B){ const c=B[k].c; B[k]=c.length<3?{ready:false,calm:c.length}:{ready:true,calm:c.length,spm:med(c.map(g=>g.spm)),rate:avg(c.filter(g=>g.bl!=null).map(g=>g.bl/g.n))||0}; } return B; }
+/* each game measured against the player's own normal for that kind of game */
+function norm(G){ const B=bases(G); G.forEach(g=>{ const b=B[key(g)]; g.ps=b&&b.ready&&g.spm!=null?g.spm/b.spm:null; g.rr=b&&b.ready&&g.bl!=null&&g.n?g.bl/g.n-b.rate:null; }); return B; }
+function games(){ return all().filter(g=>g.src==="app"); }
+function baseline(G){ const B=bases(G||all()); return B.app||{ready:false,calm:0}; }
+function rushed(g,B){ const b=B[key(g)]; return !!(b&&b.ready&&g.spm!=null&&g.bl!=null&&g.spm<=0.6*b.spm&&(g.bl/g.n)>=b.rate+Math.max(0.05,b.rate*0.5)); }
+function state(){ const G=all(), B=bases(G), last=G[G.length-1], prev=G[G.length-2], S=tg(), now=Date.now();
+  const hit=!!(last&&prev&&prev.r===0&&soon(prev,last)&&rushed(last,B)), recent=!!(last&&now-last.t<6*3600e3);
   const active=!!(S.on&&hit&&recent&&S.dis!==last.t);
   return {G,B,last,prev,hit,active,on:S.on,why:hit?"rushed":null,last5:G.slice(-5)}; }
 const MSG="You look rushed right now. Your last few moves were much faster than usual. Take five minutes first.";
@@ -104,25 +123,34 @@ function calm(){ const T=(window.TFBANK&&TFBANK.main)||[], L=T.filter(x=>x.r&&x.
   const dr=Coach17._tapBoard($("tg64pb"),G,me,(f,q)=>{ if(best.includes(f+q)){ ar=[{u:f+q,c:"#2f7d32"}]; $("tg64pm").textContent="✅ Nicely spotted. Ready when you are."; } else $("tg64pm").textContent="Not that one. Slow look: what is loose?"; dr(); },()=>({arrows:ar}));
   $("tg64sh").onclick=()=>{ ar=[{u:best[0],c:"#2f7d32"}]; $("tg64pm").textContent="Here it is. Ready when you are."; dr(); }; }
 /* the one moment that mattered in the game you just lost */
-function turning(){ const G=games(), L=G.slice().reverse().find(g=>g.r===0&&g.tp), d0=L&&L.tp;
+function turning(){ const G=all(), L=G.slice().reverse().find(g=>g.r===0&&g.tp), d0=L&&L.tp;
   if(!d0){ overlay(`<h3>🔎 Turning point</h3><p>No single big moment was saved for your last loss. It was a close game.</p><button type="button" id="tg64e">Close</button>`); $("tg64e").onclick=()=>$("tg64o").remove(); return; }
   const mvP=(()=>{ try{ const g=new (CH())(d0.fen), m=g.move({from:d0.uci.slice(0,2),to:d0.uci.slice(2,4),promotion:d0.uci[4]||"q"}); return PN[m.piece]; }catch(e){ return "piece"; } })();
-  const line=d0.k==="mate"?`Here, moving your ${mvP} let your opponent give checkmate. Before moving, look at every check they could give.`:(PN[d0.piece]===mvP&&d0.sq===d0.uci.slice(2,4))?`Here, your ${mvP} moved to a square where it could be taken for free.`:`Here, moving your ${mvP} left your ${PN[d0.piece]||"piece"} where it could be taken for free.`;
-  const d=overlay(`<h3>🔎 That one turning point</h3><p class="mute">From your game against ${E_(L.bot||"the bot")}</p><div class="bs64bd">${CR52.mini(d0.fen,d0.side||"w",{arrows:[{u:d0.uci,c:"#d32f2f"}],hl:d0.sq?[{sq:d0.sq,c:"#f5a623",o:.6}]:[]})}</div><p class="tg64line">${E_(line)}</p><button type="button" id="tg64e">Close</button>`);
+  const line=d0.k==="online"?`Here, moving your ${mvP} was the moment this game turned. Before moving, check what your opponent can take or attack next.`:d0.k==="mate"?`Here, moving your ${mvP} let your opponent give checkmate. Before moving, look at every check they could give.`:(PN[d0.piece]===mvP&&d0.sq===d0.uci.slice(2,4))?`Here, your ${mvP} moved to a square where it could be taken for free.`:`Here, moving your ${mvP} left your ${PN[d0.piece]||"piece"} where it could be taken for free.`;
+  const d=overlay(`<h3>🔎 That one turning point</h3><p class="mute">From your ${L.src==="on"?"online ":""}game against ${E_(L.bot||"the bot")}</p><div class="bs64bd">${CR52.mini(d0.fen,d0.side||"w",{arrows:[{u:d0.uci,c:"#d32f2f"}],hl:d0.sq?[{sq:d0.sq,c:"#f5a623",o:.6}]:[]})}</div><p class="tg64line">${E_(line)}</p><button type="button" id="tg64e">Close</button>`);
   $("tg64e").onclick=()=>d.remove(); }
 /* My Tilt Diary: only patterns with at least 3 games behind them */
-function diary(){ try{ CRHome.setMode("app",true); }catch(e){} const p=CR52.show("td64"), G=games(), B=baseline(G), MIN=3, lines=[];
-  const after=f=>G.filter((g,i)=>i>0&&f(G[i-1],i)), rate=L=>avg(L.map(g=>g.bl/g.n));
-  if(B.ready){ const chk=(L,fast,loose)=>{ if(L.length<MIN) return; const s=med(L.map(g=>g.spm)), r=rate(L); if(s<=0.75*B.spm) lines.push(["⏩",fast,L.length]); else if(r>=B.rate+Math.max(0.04,B.rate*0.4)) lines.push(["⭕",loose,L.length]); };
-    chk(after(q=>q.r===0&&q.mate),"You rush most after a checkmate loss. Your next game is usually much quicker than your normal pace.","After a checkmate loss, more pieces get left loose in your next game.");
-    chk(after((q,i)=>q.r===0&&i>1&&G[i-2].r===0),"After two losses in a row, you play much faster than usual.","After two losses in a row, more pieces get left loose.");
-    chk(after(q=>q.r===0&&!q.mate),"After a loss, your next game tends to be quicker than usual.","After a loss, more pieces get left loose in your next game.");
-    const LN=G.filter(g=>late(g.h)), DY=G.filter(g=>!late(g.h)); if(LN.length>=MIN&&DY.length>=MIN&&rate(LN)>=rate(DY)+0.04) lines.push(["🌙","Late at night, more pieces get left loose than in the daytime.",LN.length]);
-    const MO=G.filter(g=>morning(g.h)), OT=G.filter(g=>!morning(g.h)), wr=L=>avg(L.map(g=>g.r));
-    if(MO.length>=MIN&&OT.length>=MIN&&wr(MO)>wr(OT)+0.15&&med(MO.map(g=>g.spm))>=med(OT.map(g=>g.spm))) lines.push(["🌅","Your best games are in the morning, when you take your time.",MO.length]); }
-  const per=B.ready&&B.rate>0?Math.round(1/B.rate):null;
-  p.innerHTML=`<h2>📓 My Tilt Diary</h2><p class="mute">Built only from the ${G.length} game${G.length===1?"":"s"} you finished in this app. It stays on this phone and works offline.</p>
-   <div class="card"><b>Your normal pace</b><p>${B.ready?`In a calm game you take about ${Math.round(B.spm)} seconds a move${per?`, and leave a piece loose about once every ${per} moves`:", and rarely leave a piece loose"}.`:`Play a few more calm games (${B.calm} of 3 so far) so the app can learn your normal pace.`}</p></div>
+/* My Tilt Diary: only patterns with at least 3 games behind them */
+function diary(){ try{ CRHome.setMode("app",true); }catch(e){} const p=CR52.show("td64"), G=all(), B=norm(G), MIN=3, lines=[];
+  const nApp=G.filter(g=>g.src==="app").length, nOn=G.filter(g=>g.src==="on").length, noClk=G.filter(g=>g.src==="on"&&g.spm==null).length;
+  const after=f=>G.filter((g,i)=>i>0&&soon(G[i-1],g)&&f(G[i-1],i)), P=L=>L.filter(g=>g.ps!=null), R=L=>L.filter(g=>g.rr!=null);
+  const chk=(L,fast,loose)=>{ const a=P(L), b=R(L); if(a.length>=MIN&&med(a.map(g=>g.ps))<=0.75) lines.push(["⏩",fast,a.length]); else if(b.length>=MIN&&avg(b.map(g=>g.rr))>=0.04) lines.push(["⭕",loose,b.length]); };
+  chk(after(q=>q.r===0&&q.mate),"You rush most after a checkmate loss. Your next game is usually much quicker than your normal pace.","After a checkmate loss, your next game usually has more big mistakes than normal.");
+  chk(after((q,i)=>q.r===0&&i>1&&G[i-2].r===0&&soon(G[i-2],q)),"After two losses in a row, you play much faster than usual.","After two losses in a row, your next game usually has more big mistakes than normal.");
+  chk(after(q=>q.r===0&&!q.mate),"After a loss, your next game tends to be quicker than usual.","After a loss, your next game usually has more big mistakes than normal.");
+  chk(after(q=>q.r===1),"After a win, you tend to speed up in the next game.","After a win, your next game usually has more big mistakes than normal.");
+  const rm=L=>avg(R(L).map(g=>g.rr)), LN=G.filter(g=>late(g.h)), DY=G.filter(g=>!late(g.h));
+  if(R(LN).length>=MIN&&R(DY).length>=MIN&&rm(LN)>=rm(DY)+0.04) lines.push(["🌙","Late at night, you make more big mistakes than in the daytime.",R(LN).length]);
+  else if(P(LN).length>=MIN&&P(DY).length>=MIN&&med(P(LN).map(g=>g.ps))<=0.75*med(P(DY).map(g=>g.ps))) lines.push(["🌙","Late at night, you play much faster than in the daytime.",P(LN).length]);
+  const MO=G.filter(g=>morning(g.h)), OT=G.filter(g=>!morning(g.h)), wr=L=>avg(L.map(g=>g.r));
+  if(MO.length>=MIN&&OT.length>=MIN&&wr(MO)>wr(OT)+0.15&&(P(MO).length<MIN||P(OT).length<MIN||med(P(MO).map(g=>g.ps))>=med(P(OT).map(g=>g.ps)))) lines.push(["🌅","Your best games are in the morning, when you take your time.",MO.length]);
+  const pace=(k,label)=>{ const b=B[k]; if(!b) return ""; if(!b.ready) return `<li>${label}: play a few more calm games (${b.calm} of 3 so far) so the app can learn your normal pace.</li>`; const per=b.rate>0?Math.round(1/b.rate):null;
+    return `<li>${label}: about ${Math.round(b.spm)} seconds a move in a calm game${per?`, with a big mistake about once every ${per} moves`:", with very few big mistakes"}.</li>`; };
+  const tcName=tc=>{ const m=+String(tc).split("+")[0]; return m?`${Math.round(m/60)}-minute online games`:"online games"; };
+  const paces=[pace("app","Games in this app")].concat(Object.keys(B).filter(k=>k.startsWith("on:")).map(k=>pace(k,tcName(k.slice(3))))).join("");
+  p.innerHTML=`<h2>📓 My Tilt Diary</h2><p class="mute">Built from ${nApp} game${nApp===1?"":"s"} you finished in this app and ${nOn} online game${nOn===1?"":"s"} you synced. It stays on this phone and works offline.</p>
+   ${noClk?`<p class="mute">${noClk} online game${noClk===1?" has":"s have"} no clock times, so ${noClk===1?"it only counts":"they only count"} for wins and losses.</p>`:""}
+   <div class="card"><b>Your normal pace</b>${paces?`<ul class="td64p">${paces}</ul>`:`<p>Play a few more calm games so the app can learn your normal pace.</p>`}</div>
    <div class="card"><b>What the app has noticed</b>${lines.length?`<ul class="td64l">${lines.map(([i,t,n])=>`<li><span>${i}</span><span>${E_(t)}<small>Seen in ${n} games</small></span></li>`).join("")}</ul>`:`<p>No clear pattern yet. A pattern only shows up here after it has happened in at least ${MIN} games.</p>`}</div>
    <div class="card td64set"><span>Calm reminders: <b>${tg().on?"On":"Off"}</b></span><a href="#" data-tg="${tg().on?"off":"on"}">${tg().on?"Turn off":"Turn on"}</a></div>`;
   wire(p); p.querySelectorAll("[data-tg=off],[data-tg=on]").forEach(a=>a.addEventListener("click",()=>setTimeout(diary,0))); return lines; }
@@ -132,8 +160,8 @@ const st=document.createElement("style"); st.textContent=`
 .tl64r{padding-left:0;list-style:none}.tl64r li{border:1px solid var(--line,#ddd);border-left:6px solid #9aa;border-radius:10px;padding:8px 10px;margin:6px 0;display:flex;flex-direction:column;gap:3px;font-size:15px;background:#fff}.tl64r li.fit,.tl64r li.ok{border-left-color:#2f7d32}.tl64r li.idea{border-left-color:#e8b11b}.tl64r li.off,.tl64r li.miss{border-left-color:#c62828}
 .tl64rv{font-size:13.5px;font-weight:600;margin-top:4px;padding:6px 8px;border-radius:8px;background:#f4f8ff;text-align:left}
 .mood64{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;grid-column:1/-1;border:1px solid var(--line,#ddd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14.5px}.mood64.warm{background:#f3f7ee;border-color:#cfe0bf}.mood64 a{font-weight:700;color:#3b6fb6;min-height:32px;display:inline-flex;align-items:center}.mood64 #mood64c{flex-basis:100%}.mood64d{letter-spacing:1px}
-.tg64{background:#f3f7ee;border-color:#cfe0bf}.tg64b{display:grid;grid-template-columns:1fr;gap:8px}.tg64line{font-size:17px}.td64l{list-style:none;padding:0}.td64l li{display:flex;gap:10px;padding:8px 0;font-size:16.5px}.td64l small{display:block;color:var(--mute,#666);font-size:13px}.td64set{display:flex;justify-content:space-between;align-items:center}.td64set a{font-weight:700;color:#3b6fb6;min-height:44px;display:inline-flex;align-items:center}.tg64b button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700}.tg64b button{font-size:16px;min-height:50px}.tg64b button[data-tg=play]{border-color:var(--line,#ccc)}.tg64off{display:inline-block;margin-top:8px;font-size:13px;color:var(--mute,#666)}
+.tg64{background:#f3f7ee;border-color:#cfe0bf}.tg64b{display:grid;grid-template-columns:1fr;gap:8px}.tg64line{font-size:17px}.td64l{list-style:none;padding:0}.td64p{padding-left:18px;margin:6px 0;font-size:16px}.td64p li{margin:4px 0}.td64l li{display:flex;gap:10px;padding:8px 0;font-size:16.5px}.td64l small{display:block;color:var(--mute,#666);font-size:13px}.td64set{display:flex;justify-content:space-between;align-items:center}.td64set a{font-weight:700;color:#3b6fb6;min-height:44px;display:inline-flex;align-items:center}.tg64b button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700}.tg64b button{font-size:16px;min-height:50px}.tg64b button[data-tg=play]{border-color:var(--line,#ccc)}.tg64off{display:inline-block;margin-top:8px;font-size:13px;color:var(--mute,#666)}
 #tg64o{position:fixed;inset:0;z-index:9100;background:rgba(20,40,25,.55);display:flex;align-items:center;justify-content:center;padding:12px}#tg64o .s{background:#fff;border-radius:18px;padding:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;text-align:center}#tg64o button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700;padding:0 16px}.tg64t{font-size:48px;font-weight:800;margin:8px 0}
 html.dark-mode .mood64,html.dark-mode .tl64r li,html.dark-mode #tg64o .s,html.dark-mode .tl64{background:#262626;color:#eee}`; document.head.appendChild(st);
-window.CRMind64={attach,draw,before,finish,compare,rows,needed,state,refresh,gate,card,calm,turning,diary,baseline,_plans:()=>LG(KP,[])};
+window.CRMind64={attach,draw,before,finish,compare,rows,needed,state,refresh,gate,card,calm,turning,diary,baseline,online,all,_plans:()=>LG(KP,[])};
 })();
