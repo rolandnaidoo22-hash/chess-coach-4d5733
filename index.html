@@ -853,7 +853,7 @@ function buildSummary(){
  <div><h3>Biggest mistakes</h3><ul class="toplist">${top}</ul></div>
  <div><h3>Work on next</h3><ol class="work">${work}</ol></div>${badSummary()}${tn}`;
  try{if(window.Trainer){const H=Trainer.hopeForData(DATA);if(H.pct!=null)$("summary").insertAdjacentHTML("beforeend",`<div class="rcsum ${H.set.size?"":"free"}"><b>${H.set.size?"♟ Real Chess "+H.pct+"%":"🏅 Hope-free game! Real Chess 100%"}</b><span>${H.set.size?`${H.set.size} hope move${H.set.size>1?"s":""} (marked 🙏). `:"You checked their replies all game. "}<button class="btn" onclick="Trainer.open('methods',{id:'hope'})">What's this?</button></span></div>`);}}catch(e){console.error(e)}
- $("footer").innerHTML=`<b>Review ${VERSION}</b> · Analysed with ${typeof M.depth==="number"?"Stockfish at depth "+M.depth:esc(M.depth)}. Works offline. ${M.link?`Original game: ${esc(M.link)}`:""}`;}
+ $("footer").innerHTML=`Analysed with ${typeof M.depth==="number"?"Stockfish at depth "+M.depth:esc(M.depth)}. Works offline. ${M.link?`Original game: ${esc(M.link)}`:""}`;}
 
 $("bFirst").onclick=()=>tryS?tryStep(-99):go(0);
 $("bPrev").onclick=()=>tryS?tryStep(-1):go(cur-1);
@@ -9370,7 +9370,7 @@ function startPlayer(){ if(!window.CRUser) return; const owner=CRUser.isOwnerOfE
   if(inReview()&&typeof loadData==="function"){ const _ld=loadData; window.loadData=loadData=function(){ document.body.classList.remove("nogame"); const ng=$("ng16"); if(ng) ng.remove(); return _ld.apply(this,arguments); }; }
   if(!owner&&inReview()&&!/ply=|try=|punish=/.test(location.hash)){ const G=window.ReviewApp?ReviewApp.loadGames():[];
     if(G.length){ try{ loadData(ReviewApp.upgrade(G[0].data)); ReviewApp.renderGames(G[0].id); }catch(e){ console.error(e); } }
-    else { document.body.classList.add("nogame"); const paste=$("paste"); if(paste) paste.classList.add("open"); const h=$("home"); if(h&&!$("ng16")) h.insertAdjacentHTML("afterend",`<div class="card ng16" id="ng16"><b>No game open yet.</b> Use <b>📋 Review a new game</b> below to load your games from Chess.com or Lichess, or paste a PGN. <button type="button" class="btn" id="ngSample">See a sample review</button></div>`);
+    else { document.body.classList.add("nogame"); const paste=$("paste"); if(paste) paste.classList.add("open"); const h=$("home"); if(h&&!$("ng16")) h.insertAdjacentHTML("afterend",`<div class="card ng16" id="ng16"><b>No game open yet.</b> Tap <b>＋ New review</b> above to load your games from Chess.com or Lichess, or paste a PGN. <button type="button" class="btn" id="ngSample">See a sample review</button></div>`);
       const ns=$("ngSample"); if(ns) ns.onclick=()=>{ document.body.classList.remove("nogame"); const ng=$("ng16"); if(ng) ng.remove(); window.__crWantReview=true; try{ loadData(window.EXAMPLE_DATA); }catch(e){ console.error(e); } }; } }
   try{ if(window.Trainer) Trainer.renderHome(); }catch(e){} if(!CRUser.id()){ if(window.CROnb) CROnb.start(); else { window.__crOnbWant=1; setTimeout(()=>{ if(!window.CROnb&&!CRUser.id()) welcome(); },6000); } } }
 window.R16={welcome,userBarHtml,wireUserBar,engineInto,explorerInto,evalBarHtml,whiteScore,scoreWords,scoreTxt,lineSteps,buildPgn:()=>inReview()?buildPgn():"",gifEncode,boardSvgStr,svgToCanvas,timeFlags,heatData,sanWords,plyText,makeGif,O,refresh,liFetchUrl,liFetchUser};
@@ -10156,7 +10156,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=65"></script>
+<script defer src="home.js?v=66"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10167,31 +10167,32 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=65"></script>
+<script defer src="bots.js?v=66"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=65"></script>
-<script defer src="charts.js?v=65"></script>
+<script defer src="study.js?v=66"></script>
+<script defer src="charts.js?v=66"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=65"></script>
-<script defer src="guard.js?v=65"></script>
-<script defer src="blunders.js?v=65"></script>
-<script defer src="review58.js?v=65"></script>
-<script defer src="coach58.js?v=65"></script>
-<script defer src="review59.js?v=65"></script>
-<script defer src="coach59.js?v=65"></script>
-<script defer src="memory61.js?v=65"></script>
-<script defer src="opening62.js?v=65"></script>
-<script defer src="pin63.js?v=65"></script>
-<script defer src="blind64.js?v=65"></script>
-<script defer src="plain64.js?v=65"></script>
-<script defer src="mind64.js?v=65"></script>
-<script defer src="gut65.js?v=65"></script>
-<script defer src="lesson64.js?v=65"></script>
-<script defer src="learn60.js?v=65"></script>
+<script defer src="thinkfirst.js?v=66"></script>
+<script defer src="guard.js?v=66"></script>
+<script defer src="blunders.js?v=66"></script>
+<script defer src="review58.js?v=66"></script>
+<script defer src="coach58.js?v=66"></script>
+<script defer src="review59.js?v=66"></script>
+<script defer src="coach59.js?v=66"></script>
+<script defer src="memory61.js?v=66"></script>
+<script defer src="opening62.js?v=66"></script>
+<script defer src="pin63.js?v=66"></script>
+<script defer src="blind64.js?v=66"></script>
+<script defer src="plain64.js?v=66"></script>
+<script defer src="mind64.js?v=66"></script>
+<script defer src="gut65.js?v=66"></script>
+<script defer src="review66.js?v=66"></script>
+<script defer src="lesson64.js?v=66"></script>
+<script defer src="learn60.js?v=66"></script>
 </body>
 </html>
