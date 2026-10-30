@@ -41,10 +41,10 @@ function build(){ const hs=document.querySelector("#hs .hsP"); if(!hs||$("cr66to
    <div id="cr66prog" role="status"><div class="r"><span id="cr66pt">Checking your game…</span><button type="button" class="btn" id="cr66cancel">Cancel</button></div><div class="pbar"><i id="cr66pf"></i></div><small>Other checks wait until this one is finished.</small></div></div>`);
   $("cr66new").onclick=openNew; $("cr66seg").querySelectorAll("button").forEach(b=>b.onclick=()=>tab(b.dataset.t));
   $("cr66cancel").onclick=()=>{ const p=$("prog"); if(p&&p.classList.contains("on")) $("bCancel").click(); else { const c=$("patCancel"); if(c) c.click(); } };
-  chooser(); return true; }
-function chooser(){ const pb=$("pbody"); if(!pb||$("cr66ch")) return; const kids=[...pb.children], top=el=>kids.find(k=>k.contains(el));
+  return true; }
+function chooser(){ const pb=$("pbody"); if(!pb||$("cr66ch")||!pb.dataset.v43) return; const kids=[...pb.children], top=el=>kids.find(k=>k.contains(el));
   const g={}; ["latest","li","paste"].forEach(k=>{ const d=document.createElement("div"); d.className="cr66g"; d.dataset.g=k; g[k]=d; });
-  const u=top($("uname")), f=$("bFetch"), fr=top(f), fl=$("fetchList"), li=top($("li16")), pg=top($("pgnIn")), md=top(document.querySelector("#pbody input[name=mode]"));
+  const u=top($("uname")), f=$("bFetch"), fr=top(f), fl=$("fetchList"), li=top($("li16")), pg=top($("pgnIn")), md=document.querySelector("#pbody .prow.modes");
   if(u) g.latest.appendChild(u); if(fr){ if(fr.querySelector("#bAnalyze")&&fr!==pg){ const r=document.createElement("div"); r.className="prow"; r.appendChild(f); g.latest.appendChild(r); } else g.latest.appendChild(fr); } if(fl) g.latest.appendChild(fl);
   if(li) g.li.appendChild(li);
   kids.forEach(k=>{ if(k!==u&&k!==fr&&k!==fl&&k!==li&&k!==md&&k.id!=="perr"&&k.id!=="prog"&&pb.contains(k)) g.paste.appendChild(k); }); if(fr&&fr.parentNode===pb) g.paste.appendChild(fr);
@@ -58,7 +58,7 @@ function sync(){ const p=$("paste"); if(!p||!$("cr66seg")) return; const pt=$("p
   $("cr66seg").querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",b.dataset.t===t); b.setAttribute("aria-selected",b.dataset.t===t); });
   $("cr66new").classList.toggle("on",p.classList.contains("open"));
   const gc=$("gcount"), pc=$("patCount"); $("cr66gc").textContent=gc?" "+gc.textContent.trim():""; $("cr66pc").textContent=pc?" "+pc.textContent.trim():""; }
-function tick(){ if(!build()) return; sync();
+function tick(){ if(!build()) return; chooser(); sync();
   const pr=$("prog"), pp=$("patProg"), a=pr&&pr.classList.contains("on"), b=pp&&pp.classList.contains("on");
   let busy=a||b; try{ busy=busy||ReviewApp.isRunning(); }catch(e){}
   B.classList.toggle("cr66busy",!!busy);
@@ -85,9 +85,10 @@ function decorate(){ const s=$("rv59sum"); if(!s||!s.firstElementChild||s.datase
     $("cr66walk").onclick=()=>{ W=[...ol.querySelectorAll(".rv59show")].map(b=>+b.dataset.ply); if(W.length) walk(0); }; }
   const gs=$("gt65s"); let anchor=ol||s.querySelector(".rv59acc"); if(gs&&anchor&&anchor.nextElementSibling!==gs) anchor.after(gs);
   let more=s.querySelector(".cr66more"); const work=s.querySelector(".rv59work");
-  if(work){ if(!more){ more=document.createElement("details"); more.className="cr66more"; more.innerHTML="<summary>More from this game: practise and lessons</summary>"; }
-    const h=work.previousElementSibling; let n=(h&&h.tagName==="H3")?h:work; const items=[]; while(n&&n!==more){ items.push(n); n=n.nextElementSibling; }
-    items.forEach(e=>{ if(e!==gs) more.appendChild(e); }); s.appendChild(more); }
+  if(work){ if(!more){ more=document.createElement("details"); more.className="cr66more"; more.innerHTML="<summary>More from this game: practise and lessons</summary>";
+      const h=work.previousElementSibling; let n=(h&&h.tagName==="H3")?h:work; const it=[]; while(n){ it.push(n); n=n.nextElementSibling; } it.forEach(e=>{ if(e!==gs) more.appendChild(e); }); s.appendChild(more); }
+    [...s.children].filter(e=>e.parentNode===s&&more.compareDocumentPosition(e)&4).forEach(e=>more.appendChild(e));
+    const ln=$("ln60go"); if(ln){ let top=ln; while(top.parentNode&&top.parentNode!==more&&top.parentNode!==s) top=top.parentNode; if(top.parentNode===more) s.insertBefore(top,more); } }
   s.dataset.cr66=s.firstElementChild.textContent+s.childElementCount; }
 // close the chooser once a game loads, so the result comes first
 const hook=()=>{ if(typeof window.loadData!=="function"||window.loadData.__cr66) return; const _l=window.loadData; const f=function(){ const r=_l.apply(this,arguments); try{ const p=$("paste"); if(p) p.classList.remove("open","gopen"); stopQuiet(); }catch(e){} return r; }; f.__cr66=1; window.loadData=f; try{ loadData=f; }catch(e){} };
