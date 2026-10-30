@@ -64,7 +64,7 @@ function chatView(B,L,S){ const fo=S.focus, fg=fo!=null?L.find(g=>g.k===fo):null
     catch(e){ const y=sess(); y.msgs.pop(); saveS(y); $("ac59wait").outerHTML=`<p class="ac59err">${E_(e.message)}</p>`; }
     $("ac59send").disabled=false; log.scrollTop=log.scrollHeight; $("ac59form").nextElementSibling.textContent=`${PER_SESSION-sess().sent.length} questions left this session. Chat history is kept until you close the app.`; }; }
 const ld=t=>window.CRMem?CRMem.loader(t):`<p class="mute">${E_(t)}</p>`;
-function histView(B){ const H=window.CRMem?CRMem.all():[]; const K={chat:"💬 Chat",all:"📋 All games",game:"🧑‍🏫 Game review"};
+function histView(B){ const H=window.CRMem?CRMem.all():[]; const K={chat:"💬 Chat",all:"📋 All games",game:"🧑‍🏫 Game review",plan:"💭 My plans"};
   B.innerHTML=`<p class="mute">Past chats and reviews, kept on this phone. The coach uses the advice here to see if you are repeating a mistake or have fixed it.</p>
    ${H.length?`<div class="mh61">${H.map(r=>`<details class="mh61i" data-id="${r.id}"><summary><b>${K[r.kind]||"💬 Chat"}</b> · ${E_(new Date(r.at).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}))}<small>${E_(r.kind==="chat"?r.q:r.game||r.q)}</small></summary>${r.advice?`<div class="mh61adv">📌 ${E_(r.advice)}</div>`:""}<div class="mh61a">${md(r.a)}</div></details>`).join("")}</div>
    <button class="ac59sec" id="mh61clr">🗑 Clear history</button>`:`<div class="card"><p>No past chats or reviews yet. Ask the coach something, and it will be kept here.</p></div>`}`;

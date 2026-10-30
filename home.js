@@ -70,12 +70,14 @@ const TILES=[
  ["progress","📈","My progress",()=>"Patterns, openings, streak",()=>{ setMode("app",true); T().open("sec","progress"); }],
  ["v42xp","🏅","Level & badges",()=>"XP, badges, board colours",()=>{ setMode("app",true); window.V42&&V42.openXP(); },"",{"data-v42t":"v42xp"}],
  ["goal","🎯","Rating goal",goalSub,()=>{ closeAll(); setMode("goal",true); }],
+ ["bs64","🔦","My blind spots",()=>"What you keep missing, and practice",()=>{ setMode("app",true); window.CRBlind64&&CRBlind64.open(); }],
+ ["ls64","🎓","Community lessons",()=>"Short lessons from real games",()=>{ setMode("app",true); window.CRLesson64&&CRLesson64.feed(); }],
  ["set","⚙","Settings",()=>"Username, rating goal, board",()=>{ closeAll(); setMode("set",true); }]];
 /* Most-used coaching actions first, then play, train, and progress. */
 const ORDER=[
- ["Review",["coach","ask59","review","games","trap"]],
+ ["Review",["coach","ask59","review","games","bs64","trap"]],
  ["Play",["bots52","corban52","ultimo52","play"]],
- ["Train",["start54","tf54","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
+ ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
  ["Progress",["v45","v46mo","v42ch","progress","v42xp","set"]]];
 function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
   ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);

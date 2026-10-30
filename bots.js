@@ -59,6 +59,7 @@ function list(){ const p=show("bots52"), R=LS.get(KR,{});
   p.innerHTML=`<h2>🤖 Play the bots</h2><p class="mute">Pick an opponent. Each bot has its own rating and style.</p>`+
    BOTS().map(b=>`<button class="lt" data-b="${b.id}"><span class="av">${b.avatar}</span><span><b>${E_(b.name)}</b><span class="elo">${b.elo}</span><small>${E_(b.style)}${b.adaptive&&window.CRUltimate?` · level ${CRUltimate.status().level} · ${CRUltimate.status().games} games learned`:""}</small><small>${E_(b.story)}</small></span>${R[b.id]?`<span class="tk">🏆 ${R[b.id]}</span>`:""}</button>`).join("");
   p.querySelectorAll("[data-b]").forEach(x=>x.onclick=()=>{ const b=BOTS().find(b=>b.id===x.dataset.b); if(b.open) b.open(); else pickSide(b); });
+  window.CRMind64&&CRMind64.gate(p);
   if(window.CRStyle) CRStyle.listExtra(p); }
 function pickSide(bot){ const p=show("bots52");
   p.innerHTML=`<h2>${E_(bot.name)} <span class="elo">${bot.elo}</span></h2><div class="say"><span class="av">${bot.avatar}</span><span class="bub">${E_(bot.adaptive&&window.CRUltimate&&CRUltimate.inviteDue()?"I've studied the game you beat me in. Rematch?":bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned?"📓 What I learned: "+CRUltimate.status().learned:bot.chat.start[0])}</span></div>${bot.adaptive&&window.CRUltimate?`<p class="mute">Level ${CRUltimate.status().level} of 10 · ${CRUltimate.status().games} games learned · You ${CRUltimate.status().record.you} – ${CRUltimate.status().record.me} Ultimo. It adapts to your games, all on this phone.</p>`:""}
@@ -74,7 +75,7 @@ function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.
   G={bot,me,g:new C(),sel:null,last:null,thinking:false,token:0,over:false,gid:Date.now(),guard:!!(window.CRBlunders&&CRBlunders.guardOn())};
   const gb=()=>{ const b=$("b52grd"); if(!b) return; b.textContent=G.guard?"🛡 Blunder check: On":"🛡 Blunder check: Off"; b.setAttribute("aria-pressed",String(G.guard)); b.classList.toggle("go",G.guard); };
   G.B=board($("b52bd"),tap); G.B.orient=me; say("start"); if(bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned) $("b52say").textContent="📓 "+CRUltimate.status().learned; draw();
-  gb(); $("b52grd").onclick=()=>{ G.guard=!G.guard; window.CRBlunders&&CRBlunders.setGuard(G.guard); gb(); draw(); }; $("b52undo").onclick=undo; $("b52flip").onclick=()=>{ G.B.orient=G.B.orient==="w"?"b":"w"; draw(); };
+  gb(); $("b52grd").onclick=()=>{ G.guard=!G.guard; window.CRBlunders&&CRBlunders.setGuard(G.guard); gb(); draw(); }; window.CRMind64&&CRMind64.attach(G); $("b52undo").onclick=undo; $("b52flip").onclick=()=>{ G.B.orient=G.B.orient==="w"?"b":"w"; draw(); };
   $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot); $("b52list").onclick=()=>{ G=null; list(); };
   try{ window.CRBotEngine&&CRBotEngine.boot().catch(()=>{}); }catch(e){}
   if(me==="b") botMove(); }
@@ -89,8 +90,8 @@ function draw(){ if(!G) return; const g=G.g, hl=[];
   else if(g.isDraw()||g.isStalemate()) msg="It's a draw."; else if(G.thinking) msg="🤔 "+G.bot.name+" is thinking…"; else if(g.turn()===G.me) msg=g.inCheck()?"You're in check! Your move.":"Your move.";
   $("b52msg").textContent=msg; const h=g.history(); const ml=$("b52ml"); if(ml){ ml.innerHTML=movesHtml(h); ml.scrollTop=ml.scrollHeight; }
   $("b52undo").disabled=G.thinking||!h.length;
-  const ask=$("b52ask"); if(ask) ask.innerHTML=G.guard&&!G.thinking&&!g.isGameOver()&&g.turn()===G.me&&!G.warn?`Before you move: <b>Checks?</b> <b>Captures?</b> <b>Threats?</b>`:""; }
-function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true;
+  const ask=$("b52ask"); if(ask) ask.innerHTML=G.guard&&!G.thinking&&!g.isGameOver()&&g.turn()===G.me&&!G.warn?`Before you move: <b>Checks?</b> <b>Captures?</b> <b>Threats?</b>`:""; window.CRMind64&&CRMind64.draw(G); }
+function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true; window.CRMind64&&CRMind64.finish(G);
   if(g.isCheckmate()){ if(g.turn()===G.me) say("won"); else { say("lost"); const R=LS.get(KR,{}); R[G.bot.id]=(R[G.bot.id]||0)+1; LS.set(KR,R); } } else say("draw");
   if(G.bot.adaptive&&window.CRUltimate){ const res=g.isCheckmate()?(g.turn()===G.me?"loss":"win"):"draw"; CRUltimate.learn({moves:g.history(),me:G.me,result:res}).catch(e=>console.error(e)); } }
 function tap(sq){ if(G&&G.warn) return; if(!G||G.thinking||G.g.isGameOver()||G.g.turn()!==G.me) return; const g=G.g, pc=g.get(sq);
@@ -99,7 +100,7 @@ function tap(sq){ if(G&&G.warn) return; if(!G||G.thinking||G.g.isGameOver()||G.g
   const go=(m,sure)=>{ const u=m.from+m.to+(m.promotion||""), w=window.CRGuard?CRGuard.check(g.fen(),u):null;
     if(w&&G.guard&&!sure){ warn(w,m,go); return; } G.warn=null; $("b52warn").innerHTML="";
     window.CRBlunders&&CRBlunders.logBot(G.gid,{n:1,hung:w&&w.k==="hang"?1:0,bot:G.bot.name});
-    const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
+    window.CRMind64&&CRMind64.before(G,m); const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
   if(c[0].promotion) promo(G.me,t=>{ if(t) go(c.find(m=>m.promotion===t)); else draw(); }); else go(c[0]); }
 function warn(w,m,go){ G.warn=w; const el=$("b52warn"); draw(); G.B.draw(G.g.fen(),{hl:[{sq:w.sq,c:"#d23c3c",o:.65},{sq:m.from,c:"#3b6fb6",o:.5}],arrows:[{u:m.from+m.to,c:"orange"}]});
   el.innerHTML=`<div class="card b57w" role="alert"><b>${E_(w.msg)}</b><div class="row"><button class="bt go" id="b57tb">↶ Take back</button><button class="bt" id="b57pa">Play anyway</button></div></div>`;
