@@ -31,7 +31,8 @@ body.cr67m .side>[data-cr67p]{display:none!important}
 body.cr67m[data-cr67t=coach] .side>[data-cr67p=coach],body.cr67m[data-cr67t=moves] .side>[data-cr67p=moves],body.cr67m[data-cr67t=feel] .side>[data-cr67p=feel],body.cr67m[data-cr67t=tools] .side>[data-cr67p=tools]{display:block!important}
 body.cr67m[data-cr67t=tools] .side>#tools16[data-cr67p]{display:flex!important;flex-wrap:wrap}
 body.cr67m #movecard>.top,body.cr67m #movecard>.expl{display:none}
-#cr67feel,#cr67set{display:none}`;
+#cr67feel,#cr67set{display:none}
+body:not(.hs-review) #rv59g,body.nogame #rv59g{display:none!important}`;
 const st=document.createElement("style"); st.textContent=css; document.head.appendChild(st);
 const TABS=[["coach","Coach"],["moves","Moves"],["feel","Feelings"],["tools","Tools"]];
 function pane(e){ if(!e||!e.id&&!e.className) return "coach"; const id=e.id||"", c=String(e.className||"");
