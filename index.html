@@ -501,8 +501,8 @@ body.p3d .trboard svg.b3d:not(.flat3d){margin-top:-12%}
    <label>You played <select id="side"><option value="auto">Auto-detect</option><option value="w">White</option><option value="b">Black</option></select></label>
   </div>
   <div class="prow modes">
-   <label class="mode"><input type="radio" name="mode" value="deep" checked> <b>Deep</b> <small>recommended, 2–5 minutes, most accurate</small></label>
-   <label class="mode"><input type="radio" name="mode" value="quick"> <b>Quick</b> <small>about 1 minute, rougher grades</small></label>
+   <label class="mode"><input type="radio" name="mode" value="deep" checked> <b>Deep</b> <small>recommended: first look in seconds, then a careful check of the key moments</small></label>
+   <label class="mode"><input type="radio" name="mode" value="quick"> <b>Quick</b> <small>fastest, rougher grades</small></label>
   </div>
   <div class="prow">
    <button class="btn primary big" id="bAnalyze">Analyze game</button>
@@ -4804,18 +4804,25 @@ async function analyzeGame(pgnText, opts, progress){
   if(!user||user==="auto"){ user= uname&&black.toLowerCase()===uname?"b":uname&&white.toLowerCase()===uname?"w":"w"; }
   const mode=opts.mode==="quick"?{depth:14,time:900,tdepth:11,ttime:300,label:"Quick",mpv:2}:(window.CREngine?CREngine.review():{depth:18,time:2500,tdepth:13,ttime:700,label:"Deep",mpv:2});
   const eng=opts.engine; eng.send("ucinewgame"); await eng.ready();
-  const fens=[g.startFen].concat(g.moves.map(m=>m.after)); const infos=[];
+  const fens=[g.startFen].concat(g.moves.map(m=>m.after)); const N=fens.length;
   const t0=performance.now();
-  for(let i=0;i<fens.length;i++){
-    if(opts.cancelled&&opts.cancelled()) throw new Error("cancelled");
-    progress({phase:"moves",i,n:fens.length-1,t:performance.now()-t0});
-    const c=mk(fens[i]); const turn=fens[i].split(" ")[1];
-    if(c.isCheckmate()){ infos.push({sw:{mate:turn==="w"?-0.5:0.5},pv:[],alt:null}); continue; }
-    if(c.isStalemate()||c.isInsufficientMaterial()){ infos.push({sw:{cp:0},pv:[],alt:null}); continue; }
-    const r=await eng.analyse(fens[i],mode.depth,mode.time,mode.mpv||2);
-    infos.push({sw:toWhite(r.score,turn),pv:r.pv,alt:r.alt?{sw:toWhite(r.alt.score,turn),uci:r.alt.pv[0]}:null});
-  }
-  const plies=[];
+  /* v67: fast first look at every position, then a careful recheck only where something may have gone wrong */
+  const legacy=!!opts.legacy, quickMode=mode.label==="Quick";
+  const P1=quickMode?{d:10,t:150}:{d:11,t:200};
+  const bk=(()=>{ try{ return getBook(); }catch(e){ return null; } })(); let bookTo=-1;
+  if(bk&&(!g.startFen||/^rnbqkbnr\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/RNBQKBNR w/.test(g.startFen))){ for(let i=1;i<Math.min(N,30);i++){ if(inBook(bk,fens[i])) bookTo=i; else break; } }
+  const infos=(opts.resume&&Array.isArray(opts.resume.infos)&&opts.resume.n===N)?opts.resume.infos.slice():[]; const depthOf=(opts.resume&&opts.resume.dep&&opts.resume.n===N)?opts.resume.dep.slice():[];
+  const save=ph=>{ try{ opts.onSave&&opts.onSave({n:N,infos,dep:depthOf,ph}); }catch(e){} };
+  const one=async(i,d,t)=>{ const c=mk(fens[i]); const turn=fens[i].split(" ")[1];
+    if(c.isCheckmate()) return {sw:{mate:turn==="w"?-0.5:0.5},pv:[],alt:null};
+    if(c.isStalemate()||c.isInsufficientMaterial()) return {sw:{cp:0},pv:[],alt:null};
+    const r=await eng.analyse(fens[i],d,t,mode.mpv||2);
+    return {sw:toWhite(r.score,turn),pv:r.pv,alt:r.alt?{sw:toWhite(r.alt.score,turn),uci:r.alt.pv[0]}:null}; };
+  const chk=()=>{ if(opts.cancelled&&opts.cancelled()) throw new Error("cancelled"); }; const TM={start:Math.round(performance.now()-(window.__s||performance.now()))};
+  for(let i=infos.length;i<N;i++){ chk(); progress({phase:"moves",i,n:N-1,t:performance.now()-t0,pass:legacy?0:1});
+    const book=!legacy&&i<=bookTo&&i>0; const d=legacy?mode.depth:P1.d, t=legacy?mode.time:P1.t;
+    infos[i]=await one(i,d,t); depthOf[i]=legacy?2:book?0:1; if(!legacy) save("p1"); }
+  const build=()=>{ const plies=[];
   g.moves.forEach((mv,i)=>{
     const before=fens[i], after=fens[i+1], mover=mv.color;
     const sb=povScore(infos[i].sw,mover), sa=povScore(infos[i+1].sw,mover);
@@ -4832,19 +4839,20 @@ async function analyzeGame(pgnText, opts, progress){
     info.reply_line=rl.join(" "); info.reply_uci=replyPv;
     plies.push(info);
   });
+  return plies; };
   // threats for BAD (engine null move)
-  const mine=plies.filter(p=>p.user);
+  const threats=async(plies)=>{ const mine=plies.filter(p=>p.user);
   for(let k=0;k<mine.length;k++){ const p=mine[k];
     if(opts.cancelled&&opts.cancelled()) throw new Error("cancelled");
     progress({phase:"threats",i:k,n:mine.length,t:performance.now()-t0});
     p.threat=null; const c=mk(p.fen_before); if(c.isCheck()) continue;
     const nf=nullFen(p.fen_before); const nc=mk(nf); if(!nc.moves().length||nc.isGameOver()) continue;
     const opp=other(p.color); const now=clamp(cpOf(povScore(p.eval_before,opp)));
-    const r=await eng.analyse(nf,mode.tdepth,mode.ttime,1); if(!r.pv.length) continue;
+    const r=await eng.analyse(nf,legacy?mode.tdepth:Math.min(mode.tdepth,11),legacy?mode.ttime:Math.min(mode.ttime,350),1); if(!r.pv.length) continue;
     const gain=clamp(cpOf(scaleScore(r.score)))-now; // r.score is from side to move = opponent
     if(gain>=150){ const tr=play(nf,r.pv[0]); if(tr) p.threat={uci:r.pv[0],san:tr.m.san,gain:Math.round(gain),mate:r.score.mate!=null}; }
-  }
-  progress({phase:"build",i:1,n:1,t:performance.now()-t0});
+  } };
+  const finish=(plies)=>{
   const _ob=(window.CRECO&&(!g.startFen||/^rnbqkbnr\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/RNBQKBNR w/.test(g.startFen)))?CRECO.lookup(plies.map(p=>p.san)):null;
   const opening=_ob?_ob.name:h.ECOUrl?h.ECOUrl.split("/").pop().replace(/-/g," "):(h.Opening||"");
   const data={meta:{white,black,white_elo:h.WhiteElo||"",black_elo:h.BlackElo||"",result:h.Result||"*",date:(h.Date||"").replace(/\./g,"-"),
@@ -4853,7 +4861,29 @@ async function analyzeGame(pgnText, opts, progress){
     start_fen:g.startFen,plies,summary:{}};
   finishData(data);
   data.meta.seconds=Math.round((performance.now()-t0)/1000);
-  return data;
+  return data; };
+  TM.pass1=Math.round(performance.now()-t0);
+  if(!legacy&&opts.onQuick){ try{ const q=finish(build()); q.meta.quick=true; opts.onQuick(q); }catch(e){ console.error(e); } }
+  if(!legacy){
+    // which positions deserve a careful look: both sides of any move that may have lost something, and moves that may be the only good one
+    const full=new Map(), light=new Set(); const pov=(x,c)=>clamp(cpOf(povScore(x.sw,c))); const cand=[];
+    g.moves.forEach((mv,i)=>{ if(i+1<=bookTo) return; const mover=mv.color, mine=mover===user; const sb=pov(infos[i],mover), sa=pov(infos[i+1],mover);
+      const best=infos[i].pv[0]===mv.uci; const loss=best?0:Math.max(0,sb-sa);
+      const mate=infos[i].sw.mate!=null||infos[i+1].sw.mate!=null;
+      const decided=(sb>=600&&sa>=600)||(sb<=-600&&sa<=-600);
+      if(decided&&!mate) return;
+      const onlyMove=mine&&best&&infos[i].alt&&sb-pov(infos[i].alt,mover)>=120;
+      if(mine&&(loss>=10||mate||onlyMove)) cand.push({i,score:loss+(mate?500:0)+(onlyMove?100:0)});
+      else if(!mine&&(loss>=120||mate)){ light.add(i); light.add(i+1); } });
+    cand.sort((x,y)=>y.score-x.score).slice(0,7).forEach(c=>{ full.set(c.i,1); full.set(c.i+1,1); });
+    const L=[...new Set([...full.keys(),...light])].filter(i=>depthOf[i]!==2).sort((a,b)=>a-b);
+    for(let k=0;k<L.length;k++){ chk(); progress({phase:"check",i:k,n:L.length,t:performance.now()-t0,pass:2}); const i=L[k];
+      infos[i]=full.has(i)?await one(i,mode.depth,Math.min(mode.time,quickMode?500:700)):await one(i,Math.min(mode.depth,15),300); depthOf[i]=full.has(i)?2:1.5; save("p2"); }
+  }
+  TM.check=Math.round(performance.now()-t0); TM.nCheck=depthOf.filter(x=>x>1).length;
+  const plies=build(); await threats(plies); TM.threats=Math.round(performance.now()-t0);
+  progress({phase:"build",i:1,n:1,t:performance.now()-t0});
+  const data=finish(plies); data.meta.checked=depthOf.filter(x=>x===2).length; data.meta.timing=TM; return data;
 }
 /* classification -> explanations -> clocks -> summary -> practice lines -> BAD (same order as review.py finish) */
 function finishData(data){
@@ -5122,10 +5152,12 @@ function showProgress(p){
   const pr=$("prog"); pr.classList.add("on"); let pct=0, txt="";
   const total=p.n||1;
   if(p.phase==="engine"){ pct=1; txt="Starting the engine…"; }
+  else if(p.phase==="moves"&&p.pass===1){ pct=3+42*(p.i/total); txt=`First look: move ${Math.max(1,Math.ceil(Math.min(p.i+1,total)/2))} of ${Math.ceil(total/2)}…`; }
   else if(p.phase==="moves"){ pct=3+80*(p.i/total); txt=`Analyzing move ${Math.max(1,Math.ceil(Math.min(p.i+1,total)/2))} of ${Math.ceil(total/2)}…`; }
-  else if(p.phase==="threats"){ pct=83+15*(p.i/total); txt=`Checking threats for the BAD check (${p.i+1} of ${total})…`; }
+  else if(p.phase==="check"){ pct=45+40*(p.i/total); txt=`Your review is ready. Double-checking the key moments (${p.i+1} of ${total})…`; }
+  else if(p.phase==="threats"){ pct=85+13*(p.i/total); txt=`Checking threats (${p.i+1} of ${total})…`; }
   else if(p.phase==="build"){ pct=99; txt="Writing the explanations…"; }
-  if(p.t>4000&&p.phase==="moves"&&p.i>2){ const per=p.t/p.i; const left=Math.round(per*(total-p.i)/1000+ (total/2)*0.4); txt+=` about ${left<60?left+" s":Math.round(left/60)+" min"} left`; }
+  if(p.t>4000&&p.phase==="moves"&&p.i>2&&!p.pass){ const per=p.t/p.i; const left=Math.round(per*(total-p.i)/1000+ (total/2)*0.4); txt+=` about ${left<60?left+" s":Math.round(left/60)+" min"} left`; }
   $("progFill").style.width=pct.toFixed(1)+"%"; $("progTxt").textContent=txt;
 }
 async function keepAwake(on){
@@ -5142,19 +5174,30 @@ async function analyze(pgn){
   const hw=(parsed.headers.White||"").toLowerCase(), hb=(parsed.headers.Black||"").toLowerCase();
   if(side==="auto"&&uname&&hw!==uname.toLowerCase()&&hb!==uname.toLowerCase()){
     $("perr").textContent=`"${uname}" isn't one of the players (${parsed.headers.White||"?"} vs ${parsed.headers.Black||"?"}). Pick White or Black under "You played", or fix the username.`; return; }
+  // v67: this exact game was already reviewed at this strength: open the saved review at once
+  try{ const want=mode==="quick"?/^Quick/:/^(?!Quick)/; const hit=loadGames().find(g=>g.data&&g.data.meta&&(g.data.meta.pgn||"").trim()===pgn&&want.test(g.data.meta.depth||"")&&(side==="auto"||g.data.meta.user_color===side));
+    if(hit&&!window.CR67_NOCACHE){ currentId=hit.id; const d=upgrade(hit.data); loadData(d); $("paste").classList.remove("open"); window.scrollTo(0,0); renderGames(); if(window.V42&&V42.toast) V42.toast("Opened your saved review of this game"); return d; } }catch(e){ console.error(e); }
   running=true; cancelFlag=false; $("bAnalyze").disabled=true; keepAwake(true);
   try{
     showProgress({phase:"engine"});
     const eng=await getEngine();
-    const d=await Analyzer.analyzeGame(pgn,{engine:eng,username:uname,side,mode,cancelled:()=>cancelFlag},showProgress); d.meta.pgn=pgn;
+    const RK="chessReview.v67.run"; let resume=null; try{ const r=JSON.parse(localStorage.getItem(RK)||"null"); if(r&&r.pgn===pgn&&r.mode===mode&&r.side===side) resume=r.st; }catch(e){}
+    let lastSave=0, quickShown=false;
+    const onSave=st=>{ const now=Date.now(); if(now-lastSave<1500&&st.ph==="p1"&&st.infos.length<st.n) return; lastSave=now; try{ localStorage.setItem(RK,JSON.stringify({pgn,mode,side,uname,at:now,st})); }catch(e){} };
+    const onQuick=q=>{ q.meta.pgn=pgn; quickShown=true; try{ loadData(q); $("paste").classList.remove("open"); window.scrollTo(0,0); }catch(e){ console.error(e); } };
+    const d=await Analyzer.analyzeGame(pgn,{engine:eng,username:uname,side,mode,cancelled:()=>cancelFlag,legacy:!!window.CR67_LEGACY,resume,onSave,onQuick},showProgress); d.meta.pgn=pgn;
+    try{ localStorage.removeItem(RK); }catch(e){}
+    window.__crView=quickShown?{ply:typeof cur!=="undefined"?cur:0,tab:window.CRRev59&&CRRev59.tab&&CRRev59.tab()}:null;
     showProgress({phase:"build",n:1,i:1}); $("progTxt").textContent=`Done in ${d.meta.seconds} s.`; $("progFill").style.width="100%";
     const ok=storeGame(d); if(!ok) $("perr").textContent="Analysis done, but there's no room left to save it on this phone. Delete some old games.";
     currentId=gameId(d); renderGames();
-    loadData(d); $("paste").classList.remove("open"); window.scrollTo(0,0);
+    const keepView=window.__crView; loadData(d); $("paste").classList.remove("open");
+    if(keepView&&keepView.ply){ try{ go(keepView.ply,false); }catch(e){} } else window.scrollTo(0,0);
+    if(keepView&&keepView.tab&&keepView.tab!=="sum"){ try{ CRRev59.setTab(keepView.tab); }catch(e){} }
     setTimeout(()=>$("prog").classList.remove("on"),2500);
     return d;
   }catch(e){
-    if(String(e.message)==="cancelled"){ $("perr").textContent="Cancelled."; if(engine){ engine.quit(); engine=null; } }
+    if(String(e.message)==="cancelled"){ $("perr").textContent="Cancelled."; try{ localStorage.removeItem("chessReview.v67.run"); }catch(x){} if(engine){ engine.quit(); engine=null; } }
     else { $("perr").textContent="Something went wrong: "+e.message; console.error(e); if(engine){ engine.quit(); engine=null; } }
     $("prog").classList.remove("on");
   }finally{ running=false; $("bAnalyze").disabled=false; keepAwake(false); }
@@ -10147,7 +10190,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 addEventListener("scroll",chk,{passive:true});addEventListener("resize",chk);setInterval(chk,700);chk();})();
 // v12b: when a new version is installed, reload once so old and new code never mix
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let reloaded=false;
- navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;let t=0;try{t=+sessionStorage.getItem("cr.swr")||0;}catch(e){}if(Date.now()-t<15000)return;try{sessionStorage.setItem("cr.swr",Date.now());}catch(e){}location.reload();});
+ navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;let t=0;try{t=+sessionStorage.getItem("cr.swr")||0;}catch(e){}if(Date.now()-t<15000)return;try{sessionStorage.setItem("cr.swr",Date.now());}catch(e){}const go=()=>{ if(window.ReviewApp&&ReviewApp.isRunning()) return setTimeout(go,3000); try{ window.CRResume67&&CRResume67.save(); }catch(e){} location.reload(); }; go();});
  navigator.serviceWorker.register("sw.js").then(r=>{/* v54ux: once the page has settled, quietly fetch the engine into the offline cache so Think First, ideas, Study and the bots work offline later */window.addEventListener("load",()=>setTimeout(()=>{navigator.serviceWorker.ready.then(()=>caches.open("chess-review-v54ux")).then(c=>Promise.all(["stockfish.js","stockfish.wasm"].map(u=>c.match(u).then(m=>m||fetch(u).then(x=>x.ok&&c.put(u,x.clone())))))).catch(()=>{});},8000));r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});}
 </script>
 
@@ -10156,7 +10199,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=66"></script>
+<script defer src="home.js?v=67"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10167,32 +10210,34 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=66"></script>
+<script defer src="bots.js?v=67"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
-<script defer src="study.js?v=66"></script>
-<script defer src="charts.js?v=66"></script>
+<script defer src="study.js?v=67"></script>
+<script defer src="charts.js?v=67"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
 <script defer src="read.js?v=54ux"></script>
 <script defer src="thinkfirst-data.js?v=54ux"></script>
-<script defer src="thinkfirst.js?v=66"></script>
-<script defer src="guard.js?v=66"></script>
-<script defer src="blunders.js?v=66"></script>
-<script defer src="review58.js?v=66"></script>
-<script defer src="coach58.js?v=66"></script>
-<script defer src="review59.js?v=66"></script>
-<script defer src="coach59.js?v=66"></script>
-<script defer src="memory61.js?v=66"></script>
-<script defer src="opening62.js?v=66"></script>
-<script defer src="pin63.js?v=66"></script>
-<script defer src="blind64.js?v=66"></script>
-<script defer src="plain64.js?v=66"></script>
-<script defer src="mind64.js?v=66"></script>
-<script defer src="gut65.js?v=66"></script>
-<script defer src="review66.js?v=66"></script>
-<script defer src="lesson64.js?v=66"></script>
-<script defer src="learn60.js?v=66"></script>
+<script defer src="thinkfirst.js?v=67"></script>
+<script defer src="guard.js?v=67"></script>
+<script defer src="blunders.js?v=67"></script>
+<script defer src="review58.js?v=67"></script>
+<script defer src="coach58.js?v=67"></script>
+<script defer src="review59.js?v=67"></script>
+<script defer src="coach59.js?v=67"></script>
+<script defer src="memory61.js?v=67"></script>
+<script defer src="opening62.js?v=67"></script>
+<script defer src="pin63.js?v=67"></script>
+<script defer src="blind64.js?v=67"></script>
+<script defer src="plain64.js?v=67"></script>
+<script defer src="mind64.js?v=67"></script>
+<script defer src="gut65.js?v=67"></script>
+<script defer src="review66.js?v=67"></script>
+<script defer src="resume67.js?v=67"></script>
+<script defer src="moves67.js?v=67"></script>
+<script defer src="lesson64.js?v=67"></script>
+<script defer src="learn60.js?v=67"></script>
 </body>
 </html>

@@ -58,7 +58,9 @@ function sync(){ const p=$("paste"); if(!p||!$("cr66seg")) return; const pt=$("p
   $("cr66seg").querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",b.dataset.t===t); b.setAttribute("aria-selected",b.dataset.t===t); });
   $("cr66new").classList.toggle("on",p.classList.contains("open"));
   const gc=$("gcount"), pc=$("patCount"); $("cr66gc").textContent=gc?" "+gc.textContent.trim():""; $("cr66pc").textContent=pc?" "+pc.textContent.trim():""; }
-function tick(){ if(!build()) return; chooser(); sync();
+let warm=0;
+function tick(){ if(!warm&&B.classList.contains("hs-review")&&window.ReviewApp&&ReviewApp.getEngine){ warm=1; setTimeout(()=>{ try{ ReviewApp.getEngine(); }catch(e){} },400); }
+  if(!build()) return; chooser(); sync();
   const pr=$("prog"), pp=$("patProg"), a=pr&&pr.classList.contains("on"), b=pp&&pp.classList.contains("on");
   let busy=a||b; try{ busy=busy||ReviewApp.isRunning(); }catch(e){}
   B.classList.toggle("cr66busy",!!busy);
