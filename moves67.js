@@ -8,7 +8,7 @@ body.cr67m{overflow:hidden;height:100vh}
 body.cr67m #hs,body.cr67m header,body.cr67m footer,body.cr67m #paste,body.cr67m #pat,body.cr67m #ng16,body.cr67m #homeBtn{display:none!important}
 body.cr67m #rv59{position:fixed;top:0;left:0;right:0;z-index:62;background:var(--bg,#f4f0e8);padding:2px 6px 0}
 body.cr67m .rv59bar{margin:0!important}body.cr67m .rv59bar button{min-height:36px!important;padding:4px 6px!important;font-size:14px}
-body.cr67m section.main{display:block!important;margin:0;padding:0}
+body.cr67m section.main{display:block!important;margin:0;padding:0;height:1px;min-height:1px}
 body.cr67m section.main .boardcol{position:fixed!important;left:0;right:0;top:var(--cr67a,42px);z-index:61;background:var(--bg,#f4f0e8);padding:0 6px;margin:0!important;max-width:none;transform:none!important}
 body.cr67m .boardcol .player{min-height:0!important;height:22px;padding:0 4px!important;margin:0!important;font-size:12.5px}
 body.cr67m .boardcol .player .clock{font-size:12px;padding:0 6px!important;min-height:0}
@@ -41,7 +41,7 @@ function pane(e){ if(!e||!e.id&&!e.className) return "coach"; const id=e.id||"",
   return "coach"; }
 const PN={K:"king",Q:"queen",R:"rook",B:"bishop",N:"knight"};
 const GR={brilliant:"brilliant",great:"great move",best:"best move",excellent:"excellent",good:"good",book:"opening theory",inaccuracy:"small slip",mistake:"mistake",miss:"missed chance",blunder:"big mistake"};
-function words(p){ if(!p) return "Start of the game"; const s=p.san||"", who=p.color==="w"?"White":"Black", mv=Math.ceil(p.ply/2);
+function words(p){ if(!p) return "Start position"; const s=p.san||"", who=p.color==="w"?"White":"Black", mv=Math.ceil(p.ply/2);
   let w; if(/^O-O-O/.test(s)) w="castles long"; else if(/^O-O/.test(s)) w="castles short"; else { const piece=PN[s[0]]||"pawn", to=(s.match(/[a-h][1-8](?=[=+#]|$|=)/)||s.match(/[a-h][1-8]/g)||[""]).slice(-1)[0]||"";
     w=`${piece} ${/x/.test(s)?"takes on":"to"} ${to}`; if(/=([QRBN])/.test(s)) w+=`, becomes a ${PN[s.match(/=([QRBN])/)[1]]}`; }
   if(/#/.test(s)) w+=", checkmate"; else if(/\+/.test(s)) w+=", check";
@@ -63,7 +63,7 @@ function tick(){ const on=ON(); B.classList.toggle("cr67m",on); if(!on||!build()
   if(q&&q.parentNode!==card) card.appendChild(q); if(g&&g.parentNode!==card){ g.classList.add("cr67in"); card.appendChild(g); }
   [...side.children].forEach(e=>{ if(e.id==="cr67card"||e.id==="cr67tabs") return; const p=pane(e); if(e.dataset.cr67p!==p) e.dataset.cr67p=p; });
   // fit: bar, board (about half the screen), eval strip, then the scrolling part
-  const vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42; const bsz=Math.max(220,Math.min(innerWidth-30,Math.round(vh*0.40)-40));
+  const vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42; const bsz=Math.max(220,Math.min(innerWidth-30,Math.round(vh*0.42)-40));
   B.style.setProperty("--cr67b",bsz+"px"); B.style.setProperty("--cr67a",Math.round(bar)+"px");
   const bc=document.querySelector("section.main .boardcol"), bh=bc?bc.getBoundingClientRect().height:bsz+50;
   B.style.setProperty("--cr67g",Math.round(bar+bh)+"px"); B.style.setProperty("--cr67s",Math.round(bar+bh+30)+"px");
