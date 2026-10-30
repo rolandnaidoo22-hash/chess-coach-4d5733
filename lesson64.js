@@ -3,7 +3,7 @@
 const $=id=>document.getElementById(id), E_=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const LG=(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, LS=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const CH=()=>(window.ChessLib&&ChessLib.Chess)||window.Chess, PN={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
-const API=()=>window.CR64_LESSONS_URL||"https://lessons-preview.chess-review.workers.dev", KM="chessReview.v64.myLessons", KF="chessReview.v64.feed", KL="chessReview.v64.learned";
+const API=()=>window.CR64_LESSONS_URL||"https://lessons-live.chess-review.workers.dev", KM="chessReview.v64.myLessons", KF="chessReview.v64.feed", KL="chessReview.v64.learned";
 const isMine=p=>p&&p.user&&["blunder","mistake","miss"].includes(p.cls);
 function biggest(Pl){ let b=null; (Pl||[]).forEach((p,i)=>{ if(!isMine(p)||!p.best_uci||!p.uci||p.best_uci===p.uci||!p.fen_before) return; const l=+(p.cpl||0)+(p.cls==="blunder"?1e4:p.cls==="miss"?5e3:0); if(!b||l>b.l) b={l,i,p}; }); return b; }
 function mv(fen,u){ try{ const g=new (CH())(fen), m=g.move({from:u.slice(0,2),to:u.slice(2,4),promotion:u[4]||"q"}); return m?{g,m}:null; }catch(e){ return null; } }
