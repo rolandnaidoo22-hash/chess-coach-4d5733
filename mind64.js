@@ -19,9 +19,10 @@ function draw(G){ if(!G||!G.tol) return; const g=G.g, mine=!G.thinking&&!g.isGam
   if(c){ $("tl64ch").onclick=()=>{ G.tol.cur=null; draw(G); }; return; }
   el.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ G.tol.cur={plan:b.dataset.p,text:($("tl64t").value||"").trim().slice(0,80)}; draw(G); }); }
 function before(G,m){ if(!G||!G.tol) return; const g=G.g, now=Date.now(); if(G.tol.turnAt) G.tol.times.push((now-G.tol.turnAt)/1000); G.tol.turnAt=null;
+  try{ const u=m.from+m.to+(m.promotion||""), w=window.CRGuard&&CRGuard.check(g.fen(),u); if(w){ G.tol.bl=(G.tol.bl||0)+1; const v=w.k==="mate"?100:({q:9,r:5,b:3,n:3,p:1}[w.piece]||1); if(!G.tol.tp||v>G.tol.tp.v) G.tol.tp={v,fen:g.fen(),uci:u,k:w.k,piece:w.piece,sq:w.sq,side:G.me,move:Math.floor(g.history().length/2)+1}; } }catch(e){}
   if(on()){ const c=G.tol.cur||{plan:"none",text:""}; G.tol.plans.push({i:g.history().length,uci:m.from+m.to+(m.promotion||""),plan:c.plan,text:c.text}); } G.tol.cur=null; }
 function finish(G){ if(!G||!G.tol||G.tol.fin) return; G.tol.fin=1; const g=G.g, res=g.isCheckmate()?(g.turn()===G.me?0:1):.5, T=G.tol.times;
-  const L=LG(KB,[]); L.push({t:Date.now(),r:res,spm:T.length?Math.round(T.reduce((a,b)=>a+b,0)/T.length*10)/10:null,n:T.length,bot:G.bot.name}); LS(KB,L.slice(-60));
+  const L=LG(KB,[]); L.push({t:Date.now(),r:res,spm:T.length?Math.round(T.reduce((a,b)=>a+b,0)/T.length*10)/10:null,n:T.length,bl:G.tol.bl||0,mate:g.isCheckmate()&&res===0?1:0,h:new Date().getHours(),bot:G.bot.name,tp:res===0?G.tol.tp||null:null}); LS(KB,L.slice(-60));
   if(G.tol.plans.length){ const m=$("b52msg"); if(m){ const b=document.createElement("button"); b.className="bt go"; b.id="tl64cmp"; b.textContent="💭 How did my plans go?"; b.onclick=()=>compare(G); m.after(b); } }
   try{ refresh(); }catch(e){} }
 const sqN=i=>"abcdefgh"[i%8]+(Math.floor(i/8)+1);
@@ -37,7 +38,7 @@ function needed(p){ const b=Patterns._board(p.fen_before), me=p.color, op=me==="
 const COST={blunder:"this move cost a lot",mistake:"this move cost a fair bit",miss:"a chance slipped by",inaccuracy:"a small slip"};
 function rows(d,plans){ const P=d.plies; return plans.map(x=>{ const p=P[x.i]; if(!p) return null; const nd=needed(p), cat=CAT[x.plan]||"unsure", good=!COST[p.cls];
   const fit=cat==="unsure"||x.plan==="none"?(good?"ok":"miss"):cat===nd.c||(nd.c==="calm"&&cat!=="defend")?(good?"fit":"idea"):(good?"ok":"off");
-  const mv=`Move ${Math.floor(x.i/2)+1}: ${p.san}`, cw=COST[p.cls]||"this move cost something", CW=cw[0].toUpperCase()+cw.slice(1);
+  const mv=`Move ${Math.floor(x.i/2)+1}`, cw=COST[p.cls]||"this move cost something", CW=cw[0].toUpperCase()+cw.slice(1);
   const said=x.plan==="none"?"You didn't pick a plan.":cat==="unsure"?"You weren't sure.":`You planned to ${CATW[cat]}${x.text?` (“${x.text}”)`:""}.`;
   const t={fit:`✅ Good match: the position needed you to ${CATW[nd.c]}, because ${nd.why}.`,idea:`🟡 Right idea, but ${cw}. The position needed you to ${CATW[nd.c]}, because ${nd.why}. Check the move itself next time.`,
     ok:`👍 The move was fine. The position mainly needed you to ${CATW[nd.c]}, because ${nd.why}.`,off:`🔴 The position needed you to ${CATW[nd.c]} instead, because ${nd.why}. ${CW}.`,
@@ -61,54 +62,78 @@ async function ask(rec){ const el=()=>$("tl64ai"); const local=rec.rows.filter(r
   const body={mode:"chat",msgs:[{r:"u",t:"I played a bot game and said my plan before each move. Compare what I planned with what each position needed, in plain words. Do not tell me exact best moves; tell me what to look for. End with one habit to practise."}],
     ctx:{type:"think_out_loud",bot:rec.bot,side:rec.me==="w"?"White":"Black",plans:rec.rows.slice(0,30).map(r=>({move:r.mv,said:r.said,needed:r.needed,why:r.why,result:r.fit,cost:r.cls}))}};
   try{ if(window.CRMem){ const m=CRMem.summary(); if(m.length) body.memory=m; } }catch(e){}
-  let a=null; try{ const r=await fetch(window.CR59_URL||"https://chess-coach-grok.chess-review.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); const j=await r.json(); if(r.ok&&j.report) a=j.report; }catch(e){}
+  let a=null; try{ const r=await fetch(window.CR59_URL||"https://chess-coach-grok.chess-review.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); const j=await r.json(); if(r.ok&&j.report) a=j.report; }catch(e){} if(a&&window.plainChess) a=plainChess(a);
   const txt=a||local; if(el()) el().innerHTML=a?(window.Coach17&&Coach17._md?Coach17._md(a):E_(a)):`<p>${E_(local)}</p><p class="mute">(The coach couldn't be reached, so this is the app's own summary.)</p>`;
   try{ window.CRMem&&CRMem.add({kind:"plan",q:"Think out loud vs "+rec.bot,a:txt,game:new Date(rec.at).toISOString().slice(0,10)+" vs "+rec.bot}); }catch(e){} rec.coach=txt; const L=LG(KP,[]); if(L[0]&&L[0].id===rec.id){ L[0].coach=txt.slice(0,2000); LS(KP,L); } }
 /* plan line on the review board when the game has plans */
 const os=window.show; if(typeof os==="function") window.show=show=function(){ const r=os.apply(this,arguments); try{ const P64=DATA&&DATA.meta&&DATA.meta.plans64, el=$("mv63"); if(P64&&el&&cur>0&&P64[cur-1]){ const x=P64[cur-1]; el.insertAdjacentHTML("beforeend",`<div class="tl64rv ${x.fit}">💭 ${E_(x.line)}</div>`); } }catch(e){} return r; };
-/* ================= Tilt guard + Mood check ================= */
+/* ================= Tilt Guard (v64b): learns YOUR normal on this phone, from games finished in this app only. Nothing is sent anywhere. ================= */
 const tg=()=>Object.assign({on:true,dis:0},LG(KTG,{}));
-function results(){ const out=[]; try{ (LG("chessReview.v56.charts.games",{}).games||[]).forEach(g=>{ if(g.t&&g.r!=null) out.push({t:+g.t,r:+g.r,src:"online"}); }); }catch(e){}
-  LG(KB,[]).forEach(g=>out.push({t:g.t,r:g.r,spm:g.spm,src:"bot"})); return out.sort((a,b)=>a.t-b.t); }
-function state(){ const R=results(), now=Date.now(), last=R[R.length-1]; let streak=0; for(let i=R.length-1;i>=0&&R[i].r===0;i--) streak++;
-  const T=R.filter(x=>x.spm!=null), med=(()=>{ const s=T.slice(0,-1).map(x=>x.spm).sort((a,b)=>a-b); return s.length>=4?s[Math.floor(s.length/2)]:null; })();
-  const l2=T[T.length-1], prev=l2?R[R.indexOf(l2)-1]:null, fast=!!(med&&l2&&prev&&prev.r===0&&l2.spm<0.6*med&&l2===last);
-  const recent=last&&now-last.t<6*3600e3, S=tg();
-  const why=streak>=3?"three":streak>=2?"two":fast?"fast":null, active=!!(S.on&&recent&&why&&S.dis!==last.t);
-  return {R,last,streak,fast,med,why,active,on:S.on,last5:R.slice(-5)}; }
-const MSG={three:"Three tough games in a row. That happens to every player. A short reset often helps the next game go better.",two:"Two tough games in a row. Want a quick reset before the next one?",fast:"Your last game went a lot quicker than you usually play. A calm minute can help you see more on the board."};
-function card(where){ const s=state(); if(!s.active) return ""; return `<div class="card tg64" id="tg64${where||""}" role="status"><b>🌿 Quick reset?</b><p>${MSG[s.why]}</p>
-  <div class="tg64b"><button type="button" data-tg="break">☕ 5-minute break</button><button type="button" data-tg="calm">🧩 2-minute calm puzzles</button><button type="button" data-tg="no">Not now</button></div>
+const med=a=>{ const s=a.slice().sort((x,y)=>x-y); return s.length?s[Math.floor(s.length/2)]:null; }, avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const late=h=>h>=22||h<5, morning=h=>h>=5&&h<12;
+function games(){ return LG(KB,[]).filter(g=>g&&g.n>=5&&g.spm!=null).sort((a,b)=>a.t-b.t); }
+function baseline(G){ G=G||games(); const calm=G.filter((g,i)=>(i===0||G[i-1].r!==0)&&!late(g.h==null?12:g.h));
+  if(calm.length<3) return {ready:false,calm:calm.length};
+  return {ready:true,calm:calm.length,spm:med(calm.map(g=>g.spm)),rate:avg(calm.map(g=>g.bl/g.n))}; }
+function rushed(g,B){ return B.ready&&g.spm<=0.6*B.spm&&(g.bl/g.n)>=B.rate+Math.max(0.05,B.rate*0.5); }
+function state(){ const G=games(), B=baseline(G), last=G[G.length-1], prev=G[G.length-2], S=tg(), now=Date.now();
+  const hit=!!(last&&prev&&prev.r===0&&rushed(last,B)), recent=!!(last&&now-last.t<6*3600e3);
+  const active=!!(S.on&&hit&&recent&&S.dis!==last.t);
+  return {G,B,last,prev,hit,active,on:S.on,why:hit?"rushed":null,last5:G.slice(-5)}; }
+const MSG="You look rushed right now. Your last few moves were much faster than usual. Take five minutes first.";
+function card(where){ const s=state(); if(!s.active) return ""; return `<div class="card tg64" id="tg64${where||""}" role="status"><b>🌿 A calm moment first?</b><p>${MSG}</p>
+  <div class="tg64b"><button type="button" data-tg="calm">🧩 Try one calm puzzle</button><button type="button" data-tg="tp">🔎 Look at that one turning point</button><button type="button" data-tg="play">▶ Play again anyway</button></div>
   <a href="#" data-tg="off" class="tg64off">Turn off these reminders</a></div>`; }
-function wire(root){ root.querySelectorAll("[data-tg]").forEach(b=>b.onclick=e=>{ e.preventDefault(); const k=b.dataset.tg, S=tg(), s=state();
-  if(k==="no"){ S.dis=s.last&&s.last.t; LS(KTG,S); refresh(); } else if(k==="off"){ S.on=false; LS(KTG,S); refresh(); } else if(k==="on"){ S.on=true; S.dis=0; LS(KTG,S); refresh(); }
-  else if(k==="break") brk(); else if(k==="calm") calm(); else if(k==="open"){ const c=$("mood64c"); if(c){ c.hidden=!c.hidden; } } }); }
-function moodHtml(){ const s=state(); if(!s.on) return `<div class="mood64" id="mood64"><span>🌤 Mood check is off.</span><a href="#" data-tg="on">Turn on</a></div>`;
-  const dots=s.last5.map(x=>x.r===1?"✅":x.r===0?"❌":"➖").join(""), msg=s.active?"a few tough games lately":"things look steady";
-  return `<div class="mood64 ${s.active?"warm":""}" id="mood64"><span>${s.active?"🌧":"🌤"} <b>Mood check:</b> ${msg}${dots?` <span class="mood64d" aria-label="last results">${dots}</span>`:""}</span>${s.active?`<a href="#" data-tg="open">Reset ideas</a>`:""}<div id="mood64c" ${s.active?"hidden":"hidden"}>${card("h")}</div></div>`; }
-function refresh(){ const g=$("hsG"); if(g){ let m=$("mood64"); const h=moodHtml(); if(m) m.outerHTML=h; else g.insertAdjacentHTML("afterbegin",h); wire($("mood64")); }
+function dismiss(){ const S=tg(), s=state(); S.dis=s.last&&s.last.t; LS(KTG,S); refresh(); }
+function wire(root){ if(!root) return; root.querySelectorAll("[data-tg]").forEach(b=>b.onclick=e=>{ e.preventDefault(); const k=b.dataset.tg, S=tg();
+  if(k==="play") dismiss(); else if(k==="off"){ S.on=false; LS(KTG,S); refresh(); } else if(k==="on"){ S.on=true; S.dis=0; LS(KTG,S); refresh(); }
+  else if(k==="calm") calm(); else if(k==="tp") turning(); else if(k==="diary") diary(); else if(k==="open"){ const c=$("mood64c"); if(c) c.hidden=!c.hidden; } }); }
+function moodHtml(){ const s=state(); if(!s.on) return `<div class="mood64" id="mood64"><span>🌤 Mood check is off.</span><a href="#" data-tg="on">Turn on</a> <a href="#" data-tg="diary">My Tilt Diary</a></div>`;
+  return `<div class="mood64 ${s.active?"warm":""}" id="mood64"><span>${s.active?"🌿 <b>Mood check:</b> you look a bit rushed":"🌤 <b>Mood check:</b> things look steady"}</span>${s.active?`<a href="#" data-tg="open">Calm choices</a>`:""}<a href="#" data-tg="diary">My Tilt Diary</a><div id="mood64c" hidden>${card("h")}</div></div>`; }
+function refresh(){ const g=$("hsG"); if(g){ const m=$("mood64"), h=moodHtml(); if(m) m.outerHTML=h; else g.insertAdjacentHTML("afterbegin",h); wire($("mood64")); }
   const bl=$("tg64b"); if(bl){ const c=card("b"); if(c){ bl.outerHTML=c; wire($("tg64b")); } else bl.remove(); } }
 setInterval(()=>{ const g=$("hsG"); if(g&&!$("mood64")) refresh(); },1000);
 function gate(p){ const c=card("b"); if(!c||!p) return; p.insertAdjacentHTML("afterbegin",c); wire($("tg64b")); }
 function overlay(html){ let d=$("tg64o"); if(d) d.remove(); d=document.createElement("div"); d.id="tg64o"; d.innerHTML=`<div class="s">${html}</div>`; document.body.appendChild(d); return d; }
-let tmr=null; function brk(){ const end=Date.now()+5*60e3, d=overlay(`<h3>☕ Short break</h3><div class="tg64t" id="tg64t">5:00</div><p>Look away from the screen. Stand up, stretch, have some water. Breathe in for four, out for four.</p><button type="button" id="tg64e">I'm ready</button>`);
-  clearInterval(tmr); const tick=()=>{ const s=Math.max(0,Math.round((end-Date.now())/1000)); const t=$("tg64t"); if(t) t.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); if(!s||!t){ clearInterval(tmr); if(t) t.textContent="Done 🌿"; } }; tick(); tmr=setInterval(tick,1000);
-  $("tg64e").onclick=()=>{ clearInterval(tmr); d.remove(); const S=tg(), s=state(); S.dis=s.last&&s.last.t; LS(KTG,S); refresh(); }; }
-function calm(){ const T=(window.TFBANK&&TFBANK.main)||[], L=T.filter(x=>x.r&&x.r<=1000).sort(()=>Math.random()-.5).slice(0,6); let i=0, n=0; const end=Date.now()+2*60e3;
-  const d=overlay(`<h3>🧩 Calm puzzles</h3><p class="mute" id="tg64ct">2:00 · no score, no rush</p><div class="bs64bd" id="tg64pb"></div><div id="tg64pm" class="bs64msg"></div><div class="bs64row"><button type="button" id="tg64nx">Next</button><button type="button" id="tg64e">Finish</button></div>`);
-  const fin=()=>{ clearInterval(tmr); d.remove(); const S=tg(), s=state(); S.dis=s.last&&s.last.t; LS(KTG,S); refresh(); };
-  const one=()=>{ const z=L[i%Math.max(1,L.length)]; if(!z){ $("tg64pm").textContent="Nice and easy. That's enough for now."; return; } const G=new (CH())(z.f), me=G.turn(), best=Object.keys(z.m||{}).filter(u=>z.m[u][0]==="b").map(u=>u.slice(0,4)); let ar=[];
-    $("tg64pm").textContent=`You play ${me==="w"?"White":"Black"}. Take your time.`; const dr=Coach17._tapBoard($("tg64pb"),G,me,(f,q)=>{ if(best.includes(f+q)){ n++; ar=[{u:f+q,c:"#2f7d32"}]; $("tg64pm").textContent="✅ Nicely spotted."; } else $("tg64pm").textContent="Not that one. Slow look: what is loose?"; dr(); },()=>({arrows:ar})); };
-  one(); $("tg64nx").onclick=()=>{ i++; one(); }; $("tg64e").onclick=fin;
-  clearInterval(tmr); tmr=setInterval(()=>{ const s=Math.max(0,Math.round((end-Date.now())/1000)), t=$("tg64ct"); if(t) t.textContent=s?`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} · no score, no rush`:`Time's up · ${n} spotted. Ready when you are.`; if(!s) clearInterval(tmr); },1000); }
+/* one calm puzzle: no timer, no rating, no score */
+function calm(){ const T=(window.TFBANK&&TFBANK.main)||[], L=T.filter(x=>x.r&&x.r<=900), z=L[Math.floor(Math.random()*L.length)];
+  const d=overlay(`<h3>🧩 One calm puzzle</h3><p class="mute">Take all the time you like.</p><div class="bs64bd" id="tg64pb"></div><div id="tg64pm" class="bs64msg"></div><div class="bs64row"><button type="button" id="tg64sh">Show me</button><button type="button" id="tg64e">Close</button></div>`);
+  $("tg64e").onclick=()=>d.remove(); if(!z){ $("tg64pm").textContent="No puzzle found on this phone."; return; }
+  const G=new (CH())(z.f), me=G.turn(), best=Object.keys(z.m||{}).filter(u=>z.m[u][0]==="b").map(u=>u.slice(0,4)); let ar=[];
+  $("tg64pm").textContent=`You play ${me==="w"?"White":"Black"}. Look at every capture first.`;
+  const dr=Coach17._tapBoard($("tg64pb"),G,me,(f,q)=>{ if(best.includes(f+q)){ ar=[{u:f+q,c:"#2f7d32"}]; $("tg64pm").textContent="✅ Nicely spotted. Ready when you are."; } else $("tg64pm").textContent="Not that one. Slow look: what is loose?"; dr(); },()=>({arrows:ar}));
+  $("tg64sh").onclick=()=>{ ar=[{u:best[0],c:"#2f7d32"}]; $("tg64pm").textContent="Here it is. Ready when you are."; dr(); }; }
+/* the one moment that mattered in the game you just lost */
+function turning(){ const G=games(), L=G.slice().reverse().find(g=>g.r===0&&g.tp), d0=L&&L.tp;
+  if(!d0){ overlay(`<h3>🔎 Turning point</h3><p>No single big moment was saved for your last loss. It was a close game.</p><button type="button" id="tg64e">Close</button>`); $("tg64e").onclick=()=>$("tg64o").remove(); return; }
+  const mvP=(()=>{ try{ const g=new (CH())(d0.fen), m=g.move({from:d0.uci.slice(0,2),to:d0.uci.slice(2,4),promotion:d0.uci[4]||"q"}); return PN[m.piece]; }catch(e){ return "piece"; } })();
+  const line=d0.k==="mate"?`Here, moving your ${mvP} let your opponent give checkmate. Before moving, look at every check they could give.`:`Here, moving your ${mvP} left your ${PN[d0.piece]||"piece"} where it could be taken for free.`;
+  const d=overlay(`<h3>🔎 That one turning point</h3><p class="mute">From your game against ${E_(L.bot||"the bot")}</p><div class="bs64bd">${CR52.mini(d0.fen,d0.side||"w",{arrows:[{u:d0.uci,c:"#d32f2f"}],hl:d0.sq?[{sq:d0.sq,c:"#f5a623",o:.6}]:[]})}</div><p class="tg64line">${E_(line)}</p><button type="button" id="tg64e">Close</button>`);
+  $("tg64e").onclick=()=>d.remove(); }
+/* My Tilt Diary: only patterns with at least 3 games behind them */
+function diary(){ try{ CRHome.setMode("app",true); }catch(e){} const p=CR52.show("td64"), G=games(), B=baseline(G), MIN=3, lines=[];
+  const after=f=>G.filter((g,i)=>i>0&&f(G[i-1],i)), rate=L=>avg(L.map(g=>g.bl/g.n));
+  if(B.ready){ const chk=(L,fast,loose)=>{ if(L.length<MIN) return; const s=med(L.map(g=>g.spm)), r=rate(L); if(s<=0.75*B.spm) lines.push(["⏩",fast,L.length]); else if(r>=B.rate+Math.max(0.04,B.rate*0.4)) lines.push(["⭕",loose,L.length]); };
+    chk(after(q=>q.r===0&&q.mate),"You rush most after a checkmate loss. Your next game is usually much quicker than your normal pace.","After a checkmate loss, more pieces get left loose in your next game.");
+    chk(after((q,i)=>q.r===0&&i>1&&G[i-2].r===0),"After two losses in a row, you play much faster than usual.","After two losses in a row, more pieces get left loose.");
+    chk(after(q=>q.r===0&&!q.mate),"After a loss, your next game tends to be quicker than usual.","After a loss, more pieces get left loose in your next game.");
+    const LN=G.filter(g=>late(g.h)), DY=G.filter(g=>!late(g.h)); if(LN.length>=MIN&&DY.length>=MIN&&rate(LN)>=rate(DY)+0.04) lines.push(["🌙","Late at night, more pieces get left loose than in the daytime.",LN.length]);
+    const MO=G.filter(g=>morning(g.h)), OT=G.filter(g=>!morning(g.h)), wr=L=>avg(L.map(g=>g.r));
+    if(MO.length>=MIN&&OT.length>=MIN&&wr(MO)>wr(OT)+0.15&&med(MO.map(g=>g.spm))>=med(OT.map(g=>g.spm))) lines.push(["🌅","Your best games are in the morning, when you take your time.",MO.length]); }
+  const per=B.ready&&B.rate>0?Math.round(1/B.rate):null;
+  p.innerHTML=`<h2>📓 My Tilt Diary</h2><p class="mute">Built only from the ${G.length} game${G.length===1?"":"s"} you finished in this app. It stays on this phone and works offline.</p>
+   <div class="card"><b>Your normal pace</b><p>${B.ready?`In a calm game you take about ${Math.round(B.spm)} seconds a move${per?`, and leave a piece loose about once every ${per} moves`:", and rarely leave a piece loose"}.`:`Play a few more calm games (${B.calm} of 3 so far) so the app can learn your normal pace.`}</p></div>
+   <div class="card"><b>What the app has noticed</b>${lines.length?`<ul class="td64l">${lines.map(([i,t,n])=>`<li><span>${i}</span><span>${E_(t)}<small>Seen in ${n} games</small></span></li>`).join("")}</ul>`:`<p>No clear pattern yet. A pattern only shows up here after it has happened in at least ${MIN} games.</p>`}</div>
+   <div class="card td64set"><span>Calm reminders: <b>${tg().on?"On":"Off"}</b></span><a href="#" data-tg="${tg().on?"off":"on"}">${tg().on?"Turn off":"Turn on"}</a></div>`;
+  wire(p); p.querySelectorAll("[data-tg=off],[data-tg=on]").forEach(a=>a.addEventListener("click",()=>setTimeout(diary,0))); return lines; }
 const st=document.createElement("style"); st.textContent=`
 .tl64{border:1px solid var(--line,#ddd);border-radius:12px;padding:8px;background:#f4f8ff}.tl64c{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.tl64c button{min-height:40px;border-radius:20px;border:1px solid #3b6fb6;background:#fff;color:#1e4f91;font:inherit;font-weight:700;font-size:14px;padding:0 12px}
 .tl64 input{width:100%;box-sizing:border-box;min-height:40px;border-radius:10px;border:1px solid var(--line,#ccc);padding:0 10px;font:inherit}.tl64.done small{display:block;color:var(--mute,#666)}.tl64.done button{border:0;background:none;color:#3b6fb6;text-decoration:underline;font:inherit;min-height:32px}
 .tl64r{padding-left:0;list-style:none}.tl64r li{border:1px solid var(--line,#ddd);border-left:6px solid #9aa;border-radius:10px;padding:8px 10px;margin:6px 0;display:flex;flex-direction:column;gap:3px;font-size:15px;background:#fff}.tl64r li.fit,.tl64r li.ok{border-left-color:#2f7d32}.tl64r li.idea{border-left-color:#e8b11b}.tl64r li.off,.tl64r li.miss{border-left-color:#c62828}
 .tl64rv{font-size:13.5px;font-weight:600;margin-top:4px;padding:6px 8px;border-radius:8px;background:#f4f8ff;text-align:left}
 .mood64{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;grid-column:1/-1;border:1px solid var(--line,#ddd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14.5px}.mood64.warm{background:#f3f7ee;border-color:#cfe0bf}.mood64 a{font-weight:700;color:#3b6fb6;min-height:32px;display:inline-flex;align-items:center}.mood64 #mood64c{flex-basis:100%}.mood64d{letter-spacing:1px}
-.tg64{background:#f3f7ee;border-color:#cfe0bf}.tg64b{display:grid;grid-template-columns:1fr 1fr;gap:6px}.tg64b button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700}.tg64b button[data-tg=no]{grid-column:1/-1;border-color:var(--line,#ccc);color:var(--mute,#555)}.tg64off{display:inline-block;margin-top:8px;font-size:13px;color:var(--mute,#666)}
+.tg64{background:#f3f7ee;border-color:#cfe0bf}.tg64b{display:grid;grid-template-columns:1fr;gap:8px}.tg64line{font-size:17px}.td64l{list-style:none;padding:0}.td64l li{display:flex;gap:10px;padding:8px 0;font-size:16.5px}.td64l small{display:block;color:var(--mute,#666);font-size:13px}.td64set{display:flex;justify-content:space-between;align-items:center}.td64set a{font-weight:700;color:#3b6fb6;min-height:44px;display:inline-flex;align-items:center}.tg64b button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700}.tg64b button{font-size:16px;min-height:50px}.tg64b button[data-tg=play]{border-color:var(--line,#ccc)}.tg64off{display:inline-block;margin-top:8px;font-size:13px;color:var(--mute,#666)}
 #tg64o{position:fixed;inset:0;z-index:9100;background:rgba(20,40,25,.55);display:flex;align-items:center;justify-content:center;padding:12px}#tg64o .s{background:#fff;border-radius:18px;padding:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;text-align:center}#tg64o button{min-height:46px;border-radius:12px;border:1px solid #7aa36b;background:#fff;font:inherit;font-weight:700;padding:0 16px}.tg64t{font-size:48px;font-weight:800;margin:8px 0}
 html.dark-mode .mood64,html.dark-mode .tl64r li,html.dark-mode #tg64o .s,html.dark-mode .tl64{background:#262626;color:#eee}`; document.head.appendChild(st);
-window.CRMind64={attach,draw,before,finish,compare,rows,needed,state,refresh,gate,card,brk,calm,_plans:()=>LG(KP,[])};
+window.CRMind64={attach,draw,before,finish,compare,rows,needed,state,refresh,gate,card,calm,turning,diary,baseline,_plans:()=>LG(KP,[])};
 })();
