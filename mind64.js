@@ -148,7 +148,7 @@ function diary(){ try{ CRHome.setMode("app",true); }catch(e){} const p=CR52.show
     return `<li>${label}: about ${Math.round(b.spm)} seconds a move in a calm game${per?`, with a big mistake about once every ${per} moves`:", with very few big mistakes"}.</li>`; };
   const tcName=tc=>{ const m=+String(tc).split("+")[0]; return m?`${Math.round(m/60)}-minute online games`:"online games"; };
   const paces=[pace("app","Games in this app")].concat(Object.keys(B).filter(k=>k.startsWith("on:")).map(k=>pace(k,tcName(k.slice(3))))).join("");
-  p.innerHTML=`<h2>📓 My Tilt Diary</h2><p class="mute">Built from ${nApp} game${nApp===1?"":"s"} you finished in this app and ${nOn} online game${nOn===1?"":"s"} you synced. It stays on this phone and works offline.</p>
+  p.innerHTML=`<h2>📓 My Tilt Diary</h2><p class="mute">Built from ${[nApp?`${nApp} game${nApp===1?"":"s"} you finished in this app`:"",nOn?`${nOn} online game${nOn===1?"":"s"} you synced`:""].filter(Boolean).join(" and ")||"no games yet"}. It stays on this phone and works offline.</p>
    ${noClk?`<p class="mute">${noClk} online game${noClk===1?" has":"s have"} no clock times, so ${noClk===1?"it only counts":"they only count"} for wins and losses.</p>`:""}
    <div class="card"><b>Your normal pace</b>${paces?`<ul class="td64p">${paces}</ul>`:`<p>Play a few more calm games so the app can learn your normal pace.</p>`}</div>
    <div class="card"><b>What the app has noticed</b>${lines.length?`<ul class="td64l">${lines.map(([i,t,n])=>`<li><span>${i}</span><span>${E_(t)}<small>Seen in ${n} games</small></span></li>`).join("")}</ul>`:`<p>No clear pattern yet. A pattern only shows up here after it has happened in at least ${MIN} games.</p>`}</div>

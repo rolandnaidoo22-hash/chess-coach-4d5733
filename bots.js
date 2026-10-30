@@ -90,8 +90,8 @@ function draw(){ if(!G) return; const g=G.g, hl=[];
   else if(g.isDraw()||g.isStalemate()) msg="It's a draw."; else if(G.thinking) msg="🤔 "+G.bot.name+" is thinking…"; else if(g.turn()===G.me) msg=g.inCheck()?"You're in check! Your move.":"Your move.";
   $("b52msg").textContent=msg; const h=g.history(); const ml=$("b52ml"); if(ml){ ml.innerHTML=movesHtml(h); ml.scrollTop=ml.scrollHeight; }
   $("b52undo").disabled=G.thinking||!h.length;
-  const ask=$("b52ask"); if(ask) ask.innerHTML=G.guard&&!G.thinking&&!g.isGameOver()&&g.turn()===G.me&&!G.warn?`Before you move: <b>Checks?</b> <b>Captures?</b> <b>Threats?</b>`:""; window.CRMind64&&CRMind64.draw(G); }
-function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true; window.CRMind64&&CRMind64.finish(G);
+  const ask=$("b52ask"); if(ask) ask.innerHTML=G.guard&&!G.thinking&&!g.isGameOver()&&g.turn()===G.me&&!G.warn?`Before you move: <b>Checks?</b> <b>Captures?</b> <b>Threats?</b>`:""; window.CRMind64&&CRMind64.draw(G); window.CRGut65&&CRGut65.draw(G); }
+function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true; window.CRMind64&&CRMind64.finish(G); window.CRGut65&&CRGut65.finish(G);
   if(g.isCheckmate()){ if(g.turn()===G.me) say("won"); else { say("lost"); const R=LS.get(KR,{}); R[G.bot.id]=(R[G.bot.id]||0)+1; LS.set(KR,R); } } else say("draw");
   if(G.bot.adaptive&&window.CRUltimate){ const res=g.isCheckmate()?(g.turn()===G.me?"loss":"win"):"draw"; CRUltimate.learn({moves:g.history(),me:G.me,result:res}).catch(e=>console.error(e)); } }
 function tap(sq){ if(G&&G.warn) return; if(!G||G.thinking||G.g.isGameOver()||G.g.turn()!==G.me) return; const g=G.g, pc=g.get(sq);
