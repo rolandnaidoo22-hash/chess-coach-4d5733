@@ -26,7 +26,7 @@ body.hs-app #hs .hsP{display:none!important}
 .hsStart .hsHide{color:#fff;opacity:.8;font-size:12px;align-self:flex-end}
 .hsG button{min-height:108px;border-radius:16px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;text-align:left;padding:12px;display:flex;flex-direction:column;gap:3px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .hsG button .i{font-size:30px;line-height:1.1}.hsG button b{font-size:16.5px}.hsG button small{color:var(--mute);font-size:12.5px;line-height:1.3}
-.hsG button.wide{grid-column:1/-1;min-height:84px;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;border:none}.hsG button.wide small{color:#e8f0ff}.hsG button.wide .i{font-size:38px}
+.hsG button.wide{grid-column:1/-1;min-height:84px;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;border:none}.hsG button.wide small{color:#e8f0ff}.hsG button.wide.kid68{background:linear-gradient(135deg,#ef6c3a,#8e57c4);min-height:72px}.hsG button.wide .i{font-size:38px}
 .hsP .hsPh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 8px}.hsP h2{margin:0;font-size:20px}.hsP button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font:inherit;font-weight:700;padding:0 14px;cursor:pointer}
 html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262626;color:#eee;border-color:#3a3a3a}`;
 const MODES=["home","review","goal","set","app"]; let mode=null, chosen=false;
@@ -74,13 +74,15 @@ const TILES=[
  ["bs64","🔦","My blind spots",()=>"What you keep missing, and practice",()=>{ setMode("app",true); window.CRBlind64&&CRBlind64.open(); }],
  ["ls64","🎓","Community lessons",()=>"Short lessons from real games",()=>{ setMode("app",true); window.CRLesson64&&CRLesson64.feed(); }],
  ["td64","📓","My Tilt Diary",()=>"How you play after a loss",()=>{ setMode("app",true); window.CRMind64&&CRMind64.diary(); }],
+ ["kids68","🧒","Kids Mode",()=>"Big buttons, stars, no ratings. For children",()=>{ window.CRKids&&CRKids.open(); },"wide kid68"],
+ ["photo68","🖼","My photo board",()=>"Use your own photos for the board and pieces",()=>{ window.CRPhoto&&CRPhoto.open(); }],
  ["set","⚙","Settings",()=>"Username, rating goal, board",()=>{ closeAll(); setMode("set",true); }]];
 /* Most-used coaching actions first, then play, train, and progress. */
 const ORDER=[
- ["Review",["coach","ask59","review","games","bs64","gc65","trap"]],
+ ["Review",["coach","kids68","ask59","review","games","bs64","gc65","trap"]],
  ["Play",["bots52","corban52","ultimo52","play"]],
  ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
- ["Progress",["v45","v46mo","v42ch","progress","td64","v42xp","set"]]];
+ ["Progress",["v45","v46mo","v42ch","progress","td64","v42xp","photo68","set"]]];
 function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
   ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);
     ids.forEach(id=>{ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;

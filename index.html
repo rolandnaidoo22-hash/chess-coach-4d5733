@@ -9691,7 +9691,7 @@ function review(){ const L=lastGame(); let h=head("🔎 Your last game");
 function recs(){ try{ return Object.values(PatternStore.all()).filter(r=>r&&r.date).sort((a,b)=>dnum(b.date).localeCompare(dnum(a.date))); }catch(e){ return []; } }
 const cnt=(r,k)=>toArr(r.ev).filter(e=>e.k===k).length;
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
-async function fetchRating(){ const info=(window.CRUser&&CRUser.info())||{}, u=(info.cc||"").trim(); if(!u) return null; const s=S(); if(s.rating&&Date.now()-s.ratingAt<6*3600e3) return s.rating;
+async function fetchRating(){ const info=(window.CRUser&&CRUser.info())||{}, u=(info.cc||"").trim(); if(!u) return null; const s=S(); if(window.CRRating){ const x=await CRRating.refresh(); if(x&&x.r){ const s2=S(); s2.rating={r:x.r,k:x.tc}; s2.ratingAt=x.at; save(s2); return s2.rating; } }
   try{ const j=await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(u.toLowerCase())}/stats`); const pick=["chess_rapid","chess_blitz","chess_daily","chess_bullet"].map(k=>j[k]&&j[k].last?{k,r:j[k].last.rating}:null).filter(Boolean)[0];
     if(pick){ const s2=S(); s2.rating={r:pick.r,k:pick.k.replace("chess_","")}; s2.ratingAt=Date.now(); save(s2); return s2.rating; } }catch(e){} return s.rating; }
 function stages(R,s,rating){ const L=R.slice(0,10), n=L.length, per=k=>n?avg(L.map(r=>cnt(r,k))):null;
@@ -10128,10 +10128,22 @@ function grokCache(){ const c=LS.get(CGR,{}); if(!c||typeof c!=="object") return
 function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
 async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
   if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`Coach is studying your game…`; }
-  box.innerHTML=`<div class="co17note">${window.CRMem?CRMem.loader("Coach is thinking… usually 10–40 seconds. Keep this screen open."):"⏳ Coach is thinking… usually 10–40 seconds. Keep this screen open."}</div>`;
+  box.innerHTML=`<div class="co17note">${window.CRMem?CRMem.loader("Coach is starting… the first lines show in a few seconds."):"⏳ Coach is starting… the first lines show in a few seconds."}</div>`;
   try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),150000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok"; try{ if(window.CRMem){ const mm=CRMem.summary(); if(mm.length) pl.memory=mm; } }catch(e){}
-    const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal}); clearTimeout(to);
-    const d=await r.json().catch(()=>({})); if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
+    pl.stream=true; try{ if(window.CRRating){ const rn=CRRating.now(); if(rn&&rn.r) pl.rating=String(rn.r); } }catch(e){}
+    const t68=Date.now(); window.CR68T={start:t68};
+    const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal});
+    let d;
+    if(r.ok&&/text\/plain/.test(r.headers.get("content-type")||"")&&r.body){ /* v68: streamed report, shown as it arrives */
+      const rd=r.body.getReader(), dec=new TextDecoder(); let txt="", last=0;
+      const paint=()=>{ if($("gmGrokBox")!==box) return; const t=txt.replace(/^\u0001cached\n/,""); if(!t.trim()) return; if(!window.CR68T.first) window.CR68T.first=Date.now()-t68;
+        box.innerHTML=`<div class="co17gr" id="gm68live">${mdHtml(t)}<p class="meta" id="gm68more">✍️ Coach is still writing…</p></div>`; if(b) b.style.display="none"; };
+      while(true){ const {value,done}=await rd.read(); if(done) break; txt+=dec.decode(value,{stream:true}); const k=txt.lastIndexOf("\u0002reset\n"); if(k>=0) txt=txt.slice(k+7); if(Date.now()-last>250){ last=Date.now(); paint(); } }
+      clearTimeout(to); window.CR68T.total=Date.now()-t68; txt=txt.replace(/^\u0001cached\n/,"");
+      if(/^\u0003/.test(txt)||txt.trim().length<200) throw new Error(txt.replace(/^\u0003/,"")||"empty answer");
+      d={report:txt,provider:"gemini"}; }
+    else { clearTimeout(to); d=await r.json().catch(()=>({})); window.CR68T.first=window.CR68T.total=Date.now()-t68; }
+    if(!r.ok||!d.report) throw new Error(d.error||("HTTP "+r.status));
     const pv=d.provider==="gemini"?"gemini":"grok", C=grokCache(), c={text:d.report,t:Date.now(),pv,model:d.model,usage:d.usage,fb:prov==="gemini"&&pv==="grok"}; C[id+"|"+pv]=c;
     Object.keys(C).sort((a,b)=>(C[b].t||0)-(C[a].t||0)).slice(30).forEach(k=>delete C[k]); LS.set(CGR,C); const st=S(); st.aiLast=Object.assign({},st.aiLast||{},{[id]:pv}); save(st);
     try{ const m=G.d.meta, me=m.user_color||"w"; window.CRMem&&CRMem.add({kind:"game",q:"Coach review",a:d.report,gids:[id],game:(m.date||"")+" vs "+(me==="w"?m.black:m.white)}); }catch(e){}
@@ -10199,7 +10211,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=67"></script>
+<script defer src="home.js?v=68"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10214,7 +10226,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
 <script defer src="study.js?v=67"></script>
-<script defer src="charts.js?v=67"></script>
+<script defer src="charts.js?v=68"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
@@ -10224,7 +10236,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="guard.js?v=67"></script>
 <script defer src="blunders.js?v=67"></script>
 <script defer src="review58.js?v=67"></script>
-<script defer src="coach58.js?v=67"></script>
+<script defer src="coach58.js?v=68"></script>
 <script defer src="review59.js?v=67"></script>
 <script defer src="coach59.js?v=67"></script>
 <script defer src="memory61.js?v=67"></script>
@@ -10237,6 +10249,9 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="review66.js?v=67"></script>
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=67"></script>
+<script defer src="rating68.js?v=68"></script>
+<script defer src="kids68.js?v=68"></script>
+<script defer src="photo68.js?v=68"></script>
 <script defer src="lesson64.js?v=67"></script>
 <script defer src="learn60.js?v=67"></script>
 </body>
