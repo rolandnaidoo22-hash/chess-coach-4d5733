@@ -5141,7 +5141,7 @@ function renderGames(sel){
   if(ex) h+=`<div class="gitem ${currentId==="example"?"cur":""}"><div class="gt"><b>${esc(ex.meta.white)} vs ${esc(ex.meta.black)}</b><small>${esc(ex.meta.date)} · ${esc(ex.meta.result)} · ${window.CRUser&&!CRUser.isOwnerOfExample()?"famous example game (to try the app)":"example (hand-checked notes)"}</small></div><button class="btn" data-open="example">Open</button></div>`;
   list.forEach((g,i)=>{ h+=`<div class="gitem ${currentId===g.id?"cur":""}"><div class="gt"><b>${esc(g.title)}</b>${window.CRSync&&g.data&&g.data.meta?CRSync.tag(g.data.meta.link):""}${window.CRAcct&&g.data&&g.data.meta&&/^https?:/.test(g.data.meta.link||"")?CRAcct.tag(g.data.meta.link):""}<small>${esc(g.date)} · ${esc(g.result)} · your accuracy ${g.acc}% · ${esc(String(g.mode).split(" ")[0])}</small></div><button class="btn" data-open="${i}">Open</button><button class="btn" data-del="${i}" title="Delete">🗑</button></div>`; });
   h+=`</div>`; if(!list.length) h+=`<p style="font-size:13px;color:var(--mute)">Games you analyze are saved here on this phone.</p>`;
-  $("mygames").innerHTML=(window.CRSync?CRSync.bar():"")+h;
+  $("mygames").innerHTML=(window.CRSync?CRSync.bar()+CRSync.mineHtml():"")+h;
   $("mygames").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{ const k=b.dataset.open;
     if(k==="example"){ currentId="example"; loadData(ex); } else { const g=loadGames()[+k]; currentId=g.id; loadData(upgrade(g.data)); }
     renderGames(); $("paste").classList.remove("gopen"); window.scrollTo(0,0); });
@@ -10255,7 +10255,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=67"></script>
 <script defer src="rating68.js?v=68"></script>
-<script defer src="sync69.js?v=69"></script>
+<script defer src="sync69.js?v=69b"></script>
 <script defer src="kids68.js?v=68"></script>
 <script defer src="photo68.js?v=68"></script>
 <script defer src="lesson64.js?v=67"></script>
