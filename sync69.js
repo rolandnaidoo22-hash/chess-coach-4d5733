@@ -18,6 +18,11 @@ function seen(id){ id=idOf(id); if(st.nw&&st.nw[id]){ delete st.nw[id]; SV(st); 
 function mergeCharts(fresh){ try{ const KG="chessReview.v56.charts.games"; const c=JSON.parse(localStorage.getItem(KG)||"null"); if(!c||!Array.isArray(c.games)||!window.CRStudy) return false;
     const have=new Set(c.games.map(g=>g.id)); let add=0; fresh.forEach(g=>{ if(have.has(g.url)||have.has(String(g.end_time))) return; const r=CRStudy.fromChessCom(g,user()); if(r&&!have.has(r.id)){ c.games.push(r); have.add(r.id); add++; } });
     if(!add) return true; c.games.sort((a,b)=>a.t-b.t); c.games=c.games.slice(-250); localStorage.setItem(KG,JSON.stringify(c)); return true; }catch(e){ return false; } }
+/* no saved results yet: seed them from the newest 10 games of this month (cheap); My charts does the full load later (t:0 = stale) */
+function seedCharts(G){ try{ const KG="chessReview.v56.charts.games"; if(localStorage.getItem(KG)||!window.CRStudy) return; const A=window.CRAcct;
+    const k=((A&&A.cc&&A.cc())||"").toLowerCase()+"|"+((A&&A.li&&A.li())||"").toLowerCase();
+    const games=G.slice().sort((a,b)=>a.end_time-b.end_time).slice(-10).map(g=>CRStudy.fromChessCom(g,user())).filter(Boolean);
+    if(games.length) localStorage.setItem(KG,JSON.stringify({k,t:0,games,notes:[]})); }catch(e){} }
 async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {err:"nouser"}; } if(busy) return busy;
   busy=(async()=>{ paint(); let out={n:0};
     try{ const d=new Date(), url=`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/${d.getFullYear()}/${pad(d.getMonth()+1)}`;
@@ -27,7 +32,8 @@ async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {er
       fresh.forEach(g=>{ S.add(idOf(g.url)); if(!first) st.nw[idOf(g.url)]=Date.now(); });
       st.seen=[...S].slice(-400); st.at=Date.now(); Object.keys(st.nw).forEach(k=>{ if(Date.now()-st.nw[k]>NEWFOR) delete st.nw[k]; }); SV(st);
       out.n=first?0:fresh.length; msg=out.n?`${out.n} new game${out.n>1?"s":""}`:(manual?"no new games":"");
-      if(!first&&fresh.length&&!mergeCharts(fresh)&&window.CRCharts&&CRCharts._load) try{ await CRCharts._load(true); }catch(e){}
+      if(!first&&fresh.length) mergeCharts(fresh);
+      seedCharts(G);
       if(fresh.length&&window.CRRating) CRRating.refresh();
       if((out.n||manual)&&!(navigator.onLine===false)) setTimeout(()=>quick(G),0); document.dispatchEvent(new CustomEvent("cr69games",{detail:out}));
     }catch(e){ msg=navigator.onLine===false?"":"couldn't reach Chess.com"; out.err=String(e&&e.message||e); }
@@ -38,7 +44,7 @@ async function quick(G,tries){ tries=tries||0; if(!window.Coach17||!Coach17.auto
   if(r==="busy"&&tries<12){ setTimeout(()=>quick(G,tries+1),10000); return; }
   document.dispatchEvent(new CustomEvent("cr69games",{detail:{}})); }
 function due(){ return !st.at||Date.now()-st.at>=EVERY; }
-const busyApp=()=>!!(window.ReviewApp&&ReviewApp.isRunning()); /* never compete with a review that is running */
+const busyApp=()=>!!(window.ReviewApp&&ReviewApp.isRunning()&&!(window.Coach17&&Coach17._imp&&Coach17._imp.running)); /* never compete with a review that is running */
 function tick(){ if(document.hidden||navigator.onLine===false||!user()||busyApp()) return; if(due()) pull(false); }
 setInterval(()=>{ tick(); paint(); },15000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&user()&&navigator.onLine!==false&&!busyApp()&&(!st.at||Date.now()-st.at>15000)) pull(false); });
