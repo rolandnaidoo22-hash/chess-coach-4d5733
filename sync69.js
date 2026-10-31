@@ -16,7 +16,7 @@ function paint(){ document.querySelectorAll(".cr69at").forEach(e=>e.textContent=
 function isNew(id){ id=idOf(id); const n=(st.nw||{})[id]; return !!n&&Date.now()-n<NEWFOR; }
 function seen(id){ id=idOf(id); if(st.nw&&st.nw[id]){ delete st.nw[id]; SV(st); } }
 function mergeCharts(fresh){ try{ const KG="chessReview.v56.charts.games"; const c=JSON.parse(localStorage.getItem(KG)||"null"); if(!c||!Array.isArray(c.games)||!window.CRStudy) return false;
-    const have=new Set(c.games.map(g=>g.id)); let add=0; fresh.forEach(g=>{ const r=CRStudy.fromChessCom(g,user()); if(r&&!have.has(r.id)){ c.games.push(r); have.add(r.id); add++; } });
+    const have=new Set(c.games.map(g=>g.id)); let add=0; fresh.forEach(g=>{ if(have.has(g.url)||have.has(String(g.end_time))) return; const r=CRStudy.fromChessCom(g,user()); if(r&&!have.has(r.id)){ c.games.push(r); have.add(r.id); add++; } });
     if(!add) return true; c.games.sort((a,b)=>a.t-b.t); c.games=c.games.slice(-250); localStorage.setItem(KG,JSON.stringify(c)); return true; }catch(e){ return false; } }
 async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {err:"nouser"}; } if(busy) return busy;
   busy=(async()=>{ paint(); let out={n:0};
@@ -29,7 +29,7 @@ async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {er
       out.n=first?0:fresh.length; msg=out.n?`${out.n} new game${out.n>1?"s":""}`:(manual?"no new games":"");
       if(!mergeCharts(G)&&window.CRCharts&&CRCharts._load) try{ await CRCharts._load(true); }catch(e){}
       if(fresh.length&&window.CRRating) CRRating.refresh();
-      if((out.n||manual||first)&&!(navigator.onLine===false)) setTimeout(()=>quick(G),0); document.dispatchEvent(new CustomEvent("cr69games",{detail:out}));
+      if((out.n||manual)&&!(navigator.onLine===false)) setTimeout(()=>quick(G),0); document.dispatchEvent(new CustomEvent("cr69games",{detail:out}));
     }catch(e){ msg=navigator.onLine===false?"":"couldn't reach Chess.com"; out.err=String(e&&e.message||e); }
     busy=null; paint(); return out; })(); return busy; }
 /* quick-check the new games so they appear in the coach's game list; retry if another analysis is running */

@@ -5166,6 +5166,7 @@ async function keepAwake(on){
        if(!on&&wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){ wakeLock=null; }
 }
 async function analyze(pgn){
+  if(running&&window.Coach17&&Coach17._imp&&Coach17._imp.running){ Coach17._imp.cancel=true; for(let i=0;i<50&&running;i++) await new Promise(r=>setTimeout(r,100)); } /* v69: your own review goes first; the quiet background check steps aside */
   if(running) return; $("perr").textContent="";
   pgn=(pgn||$("pgnIn").value).trim();
   if(!pgn){ $("perr").textContent="Paste a PGN first."; return; }
