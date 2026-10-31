@@ -10136,7 +10136,7 @@ async function grokAsk(G,H,prov,fresh){ prov=prov==="grok"?"grok":"gemini"; cons
     let d;
     if(r.ok&&/text\/plain/.test(r.headers.get("content-type")||"")&&r.body){ /* v68: streamed report, shown as it arrives */
       const rd=r.body.getReader(), dec=new TextDecoder(); let txt="", last=0;
-      const paint=()=>{ if($("gmGrokBox")!==box) return; const t=txt.replace(/^\u0001cached\n/,""); if(!t.trim()) return; if(!window.CR68T.first) window.CR68T.first=Date.now()-t68;
+      const paint=()=>{ if($("gmGrokBox")!==box) return; const t=txt.replace(/^\u0001cached\n/,""); if(t.replace(/[*#\s]/g,"").length<15) return; if(!window.CR68T.first) window.CR68T.first=Date.now()-t68;
         box.innerHTML=`<div class="co17gr" id="gm68live">${mdHtml(t)}<p class="meta" id="gm68more">✍️ Coach is still writing…</p></div>`; if(b) b.style.display="none"; };
       while(true){ const {value,done}=await rd.read(); if(done) break; txt+=dec.decode(value,{stream:true}); const k=txt.lastIndexOf("\u0002reset\n"); if(k>=0) txt=txt.slice(k+7); if(Date.now()-last>250){ last=Date.now(); paint(); } }
       clearTimeout(to); window.CR68T.total=Date.now()-t68; txt=txt.replace(/^\u0001cached\n/,"");
