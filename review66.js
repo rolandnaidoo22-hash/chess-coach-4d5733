@@ -23,9 +23,10 @@ body.cr66busy #cr66prog{display:block}body.cr66busy #prog,body.cr66busy #patProg
 #cr66prog .r{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
 body.cr66busy [data-cr66d]{opacity:.45}
 #cr66walk{width:100%;min-height:46px;margin:6px 0 4px;font-weight:700}
-#cr66w{position:fixed;left:8px;right:8px;bottom:8px;z-index:70;padding:12px;border-radius:14px;background:var(--card,#1c1f26);border:2px solid var(--accent,#4c8bf5);box-shadow:0 4px 18px rgba(0,0,0,.5)}
-#cr66w p{margin:4px 0 10px;font-size:15px}#cr66w .r{display:flex;gap:8px}#cr66w .r button{flex:1;min-height:44px}
-body.cr66walking{padding-bottom:190px}
+#cr66w{position:fixed;left:8px;right:8px;bottom:8px;z-index:70;padding:8px 10px;border-radius:12px;max-height:30vh;overflow:auto;background:var(--card,#1c1f26);border:2px solid var(--accent,#4c8bf5);box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#cr66w p{margin:2px 0 6px;font-size:14px;line-height:1.35}#cr66w .r{display:flex;gap:8px}#cr66w .r button{flex:1;min-height:40px}
+#cr66w .h{display:flex;align-items:center;gap:8px}#cr66w .h b{flex:1}#cr66wx{min-width:44px;min-height:40px;font-size:18px;font-weight:800;padding:0}
+body.cr66walking{padding-bottom:calc(30vh + 20px)}body.cr66walking .side{padding-bottom:calc(30vh + 24px)!important;scroll-padding-bottom:calc(30vh + 24px)}
 .cr66more{margin-top:12px;border-top:1px solid rgba(127,127,127,.25);padding-top:6px}.cr66more>summary{cursor:pointer;padding:8px 0;font-weight:700}
 `;
 const st=document.createElement("style"); st.textContent=css; document.head.appendChild(st);
@@ -73,13 +74,13 @@ const GR={blunder:"a big mistake",mistake:"a mistake",miss:"a missed chance",ina
 let W=null;
 function walk(i){ const L=W||[]; if(i<0||i>=L.length){ stop(); return; } W.i=i; const ply=L[i]; try{ go(ply,true); }catch(e){}
   const pl=(window.P||P||[])[ply-1]||{}, mv=Math.ceil(ply/2), cls=pl.cls||"";
-  let txt=`Move ${mv}: this was ${GR[cls]||"a key moment"}.`; try{ if(pl.expl&&window.plainChess) txt+=" "+plainChess(pl.expl); }catch(e){}
+  let txt=`Move ${mv}: this was ${GR[cls]||"a key moment"}.`; try{ if(pl.expl&&window.plainChess){ let e=String(plainChess(pl.expl)).trim(); const g=[(GR[cls]||"").replace(/^an? /,""),{blunder:"blunder",miss:"miss(ed)?",mistake:"mistake",inaccuracy:"inaccuracy"}[cls]].filter(Boolean).join("|"); /* drop the grade word when the coach line repeats it */ for(let k=0;k<3&&g;k++){ const e2=e.replace(new RegExp("^(an? )?("+g+")( chance)?[.!:,]?\\s*","i"),""); if(e2===e) break; e=e2; } if(e) txt+=" "+e.charAt(0).toUpperCase()+e.slice(1); } }catch(e){}
   txt+=" Look at the board, then try to spot the better idea before you go on.";
-  let c=$("cr66w"); if(!c){ document.body.insertAdjacentHTML("beforeend",`<div id="cr66w" role="dialog" aria-label="Key moments"><b id="cr66wh"></b><p id="cr66wp"></p><div class="r"><button type="button" class="btn" id="cr66wb">‹ Back</button><button type="button" class="btn primary" id="cr66wn">Next ›</button></div></div>`);
-    $("cr66wb").onclick=()=>walk(W.i-1); $("cr66wn").onclick=()=>walk(W.i+1); }
+  let c=$("cr66w"); if(!c){ document.body.insertAdjacentHTML("beforeend",`<div id="cr66w" role="region" aria-label="Key moments"><div class="h"><b id="cr66wh"></b><button type="button" class="btn" id="cr66wx" aria-label="Close">✕</button></div><p id="cr66wp"></p><div class="r"><button type="button" class="btn" id="cr66wb">‹ Back</button><button type="button" class="btn primary" id="cr66wn">Next ›</button></div></div>`);
+    $("cr66wx").onclick=()=>stop(); $("cr66wb").onclick=()=>walk(W.i-1); $("cr66wn").onclick=()=>walk(W.i+1); }
   B.classList.add("cr66walking"); $("cr66wh").textContent=`Key moment ${i+1} of ${L.length}`; $("cr66wp").textContent=txt;
   $("cr66wb").disabled=i===0; $("cr66wn").textContent=i===L.length-1?"Done ✓":"Next ›"; }
-function stop(){ const c=$("cr66w"); if(c) c.remove(); B.classList.remove("cr66walking"); W=null; try{ CRRev59.setTab("sum"); }catch(e){} window.scrollTo(0,0); }
+function stop(){ const c=$("cr66w"); if(c) c.remove(); B.classList.remove("cr66walking"); W=null; } /* v70: closing the card keeps you where you are */
 function decorate(){ const s=$("rv59sum"); if(!s||!s.firstElementChild||s.dataset.cr66===s.firstElementChild.textContent+s.childElementCount) return;
   const ol=s.querySelector("ol.rv59top");
   if(ol&&!$("cr66walk")){ ol.querySelectorAll("li").forEach(li=>{ const b=li.querySelector(".rv59show"), l=li.querySelector(".rv59l"); if(b&&l){ const ply=+b.dataset.ply, pl=(P||[])[ply-1]||{}; l.textContent=`Move ${Math.ceil(ply/2)} · ${GR[pl.cls]||"key moment"}`; } });

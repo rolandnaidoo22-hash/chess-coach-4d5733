@@ -7,7 +7,7 @@ const E_=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 const CH=()=>window.ChessLib&&window.ChessLib.Chess||window.Chess;
 const LS={get:(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } },set:(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }};
 const NAME={k:"king",q:"queen",r:"rook",b:"bishop",n:"knight",p:"pawn"};
-const CSS=`.b57ask{font-size:14px;text-align:center;margin:4px 0;background:#fff3c4;color:#222;border-radius:8px;padding:5px}.b57ask:empty{display:none}.b57w{border:2px solid #d23c3c!important;background:#fff4f4!important;color:#222}.p52{display:none;padding:4px 0 80px}.p52.on{display:block}
+const CSS=`.bk70{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;margin:4px 0 8px;font-weight:800;font-size:16px;border-radius:12px}.b57ask{font-size:14px;text-align:center;margin:4px 0;background:#fff3c4;color:#222;border-radius:8px;padding:5px}.b57ask:empty{display:none}.b57w{border:2px solid #d23c3c!important;background:#fff4f4!important;color:#222}.p52{display:none;padding:4px 0 80px}.p52.on{display:block}
 .p52 h2{font-size:21px;margin:6px 0 4px}.p52 h3{font-size:17px;margin:14px 0 6px}.p52 p{line-height:1.45;margin:6px 0}.p52 .mute{color:var(--mute);font-size:13.5px}
 .p52 .card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px 12px;margin:8px 0}
 .p52 .lt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:62px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit;padding:10px 12px;margin:0 0 8px;cursor:pointer}
@@ -38,7 +38,11 @@ let pages={}, styled=false;
 function page(id){ if(!styled){ const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); styled=true; }
   if(pages[id]) return pages[id]; const d=document.createElement("div"); d.id=id; d.className="p52";
   const w=document.querySelector(".wrap")||document.body, hs=$("hs"); if(hs&&hs.parentNode===w) hs.after(d); else w.insertBefore(d,w.firstChild); pages[id]=d; return d; }
-function show(id){ try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ window.Trainer&&Trainer.close(); }catch(e){} closeAll(); const p=page(id); p.classList.add("on"); window.scrollTo(0,0); return p; }
+/* v70: every sub-screen gets a clear back button at the top */
+const BK70=new MutationObserver(ms=>ms.forEach(m=>{ const p=m.target; if(!p.classList||!p.classList.contains("p52")||!p.classList.contains("on")||!p.firstElementChild||p.querySelector(":scope > .bk70")) return;
+  const t=(p.firstElementChild.textContent||"").trim(); if(/^‹/.test(t)) return;
+  p.insertAdjacentHTML("afterbegin",`<button type="button" class="btn bk70" aria-label="Go back">‹ Back</button>`); p.firstElementChild.onclick=()=>{ try{ CRHome.goHome(); }catch(e){ location.hash=""; } }; }));
+function show(id){ try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ window.Trainer&&Trainer.close(); }catch(e){} closeAll(); const p=page(id); if(!p.dataset.bk70){ p.dataset.bk70=1; BK70.observe(p,{childList:true}); } p.classList.add("on"); window.scrollTo(0,0); return p; }
 const closers=[]; function onClose(f){ closers.push(f); }
 function closeAll(){ Object.values(pages).forEach(p=>{ p.classList.remove("on"); p.innerHTML=""; }); closers.forEach(f=>{ try{ f(); }catch(e){} }); }
 /* board: el gets an svg.b3d; draw(fen,{hl,dots,arrows}); onTap(square) */
