@@ -2,7 +2,7 @@
    on its right, and the BAD check and the "Why" cards as small tap-to-open cards just under the board. */
 (function(){
 "use strict"; if(window.CRMoves71) return;
-const $=id=>document.getElementById(id), B=document.body, COL=()=>innerWidth<420?70:96;
+const $=id=>document.getElementById(id), B=document.body, COL=()=>innerWidth<420?58:96;
 const css=`
 body.cr67m #cr67tabs{display:none!important}
 body.cr67m .boardrow{margin:0 0 0 var(--cr71l,0px)!important}
@@ -12,7 +12,7 @@ body.cr67m #cr71feel.off{display:none}
 #cr71feel #gt65r{margin:0!important;white-space:normal!important;overflow:visible!important}
 #cr71feel .gt65{display:block;margin:0;padding:0;border:0;background:none}#cr71feel .gt65>span{display:none}
 #cr71feel .gt65c{display:flex!important;flex-direction:column;gap:6px;margin:0}
-#cr71feel .gt65c button{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:58px;padding:4px 2px!important;font-size:11.5px!important;line-height:1.15;border-radius:12px;white-space:normal}
+#cr71feel .gt65c button{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:58px;padding:4px 1px!important;font-size:11px!important;line-height:1.15;border-radius:12px;white-space:normal}
 #cr71feel .gt65c button .e{font-size:22px;line-height:1}
 #cr71chips{display:none}body.cr67m #cr71chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}body.cr67m #cr71chips:empty{display:none}
 #cr71chips button{min-height:38px;border-radius:19px;border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;font:inherit;font-size:13.5px;font-weight:700;padding:0 12px}
@@ -39,7 +39,7 @@ function build(){ const card=$("cr67card"), side=document.querySelector("section
   return true; }
 function menu(){ let m=$("cr71menu"); if(m){ m.remove(); return; }
   document.body.insertAdjacentHTML("beforeend",`<div id="cr71menu" role="menu"><button type="button" data-t="moves">📜 Move list and auto-play</button><button type="button" data-t="feel">🙂 My feelings (Gut Check)</button><button type="button" data-t="tools">🧰 Tools: engine, openings, share</button><button type="button" data-t="coach">🧑‍🏫 Coach notes for this move</button></div>`);
-  m=$("cr71menu"); m.querySelectorAll("button").forEach(b=>b.onclick=()=>{ m.remove(); close(); CRMoves67.setT(b.dataset.t); });
+  m=$("cr71menu"); const mb=$("cr71more").getBoundingClientRect(); m.style.top=Math.round(mb.bottom+4)+"px"; m.querySelectorAll("button").forEach(b=>b.onclick=()=>{ m.remove(); close(); CRMoves67.setT(b.dataset.t); });
   setTimeout(()=>document.addEventListener("click",function f(ev){ if(!m.contains(ev.target)){ m.remove(); document.removeEventListener("click",f); } }),0); }
 function close(){ const p=$("cr71pop"); if(p){ const h=$("cr71hold"); [...p.querySelectorAll(".badbox,#rvIdeas")].forEach(n=>h.appendChild(n)); p.remove(); } open=null; chips(); }
 function pop(kind){ if(open===kind){ close(); return; } close(); const h=$("cr71hold"), n=kind==="bad"?h.querySelector(".badbox"):h.querySelector("#rvIdeas"); if(!n) return;
@@ -63,7 +63,7 @@ function tick(){ const on=B.classList.contains("cr67m"); const fe=$("cr71feel");
   const colW=COL(), vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42;
   B.style.setProperty("--cr71c",colW+"px");
   const br=document.querySelector("body.cr67m .boardrow"); if(br){ const w=br.getBoundingClientRect().width, left=Math.max(0,Math.round((innerWidth-12-(w+colW+8))/2)); B.style.setProperty("--cr71l",(innerWidth<600?0:left)+"px");
-    const r=br.getBoundingClientRect(); B.style.setProperty("--cr71t",Math.round(r.top+2)+"px"); B.style.setProperty("--cr71x",Math.round(r.right+8)+"px"); } }
+    const r=br.getBoundingClientRect(); B.style.setProperty("--cr71t",Math.round(r.top+2)+"px"); B.style.setProperty("--cr71x",Math.round(r.right+6)+"px"); } }
 window.CRMoves71={tick,pop,close,menu,col:COL};
 setInterval(tick,250); addEventListener("resize",tick);
 })();

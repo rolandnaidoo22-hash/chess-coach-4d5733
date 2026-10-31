@@ -64,7 +64,7 @@ function tick(){ const on=ON(); B.classList.toggle("cr67m",on); if(!on||!build()
   if(q&&q.parentNode!==card) card.appendChild(q); if(g&&g.parentNode!==card){ g.classList.add("cr67in"); card.appendChild(g); }
   [...side.children].forEach(e=>{ if(e.id==="cr67card"||e.id==="cr67tabs") return; const p=pane(e); if(e.dataset.cr67p!==p) e.dataset.cr67p=p; });
   // fit: bar, board (about half the screen), eval strip, then the scrolling part
-  const vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42; const bsz=Math.max(220,Math.min(innerWidth-30-(window.CRMoves71?CRMoves71.col()+8:0),Math.round(vh*0.42)-40));
+  const vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42; const bsz=Math.max(220,Math.min(window.CRMoves71?innerWidth-14-CRMoves71.col():innerWidth-30,Math.round(vh*0.42)-40));
   B.style.setProperty("--cr67b",bsz+"px"); B.style.setProperty("--cr67a",Math.round(bar)+"px");
   const bc=document.querySelector("section.main .boardcol"), bh=bc?bc.getBoundingClientRect().height:bsz+50;
   B.style.setProperty("--cr67g",Math.round(bar+bh)+"px"); B.style.setProperty("--cr67s",Math.round(bar+bh+30)+"px");
