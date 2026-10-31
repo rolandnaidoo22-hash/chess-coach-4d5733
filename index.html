@@ -10122,15 +10122,15 @@ function grokShow(c,G){ const box=$("gmGrokBox"); if(!box) return; const pv=c.pv
    <button class="cbtn full" id="gmGrokRe" style="text-align:center">🔄 Ask again</button>
    
    `;
-  $("gmGrokRe").onclick=()=>grokAsk(G,null,"gemini"); const gg=$("gmGrokG"); if(gg) gg.onclick=()=>{ const g2=C[id+"|grok"]; if(g2&&g2.text) grokShow(g2,G); else grokAsk(G,null,"grok"); };
+  $("gmGrokRe").onclick=()=>grokAsk(G,null,"gemini",true); const gg=$("gmGrokG"); if(gg) gg.onclick=()=>{ const g2=C[id+"|grok"]; if(g2&&g2.text) grokShow(g2,G); else grokAsk(G,null,"grok"); };
   const go=$("gmGrokO"); if(go) go.onclick=()=>grokShow(other,G); const b=$("gmGrok"); if(b) b.style.display="none"; }
 function grokCache(){ const c=LS.get(CGR,{}); if(!c||typeof c!=="object") return {}; Object.keys(c).forEach(k=>{ if(!k.includes("|grok")&&!k.includes("|gemini")&&c[k]&&c[k].text){ const v=c[k]; v.pv="grok"; if(!c[k+"|grok"]) c[k+"|grok"]=v; delete c[k]; } }); return c; }
 function grokId(G){ const m=G.d.meta; return String(m.link||[m.white,m.black,m.date,G.P.length].join("|")).replace(/\/$/,""); }
-async function grokAsk(G,H,prov){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
+async function grokAsk(G,H,prov,fresh){ prov=prov==="grok"?"grok":"gemini"; const id=grokId(G), b=$("gmGrok"), box=$("gmGrokBox"); if(!box) return;
   if(b){ b.style.display=""; b.disabled=true; b.innerHTML=`Coach is studying your game…`; }
   box.innerHTML=`<div class="co17note">${window.CRMem?CRMem.loader("Coach is starting… the first lines show in a few seconds."):"⏳ Coach is starting… the first lines show in a few seconds."}</div>`;
   try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),150000), pl=grokPayload(G,H||history(G)); if(prov==="grok") pl.provider="grok"; try{ if(window.CRMem){ const mm=CRMem.summary(); if(mm.length) pl.memory=mm; } }catch(e){}
-    pl.stream=true; try{ if(window.CRRating){ const rn=CRRating.now(); if(rn&&rn.r) pl.rating=String(rn.r); } }catch(e){}
+    pl.stream=true; if(fresh) pl.fresh=true; try{ if(window.CRRating){ const rn=CRRating.now(); if(rn&&rn.r) pl.rating=String(rn.r); } }catch(e){}
     const t68=Date.now(); window.CR68T={start:t68};
     const r=await fetch(GROK_URL(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl),signal:ctl.signal});
     let d;
