@@ -5,7 +5,7 @@
 "use strict";
 if(window.B3D) return;
 const MK="cr.board";
-function mode(){ let m=null; try{ if(localStorage.getItem("cr.board51")!=="1"){ localStorage.setItem(MK,"flat"); localStorage.setItem("cr.pieces3d","0"); localStorage.setItem("cr.board51","1"); } m=localStorage.getItem(MK); }catch(e){}
+function mode(){ let m=null; try{ if(localStorage.getItem("cr.board69")!=="1"){ if(localStorage.getItem(MK)==="toon") localStorage.setItem(MK,"flat"); localStorage.setItem("cr.board69","1"); } if(localStorage.getItem("cr.board51")!=="1"){ localStorage.setItem(MK,"flat"); localStorage.setItem("cr.pieces3d","0"); localStorage.setItem("cr.board51","1"); } m=localStorage.getItem(MK); }catch(e){}
   if(m!=="flat"&&m!=="stand"&&m!=="gl"&&m!=="toon"){ let o=null; try{ o=localStorage.getItem("cr.pieces3d"); }catch(e){} m="flat"; try{ localStorage.setItem(MK,m); }catch(e){} }
   return m; }
 const B3D=window.B3D={mode,views:new Map(),ready:false,failed:false,active:svg=>{const v=B3D.views.get(svg);return !!(v&&v.on);}};

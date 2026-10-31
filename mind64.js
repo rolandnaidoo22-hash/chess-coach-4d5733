@@ -7,10 +7,10 @@ const KT="chessReview.v64.thinkAloud", KB="chessReview.v64.botlog", KP="chessRev
 /* ================= Think out loud ================= */
 const CHIPS=[["attk","⚔️ Attack the king"],["attp","🎯 Attack a piece"],["def","🛡 Defend"],["dev","🚀 Develop"],["trade","🔁 Trade"],["unsure","🤷 Not sure"]];
 const CAT={attk:"attack",attp:"attack",def:"defend",dev:"develop",trade:"trade",unsure:"unsure"}, CATW={attack:"attack",defend:"defend",develop:"develop your pieces",trade:"trade pieces",calm:"improve a piece calmly",unsure:"(not sure)"};
-const on=()=>LG(KT,0)===1;
+const KT69="chessReview.v69.thinkBots"; const on=()=>LG(KT69,0)===1; /* v69: off by default for bot games */
 function attach(G){ G.tol={plans:[],cur:null,turnAt:null,times:[]}; const r=$("b52grd"); if(!r) return; const b=document.createElement("button"); b.className="bt"; b.id="b64tol"; r.parentNode.appendChild(b);
   const lab=()=>{ b.textContent=on()?"💭 Think out loud: On":"💭 Think out loud: Off"; b.setAttribute("aria-pressed",String(on())); b.classList.toggle("go",on()); };
-  lab(); b.onclick=()=>{ LS(KT,on()?0:1); lab(); window.CRBots&&CRBots._game()===G&&draw(G); }; }
+  lab(); b.onclick=()=>{ LS(KT69,on()?0:1); lab(); window.CRBots&&CRBots._game()===G&&draw(G); }; }
 function draw(G){ if(!G||!G.tol) return; const g=G.g, mine=!G.thinking&&!g.isGameOver()&&g.turn()===G.me;
   if(mine&&G.tol.turnAt==null) G.tol.turnAt=Date.now();
   const el=$("b52ask"); if(!el||!on()||!mine||G.warn) return; const c=G.tol.cur;

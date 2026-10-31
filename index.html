@@ -509,6 +509,7 @@ body.p3d .trboard svg.b3d:not(.flat3d){margin-top:-12%}
    <button class="btn" id="bClip">Paste from clipboard</button>
    <button class="btn" id="bFetch">⬇ Get my latest games (online)</button>
   </div>
+  <small class="cr69at" style="display:block;color:var(--mute);margin:2px 0 6px"></small>
   <div id="fetchList"></div>
   <div class="progress" id="prog"><div class="pbar"><div id="progFill"></div></div><div class="ptxt" id="progTxt"></div><button class="btn" id="bCancel">Cancel</button></div>
   <div class="perr" id="perr"></div>
@@ -5138,9 +5139,9 @@ function renderGames(sel){
   const ex=window.EXAMPLE_DATA;
   let h=`<div class="glist">`;
   if(ex) h+=`<div class="gitem ${currentId==="example"?"cur":""}"><div class="gt"><b>${esc(ex.meta.white)} vs ${esc(ex.meta.black)}</b><small>${esc(ex.meta.date)} · ${esc(ex.meta.result)} · ${window.CRUser&&!CRUser.isOwnerOfExample()?"famous example game (to try the app)":"example (hand-checked notes)"}</small></div><button class="btn" data-open="example">Open</button></div>`;
-  list.forEach((g,i)=>{ h+=`<div class="gitem ${currentId===g.id?"cur":""}"><div class="gt"><b>${esc(g.title)}</b>${window.CRAcct&&g.data&&g.data.meta&&/^https?:/.test(g.data.meta.link||"")?CRAcct.tag(g.data.meta.link):""}<small>${esc(g.date)} · ${esc(g.result)} · your accuracy ${g.acc}% · ${esc(String(g.mode).split(" ")[0])}</small></div><button class="btn" data-open="${i}">Open</button><button class="btn" data-del="${i}" title="Delete">🗑</button></div>`; });
+  list.forEach((g,i)=>{ h+=`<div class="gitem ${currentId===g.id?"cur":""}"><div class="gt"><b>${esc(g.title)}</b>${window.CRSync&&g.data&&g.data.meta?CRSync.tag(g.data.meta.link):""}${window.CRAcct&&g.data&&g.data.meta&&/^https?:/.test(g.data.meta.link||"")?CRAcct.tag(g.data.meta.link):""}<small>${esc(g.date)} · ${esc(g.result)} · your accuracy ${g.acc}% · ${esc(String(g.mode).split(" ")[0])}</small></div><button class="btn" data-open="${i}">Open</button><button class="btn" data-del="${i}" title="Delete">🗑</button></div>`; });
   h+=`</div>`; if(!list.length) h+=`<p style="font-size:13px;color:var(--mute)">Games you analyze are saved here on this phone.</p>`;
-  $("mygames").innerHTML=h;
+  $("mygames").innerHTML=(window.CRSync?CRSync.bar():"")+h;
   $("mygames").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{ const k=b.dataset.open;
     if(k==="example"){ currentId="example"; loadData(ex); } else { const g=loadGames()[+k]; currentId=g.id; loadData(upgrade(g.data)); }
     renderGames(); $("paste").classList.remove("gopen"); window.scrollTo(0,0); });
@@ -5216,7 +5217,7 @@ async function fetchLatest(){
     $("fetchList").innerHTML=`<div class="glist">`+games.map((g,i)=>{ const me=g.white.username.toLowerCase()===u?"w":"b"; const opp=me==="w"?g.black:g.white;
       const res=(me==="w"?g.white.result:g.black.result); const r=res==="win"?"Won":["agreed","repetition","stalemate","insufficient","50move","timevsinsufficient"].includes(res)?"Draw":"Lost";
       const dt=new Date((g.end_time||0)*1000).toLocaleDateString();
-      return `<div class="gitem"><div class="gt"><b>vs ${esc(opp.username)} (${opp.rating})${window.CRAcct?CRAcct.tag(g.url):""}</b><small>${dt} · ${r} · ${esc(g.time_class||"")} · you were ${me==="w"?"White":"Black"}</small></div><button class="btn primary" data-g="${i}">Review</button></div>`; }).join("")+`</div>`;
+      return `<div class="gitem"><div class="gt"><b>vs ${esc(opp.username)} (${opp.rating})${window.CRAcct?CRAcct.tag(g.url):""}</b><small>${window.CRSync?CRSync.tag(g.url):""}${dt} · ${r} · ${esc(g.time_class||"")} · you were ${me==="w"?"White":"Black"}</small></div><button class="btn primary" data-g="${i}">Review</button></div>`; }).join("")+`</div>`;
     $("fetchList").querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ const g=games[+b.dataset.g]; $("pgnIn").value=g.pgn; $("fetchList").innerHTML=""; analyze(g.pgn); });
   }catch(e){ $("fetchList").innerHTML=""; $("perr").textContent="Couldn't reach Chess.com (are you online?). You can still paste the PGN by hand."; }
 }
@@ -5228,7 +5229,7 @@ $("bOpenPaste").onclick=()=>{ $("paste").classList.toggle("open"); $("paste").cl
 $("bOpenGames").onclick=()=>{ $("paste").classList.toggle("gopen"); $("paste").classList.remove("open"); if(window.PatternsUI) PatternsUI.close(); renderGames(); };
 $("bAnalyze").onclick=()=>analyze();
 $("bCancel").onclick=()=>{ cancelFlag=true; };
-$("bFetch").onclick=fetchLatest;
+$("bFetch").onclick=()=>{ fetchLatest(); if(window.CRSync) CRSync.pull(true); };
 $("bClip").onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(t){ $("pgnIn").value=t; $("perr").textContent=""; } else $("perr").textContent="Clipboard is empty."; }
   catch(e){ $("perr").textContent="Your browser didn't allow reading the clipboard. Long-press the box and choose Paste instead."; } };
 renderGames();
@@ -9621,8 +9622,9 @@ async function autoImport(force,opts){ if(IMP.running) return "busy"; const info
   if(ReviewApp.isRunning()){ setImp("Another analysis is running. I'll check for new games later.",0); setTimeout(()=>setImp("",0),4000); return "busy"; }
   IMP.running=true; IMP.cancel=false; let done=0, eng=null, held=false;
   try{ setImp("Checking Chess.com for new games…",3);
-    const a=await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`); const arcs=toArr(a.archives).slice(-2).reverse(); let games=[];
-    for(const u of arcs){ const g=await getJson(u); games=games.concat(toArr(g.games).filter(x=>x.pgn&&x.rules==="chess")); if(games.length>=10) break; }
+    let games=[]; if(opts&&opts.games){ games=toArr(opts.games).filter(x=>x.pgn&&x.rules==="chess"); } else { /* v69: the sync passes the current month it already has */
+    const a=await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`); const arcs=toArr(a.archives).slice(-2).reverse();
+    for(const u of arcs){ const g=await getJson(u); games=games.concat(toArr(g.games).filter(x=>x.pgn&&x.rules==="chess")); if(games.length>=10) break; } }
     games.sort((x,y)=>(y.end_time||0)-(x.end_time||0)); const have=opts&&opts.have, todo=games.slice(0,10).filter(g=>{ const id=String(g.url).replace(/\/$/,""); return have?!have.has(id):!PatternStore.has(id); }).slice(0,5);
     const s1=S(); s1.lastImp=Date.now(); save(s1);
     if(!todo.length){ setImp("✓ No new games. You're up to date.",100); setTimeout(()=>{ if(!IMP.running) setImp("",0); },3500); return; }
@@ -9643,7 +9645,7 @@ async function autoImport(force,opts){ if(IMP.running) return "busy"; const info
       if(held&&IMP.paused){ ReviewApp.setRunning(false); held=false; } }
     if(!IMP.wantResume) { setImp(done?`✓ ${done} new game${done>1?"s":""} checked. See “Last game”.`:"✓ Up to date.",100); setTimeout(()=>{ if(!IMP.running&&!IMP.wantResume) setImp("",0); },5000); }
   }catch(e){ console.error(e); setImp("Couldn't reach Chess.com (are you online?).",0); setTimeout(()=>setImp("",0),4000); }
-  finally{ if(held){ ReviewApp.setRunning(false); try{ ReviewApp.keepAwake(false); }catch(e){} } IMP.running=false; refreshCard(); if(view==="home"&&sec&&sec.classList.contains("on")) VIEWS.home(); } }
+  finally{ if(held){ ReviewApp.setRunning(false); try{ ReviewApp.keepAwake(false); }catch(e){} } IMP.running=false; refreshCard(); if(view==="home"&&sec&&sec.classList.contains("on")) VIEWS.home(); if(done&&view!=="home") document.dispatchEvent(new CustomEvent("cr69games",{detail:{imp:done}})); } }
 function slim(d){ const P=d.plies.map(p=>({ply:p.ply,label:p.label,san:p.san,uci:p.uci,color:p.color,fen:p.fen,fen_before:p.fen_before,eval_before:p.eval_before,eval:p.eval,cls:p.cls,best_san:p.best_san,best_uci:p.best_uci,ep_loss:p.ep_loss,cpl:p.cpl,user:p.user,expl:p.expl}));
   return Object.assign({},d,{plies:P}); }
 
@@ -9657,7 +9659,7 @@ const WHAT={blunder:"This move lost a lot: it gave your opponent a big chance.",
 function demoPos(){ const ex=window.EXAMPLE_DATA; if(!ex||!ex.plies) return null; let best=null;
   ex.plies.forEach((p,i)=>{ if(!["mistake","blunder","miss"].includes(p.cls)) return; const s=+p.ep_loss||0; if(!best||s>(+best.p.ep_loss||0)) best={p,i}; });
   return best&&{ex,...best}; }
-function review(){ const L=lastGame(); let h=head("🔎 Your last game");
+function review(){ const L=lastGame(); let h=head("🔎 Your last game")+(window.CRSync?`<div id="cr69rv">${CRSync.bar()}</div>`:"");
   if(!L){ const D=demoPos(); let sample="";
     if(D){ const p=D.p, ex=D.ex, moveNo=Math.ceil((+p.ply||D.i+1)/2), who=p.color==="w"?"White":"Black";
       sample=`<p class="co17sm"><b>Sample preview</b> · ${e_(ex.meta&&ex.meta.title||"demo game")}. This is the bundled demo, not one of your games.</p>
@@ -9726,7 +9728,7 @@ function week(R,s,off){ const m=monday(new Date()); m.setDate(m.getDate()-7*off)
   let days=0, sec=0, pz=0, ok=0; for(const [k,v] of Object.entries(s.log||{})){ if(k>=a&&k<b){ sec+=v.sec||0; pz+=v.pz||0; ok+=v.ok||0; } } for(const k of Object.keys(s.days||{})) if(k>=a&&k<b) days++;
   return {n,hang:per("hang"),miss:per("miss"),mm:n?G.reduce((x,r)=>x+cnt(r,"missmate"),0):null,acc:n?avg(G.map(r=>r.acc).filter(x=>x!=null)):null,cas:n?G.filter(r=>r.castled!=null&&r.castled<=10).length/n*100:null,days,min:Math.round(sec/60),pz,ok}; }
 async function road(){ const s=S(), R=recs(); sec.innerHTML=head(`🛣 Road to ${GSP("your goal")}`)+`<p class="co17sm">Loading your rating…</p>`; wire();
-  const rating=await fetchRating(); if(view!=="road"||!sec.classList.contains("on")) return; const s2=S(), ST=stages(R,s2,rating), r=rating?rating.r:(R[0]&&R[0].myElo)||null;
+  const rating=await fetchRating(); if(view!=="road"||!sec.classList.contains("on")) return; const s2=S(), ST=stages(R,s2,rating), r=rating?rating.r:(window.CRRating&&CRRating.now()&&CRRating.now().r)||(R[0]&&R[0].myElo)||null;
   const cur=ST.find(x=>!r||r<x.b)||ST[2], pos=r?Math.max(0,Math.min(100,r<500?(r-300)/200*33.33:r<800?33.33+(r-500)/300*33.33:66.67+(r-800)/400*33.33)):0;
   let h=head(`🛣 Road to ${GSP("your goal")}`)+`<p>Your rating: <b>${r||"?"}</b>${rating?` (${e_(rating.k)})`:""}. Your goal: <b>${GSP("not set yet")}</b> <small>(change it in ⚙ Settings)</small>.</p><div class="co17ck"><span class="b" data-goalok>${r&&GSET()&&r>=GOAL()?"✅":"⬜"}</span><span>🎯 Reach your goal: <b>${GSP("not set yet")}</b><small>now: ${r||"?"}</small></span></div><p> Long goal: grandmaster, one step at a time.</p>
    <div class="co17ms"><span>300</span><span>500</span><span>800</span><span>1200</span></div><div class="co17road"><i style="width:${pos}%"></i><em style="left:${pos}%">♟</em></div>
@@ -10043,11 +10045,11 @@ function openingNote(G){ try{ const C=LS.get(OK_,null); if(!C||!C.g) return ""; 
     const st=groupStats(L,G.me); return `Opening: you played <b>${e_(mine)}</b> (${L.length} games in your history: ${st.W} won, ${st.D} drawn, ${st.L} lost). ${e_(oppTitle(opp))}.`; }catch(e){ return ""; } }
 function exProgress(s){ const X=s.ex; if(!X) return ""; const R=recs().filter(r=>dnum(r.date)>=X.from).slice(0,5), n=R.length, per=R.length?avg(R.map(r=>toArr(r.ev).filter(e=>X.kinds.includes(e.k)).length)):null;
   return `<div class="co17good"><b>🎯 Your exercise (${Math.min(n,5)} of 5 games):</b> ${e_(X.t)}<br>${n?`Those mistakes per game since you started: <b>${per.toFixed(1)}</b> (before: ${X.base.toFixed(1)}) ${per<X.base?"⬆ better!":"keep going"}`:"Play your next game and it will be counted here."}${n>=5?"<br>✅ 5 games done! Pick a new exercise from your next report.":""}</div>`; }
-function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.length){ sec.innerHTML=h+`<div class="co17note">No analysed game yet. Open My Coach after a Chess.com game (it checks new games), or review one with “Review a new game”.</div>`; return wire(); }
+function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report")+(window.CRSync?CRSync.bar():""); if(!L.length){ sec.innerHTML=h+`<div class="co17note">No analysed game yet. Open My Coach after a Chess.com game (it checks new games), or review one with “Review a new game”.</div>`; return wire(); }
   const k=Math.max(0,Math.min(L.length-1,(arg&&arg.k)||0)), G=gmData(L[k].d), m=G.d.meta, me=G.me, opp=me==="w"?m.black:m.white, res=m.result==="1/2-1/2"?"Draw":(m.result==="1-0")===(me==="w")?"Win":"Loss";
   const s=S(); const H=history(G); const kc={}; G.errs.forEach(e=>kc[e.kind]=(kc[e.kind]||0)+(e.kind==="general"?0.5:1)); const tk=Object.entries(kc).sort((a,b)=>b[1]-a[1])[0]; const top=tk?{kind:tk[0]}:null; const theme=top?(THEME[top.kind]||THEME.general)+(tk[1]>=2?` (${Math.round(tk[1])} of your ${G.errs.length} key mistakes)`:""):"Clean play: no big mistakes";
   const phN=["Opening","Middlegame","Endgame"], phW=x=>!x?"not reached":x.bad===0?(x.a>=75?"Strong":"Solid"):x.bad===1?"One slip":"Shaky ("+x.bad+" big mistakes)";
-  h+=`<div class="co17row"><select id="gmPick" style="font-size:16px;min-height:48px;border-radius:10px;max-width:100%">${L.slice(0,15).map((g,j)=>`<option value="${j}" ${j===k?"selected":""}>${e_(g.date)} · vs ${e_(g.d.meta.user_color==="w"?g.d.meta.black:g.d.meta.white)}</option>`).join("")}</select></div>
+  h+=`<div class="co17row"><select id="gmPick" style="font-size:16px;min-height:48px;border-radius:10px;max-width:100%">${L.slice(0,15).map((g,j)=>`<option value="${j}" ${j===k?"selected":""}>${window.CRSync&&CRSync.isNew(g.id)?"🆕 new · ":""}${e_(g.date)} · vs ${e_(g.d.meta.user_color==="w"?g.d.meta.black:g.d.meta.white)}</option>`).join("")}</select></div>
    ${GROK_URL()?`<button class="co17grokB" id="gmGrok">🤖 Ask AI coach</button><div id="gmGrokBox"></div><button class="co17grokB ac59chatB" id="gmAsk59" onclick="try{const x=JSON.parse(sessionStorage.getItem('chessReview.v59.chat')||'{}');x.focus=+document.getElementById('gmPick').value;sessionStorage.setItem('chessReview.v59.chat',JSON.stringify(x));}catch(e){} window.CRAsk59&&CRAsk59.open('chat')">💬 Chat about this game</button><p class="co17sm" id="gmRuleHead">Below: the app's own quick report (no internet needed).</p>`:""}
    ${window.CR58?CR58.snap(G):""}<h3>1️⃣ Executive Summary</h3><div class="co17mis"><p>vs <b>${e_(opp)}</b> · ${e_(m.date)} · you were ${me==="w"?"White":"Black"} · <b>${res}</b></p>
    <p style="font-size:20px">Overall grade: <b>${grade(G.acc==null?null:G.acc-3*G.counts.b-1.5*G.counts.m)}</b> <span class="co17sm">(accuracy ${G.acc==null?"–":Math.round(G.acc)+"%"}, lowered for each blunder and mistake)</span></p>
@@ -10067,7 +10069,7 @@ function gm(arg){ const L=gmGames(); let h=head("🎓 GM Coach Report"); if(!L.l
   h+=`<h3>3️⃣ Coach Insights & Pattern Alert</h3><div class="co17mis">${H.out.length?H.out.map(x=>`<p>⚠️ ${x}</p>`).join(""):"<p>No repeating pattern from your recent games showed up in this game. 👍</p>"}${openingNote(G)?`<p>📖 ${openingNote(G)}</p>`:""}
    <p><b>Your exercise for the next 5 games:</b> ${e_(ex.t)}</p>${s.ex&&s.ex.k===ex.k?"":`<button class="cbtn full pri" id="gmEx" style="text-align:center">🎯 Start tracking this exercise</button>`}${exProgress(s)}</div>
    ${window.CR58?CR58.since()+CR58.checkin():""}<button class="cbtn full blue" id="gmAI" style="text-align:center">🤖 Ask an AI coach about this game</button><div id="gmAIbox"></div>`;
-  sec.innerHTML=h; sec.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.rv; hide(); try{ loadData(G.d); }catch(x){ console.error(x); } setTimeout(()=>{ try{ go(i,true); }catch(x){} },120); }); wire(); $("gmPick").onchange=()=>gm({k:+$("gmPick").value});
+  sec.innerHTML=h; sec.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.rv; hide(); try{ loadData(G.d); }catch(x){ console.error(x); } setTimeout(()=>{ try{ go(i,true); }catch(x){} },120); }); wire(); $("gmPick").onchange=()=>{ const k2=+$("gmPick").value; try{ window.CRSync&&CRSync.seen(L[k2].id); }catch(x){} gm({k:k2}); }; gm._id=L[k].id;
   const eb=$("gmEx"); if(eb) eb.onclick=()=>{ const s2=S(); s2.ex={k:ex.k,t:ex.t,kinds:ex.kinds,from:dkey(),base}; save(s2); gm({k}); };
   $("gmAI").onclick=()=>aiBox(G); grokWire(G,H,arg); }
 const AIPROMPT="You are an elite, adaptive Grandmaster Chess Coach. Your mission is to provide deep, educational, and actionable post-mortem analysis for the player. Rather than giving simple or surface-level feedback, you explain the strategic, tactical, and psychological reasoning behind moves to help the player genuinely learn and improve. YOUR COACHING METHODOLOGY: 1. DEEP EDUCATIONAL DIAGNOSIS: Explain WHY a move was bad and the thought process that likely led to it. 2. POSITIONAL & STRATEGIC PRINCIPLES: Connect specific moves to broader chess principles (e.g., King Safety, Pawn Structure, Weak Squares, Piece Coordination, Overloaded Defenders). 3. WHY THE BEST MOVE WORKS: Clearly articulate what the engine's recommended move achieves. 4. PATTERN & WEAKNESS RECOGNITION: Compare current mistakes to the player's historical habits and recurring blunder themes. 5. CONCRETE ACTIONABLE RULES: End every major breakdown with a simple Rule of Thumb. RESPONSE FORMAT: Section 1: Executive Summary & Performance Breakdown (Overall Game Grade & Phase Assessment; Primary Tactical/Strategic Theme). Section 2: Deep Critical Moment Analysis, for each critical error: The Diagnosis; The GM Solution; The Underlying Principle. Section 3: Adaptive Coach Insights & Historical Pattern Alert, plus 1 targeted exercise/mindset rule for the next 5 games. TONE: Encouraging, insightful, structured, instructive. Use clear chess notation. Translate engine numbers into natural human explanations.";
@@ -10191,6 +10193,8 @@ function init(){ if(!$("home")||!window.Trainer) return; ensure();
   const s=S(); if(s.auto) setTimeout(()=>autoImport(false),2500);
   if(location.hash==="#coach") setTimeout(()=>open("home"),200);
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ bar(); remCheck(); } }); }
+document.addEventListener("cr69games",()=>{ try{ if(!sec||!sec.classList.contains("on")) return; const T=window.CR68T; if(T&&T.start&&!T.total&&Date.now()-T.start<60000) return;
+  if($("gmPick")){ const L=gmGames(), k=Math.max(0,L.findIndex(g=>g.id===gm._id)); const y=scrollY; gm({k}); scrollTo(0,y); } else if(view==="review"&&$("cr69rv")) review(); }catch(e){ console.error(e); } });
 window.Coach17={_tapBoard:tapBoard,_all:()=>gmGames(),open,hide,plan,PAWN,REP,autoImport,_state:S,_imp:IMP,_stages:()=>stages(recs(),S(),S().rating),_week:o=>week(recs(),S(),o),_lastGame:lastGame,_icsText:icsText,_pz:()=>pzCur,_classify:s=>classify(s.split(" ")),_track:()=>trackerData(LS.get(OK_,null)),_gm:k=>{ const G=gmData(gmGames()[k||0].d); return {acc:G.acc,errs:G.errs.map(e=>({kind:e.kind,what:e.what,think:e.think,prin:e.prin,duties:duties(e.p,G.me,+e.p.phase===0)}))}; },_ai:k=>aiText(gmData(gmGames()[k||0].d)),_grokPayload:k=>{ const G=gmData(gmGames()[k||0].d); return grokPayload(G,history(G)); },_md:mdHtml,_games:()=>gmGames().slice(0,15).map((g,k)=>{ const m=g.d.meta, me=m.user_color||"w"; return {k,id:g.id,date:g.date,src:g.src,opp:me==="w"?m.black:m.white,colour:me,res:m.result==="1/2-1/2"?"Draw":(m.result==="1-0")===(me==="w")?"Win":"Loss",opening:m.opening||""}; })};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else setTimeout(init,0);
 })();
@@ -10207,7 +10211,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 </script>
 
 <script defer src="traps.js?v=54ux"></script>
-<script defer src="board3d.js?v=54ux"></script>
+<script defer src="board3d.js?v=69"></script>
 <script defer src="imp.js?v=54ux"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
@@ -10222,11 +10226,11 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=54ux"></script>
 <script defer src="ideas.js?v=54ux"></script>
 <script defer src="openings-names.js?v=54ux"></script>
-<script defer src="bots.js?v=67"></script>
+<script defer src="bots.js?v=69"></script>
 <script defer src="style-model.js?v=54ux"></script>
 <script defer src="style.js?v=54ux"></script>
 <script defer src="study.js?v=67"></script>
-<script defer src="charts.js?v=68"></script>
+<script defer src="charts.js?v=69"></script>
 <script defer src="badges.js?v=56ch"></script>
 <script defer src="openings-data.js?v=54ux"></script>
 <script defer src="openings.js?v=54ux"></script>
@@ -10236,7 +10240,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="guard.js?v=67"></script>
 <script defer src="blunders.js?v=67"></script>
 <script defer src="review58.js?v=67"></script>
-<script defer src="coach58.js?v=68"></script>
+<script defer src="coach58.js?v=69"></script>
 <script defer src="review59.js?v=67"></script>
 <script defer src="coach59.js?v=67"></script>
 <script defer src="memory61.js?v=67"></script>
@@ -10244,12 +10248,13 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="pin63.js?v=67"></script>
 <script defer src="blind64.js?v=67"></script>
 <script defer src="plain64.js?v=67"></script>
-<script defer src="mind64.js?v=67"></script>
+<script defer src="mind64.js?v=69"></script>
 <script defer src="gut65.js?v=67"></script>
 <script defer src="review66.js?v=67"></script>
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=67"></script>
 <script defer src="rating68.js?v=68"></script>
+<script defer src="sync69.js?v=69"></script>
 <script defer src="kids68.js?v=68"></script>
 <script defer src="photo68.js?v=68"></script>
 <script defer src="lesson64.js?v=67"></script>

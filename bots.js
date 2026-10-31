@@ -27,7 +27,12 @@ html.dark-mode .p52 .card,html.dark-mode .p52 .lt,html.dark-mode .p52 .bt:not(.g
 #bots52 .b52side{min-width:0}#bots52 .b52side b{display:block;margin-bottom:6px}
 #bots52 .b52ml{font-family:inherit;font-size:15px;background:#f7f5f0;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:min(70vh,640px);overflow:auto;line-height:1.65}
 #bots52 .b52ml .now{background:#fff3cd;border-radius:6px;font-weight:700;padding:0 4px}
-@media(max-width:800px){#bots52 .playlay{grid-template-columns:1fr}#bots52 .bd{width:min(100%,calc(100dvh - 280px),calc(100vw - 24px));max-width:none}#bots52 .b52ml{max-height:168px}}
+#bots52 .pb69{display:flex;align-items:center;gap:8px;min-height:40px;padding:2px 2px;font-size:15px}#bots52 .pb69 .av{width:32px;height:32px;font-size:20px;display:inline-flex;align-items:center;justify-content:center}#bots52 .pb69 small{color:#667;font-size:13px}
+#bots52 .pb69 .th69{margin-left:auto;font-size:13px;color:#555;min-height:18px}
+#bots52 .ctl69{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 4px}#bots52 .ctl69 button{min-height:50px;padding:4px 2px;border:1px solid #ccd;border-radius:10px;background:#fff;font-size:12px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}#bots52 .ctl69 button span{font-size:20px}#bots52 .ctl69 button:disabled{opacity:.45}
+#bots52 .play69{display:block;width:100%;min-height:60px;font-size:20px;font-weight:700;border-radius:14px;margin:14px 0 8px;background:#2e7d32;color:#fff;border:0}#bots52 .bt.sel69{outline:3px solid #2e7d32;outline-offset:1px}
+#bots52 .pro69{padding-bottom:110px}
+@media(max-width:800px){#bots52 .playlay{grid-template-columns:1fr}#bots52 .bd{width:min(100%,calc(100dvh - 250px),calc(100vw - 24px));max-width:none;margin:0 auto}#bots52 .b52ml{max-height:168px}}
 html.dark-mode #bots52 .b52ml{background:#262626;color:#eee}html.dark-mode #bots52 .b52ml .now{background:#3a3420}`;
 let pages={}, styled=false;
 function page(id){ if(!styled){ const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st); styled=true; }
@@ -63,30 +68,42 @@ function list(){ const p=show("bots52"), R=LS.get(KR,{});
   if(window.CRStyle) CRStyle.listExtra(p); }
 function pickSide(bot){ const p=show("bots52");
   p.innerHTML=`<h2>${E_(bot.name)} <span class="elo">${bot.elo}</span></h2><div class="say"><span class="av">${bot.avatar}</span><span class="bub">${E_(bot.adaptive&&window.CRUltimate&&CRUltimate.inviteDue()?"I've studied the game you beat me in. Rematch?":bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned?"📓 What I learned: "+CRUltimate.status().learned:bot.chat.start[0])}</span></div>${bot.adaptive&&window.CRUltimate?`<p class="mute">Level ${CRUltimate.status().level} of 10 · ${CRUltimate.status().games} games learned · You ${CRUltimate.status().record.you} – ${CRUltimate.status().record.me} Ultimo. It adapts to your games, all on this phone.</p>`:""}
-   <p class="mute">${E_(bot.story)}</p><h3>Play as</h3><div class="row"><button class="bt go" data-c="w">♔ White</button><button class="bt go" data-c="b">♚ Black</button><button class="bt" data-c="r">🎲 Random</button></div><div class="row"><button class="bt" id="b52back">‹ All bots</button></div>`;
-  p.querySelectorAll("[data-c]").forEach(x=>x.onclick=()=>{ let c=x.dataset.c; if(c==="r") c=Math.random()<.5?"w":"b"; start(bot,c); }); $("b52back").onclick=list; }
+   <p class="mute">${E_(bot.story)}</p><h3>Play as</h3><div class="row"><button class="bt sel69" data-c="w" aria-pressed="true">♔ White</button><button class="bt" data-c="b" aria-pressed="false">♚ Black</button><button class="bt" data-c="r" aria-pressed="false">🎲 Random</button></div>
+   <button class="play69" id="b69play">▶ Play ${E_(bot.name)}</button><div class="row"><button class="bt" id="b52back">‹ All bots</button></div>`;
+  p.classList.add("pro69"); let side="w";
+  p.querySelectorAll("[data-c]").forEach(x=>x.onclick=()=>{ side=x.dataset.c; p.querySelectorAll("[data-c]").forEach(y=>{ const on=y===x; y.classList.toggle("sel69",on); y.setAttribute("aria-pressed",String(on)); }); });
+  $("b69play").onclick=()=>{ let c=side; if(c==="r") c=Math.random()<.5?"w":"b"; start(bot,c); }; $("b52back").onclick=list; }
 function say(kind){ if(!G) return; const l=G.bot.chat[kind]; if(!l||!l.length) return; const el=$("b52say"); if(el) el.textContent=l[Math.floor(Math.random()*l.length)]; }
 function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.CRUltimate){ CRUltimate.clearInvite(); bot=CRUltimate.profile(); }
-  p.innerHTML=`<div class="say"><span class="av sm">${bot.avatar}</span><span class="bub" id="b52say"></span></div>
-   <div class="mute" style="text-align:center"><b>${E_(bot.name)}</b> <span class="elo">${bot.adaptive?"Level "+bot.level:bot.elo}</span> · ${E_(bot.style)}</div>
-   <div class="playlay"><div><div class="bd" id="b52bd"></div><div class="msg" id="b52msg"></div><div id="b52ask" class="b57ask"></div><div id="b52warn"></div></div>
+  p.classList.remove("pro69"); const RN=window.CRRating&&CRRating.now(), myN=(((window.CRUser&&CRUser.info())||{}).cc)||"You";
+  p.innerHTML=`<div class="playlay"><div>
+   <div class="pb69" id="b69top"><span class="av sm">${bot.avatar}</span><b>${E_(bot.name)}</b><small>${bot.adaptive?"Level "+bot.level:bot.elo}</small><span class="th69" id="b69th" aria-live="polite"></span></div>
+   <div class="bd" id="b52bd"></div>
+   <div class="pb69" id="b69me"><span class="av sm">🙂</span><b>${E_(myN)}</b><small>${RN&&RN.r?RN.r:""}</small><span class="th69" id="b69turn"></span></div>
+   <div class="ctl69"><button id="b69res"><span>🏳</span>Resign</button><button id="b52undo"><span>↶</span>Undo</button><button id="b52flip"><span>⇅</span>Flip</button><button id="b69hint"><span>💡</span>Hint</button><button id="b52new"><span>⟲</span>New</button></div>
+   <div class="msg" id="b52msg"></div><div id="b52warn"></div><div id="b52ask" class="b57ask"></div>
+   <div class="say"><span class="av sm">${bot.avatar}</span><span class="bub" id="b52say"></span></div></div>
    <div class="b52side card"><b>Moves</b><div class="b52ml" id="b52ml"></div></div></div>
-   <div class="row"><button class="bt" id="b52undo">↶ Undo</button><button class="bt" id="b52flip">⇅ Flip board</button><button class="bt" id="b52new">⟲ New game</button><button class="bt" id="b52list">‹ All bots</button></div><div class="row"><button class="bt" id="b52grd" aria-pressed="false"></button></div>`;
+   <div class="row"><button class="bt" id="b52list">‹ All bots</button></div><div class="row"><button class="bt" id="b52grd" aria-pressed="false"></button></div>`;
   G={bot,me,g:new C(),sel:null,last:null,thinking:false,token:0,over:false,gid:Date.now(),guard:!!(window.CRBlunders&&CRBlunders.guardOn())};
   const gb=()=>{ const b=$("b52grd"); if(!b) return; b.textContent=G.guard?"🛡 Blunder check: On":"🛡 Blunder check: Off"; b.setAttribute("aria-pressed",String(G.guard)); b.classList.toggle("go",G.guard); };
   G.B=board($("b52bd"),tap); G.B.orient=me; say("start"); if(bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned) $("b52say").textContent="📓 "+CRUltimate.status().learned; draw();
   gb(); $("b52grd").onclick=()=>{ G.guard=!G.guard; window.CRBlunders&&CRBlunders.setGuard(G.guard); gb(); draw(); }; window.CRMind64&&CRMind64.attach(G); $("b52undo").onclick=undo; $("b52flip").onclick=()=>{ G.B.orient=G.B.orient==="w"?"b":"w"; draw(); };
-  $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot); $("b52list").onclick=()=>{ G=null; list(); };
+  $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot);
+  $("b69res").onclick=()=>{ if(!G||G.over||G.g.isGameOver()) return; if(!confirm("Resign this game?")) return; G.token++; G.thinking=false; G.over=true; G.resigned=true; say("won"); if(G.bot.adaptive&&window.CRUltimate) CRUltimate.learn({moves:G.g.history(),me:G.me,result:"loss"}).catch(()=>{}); draw(); };
+  $("b69hint").onclick=hint; $("b52list").onclick=()=>{ G=null; list(); };
   try{ window.CRBotEngine&&CRBotEngine.boot().catch(()=>{}); }catch(e){}
   if(me==="b") botMove(); }
 function movesHtml(h){ if(!h.length) return `<span class="mute">No moves yet.</span>`; const last=Math.floor((h.length-1)/2); let s="";
   for(let i=0;i<h.length;i+=2) s+=`<div class="${i/2===last?"now":""}"><b>${i/2+1}.</b> ${E_(h[i])}${h[i+1]?" "+E_(h[i+1]):""}</div>`; return s; }
 function draw(){ if(!G) return; const g=G.g, hl=[];
-  if(G.last) hl.push({sq:G.last.from,c:"#f5c518",o:.4},{sq:G.last.to,c:"#f5c518",o:.5});
+  if(G.last) hl.push({sq:G.last.from,c:"#f6f669",o:.55},{sq:G.last.to,c:"#f6f669",o:.7}); if(G.hint) hl.push({sq:G.hint.from,c:"#2e7d32",o:.5},{sq:G.hint.to,c:"#2e7d32",o:.5});
   if(G.sel) hl.push({sq:G.sel,c:"#3b6fb6",o:.5});
   if(g.inCheck()) g.board().forEach(r=>r.forEach(x=>{ if(x&&x.type==="k"&&x.color===g.turn()) hl.push({sq:x.square,c:"#d23c3c",o:.6}); }));
   G.B.draw(g.fen(),{hl,dots:G.sel?g.moves({square:G.sel,verbose:true}).map(m=>m.to):[]});
-  let msg=""; if(g.isCheckmate()) msg=g.turn()===G.me?"Checkmate. "+G.bot.name+" wins. Tap Undo to try again.":"🏆 Checkmate! You win!";
+  const th=$("b69th"); if(th) th.textContent=G.thinking?`${G.bot.name} is thinking…`:""; const tu=$("b69turn"); if(tu) tu.textContent=!G.over&&!g.isGameOver()&&!G.thinking&&g.turn()===G.me?"Your move":"";
+  ["b69res","b69hint"].forEach(id=>{ const b=$(id); if(b) b.disabled=G.over||g.isGameOver()||(id==="b69hint"&&(G.thinking||g.turn()!==G.me)); });
+  let msg=""; if(G.resigned) msg="You resigned. "+G.bot.name+" wins. Tap New for another game."; else if(g.isCheckmate()) msg=g.turn()===G.me?"Checkmate. "+G.bot.name+" wins. Tap Undo to try again.":"🏆 Checkmate! You win!";
   else if(g.isDraw()||g.isStalemate()) msg="It's a draw."; else if(G.thinking) msg="🤔 "+G.bot.name+" is thinking…"; else if(g.turn()===G.me) msg=g.inCheck()?"You're in check! Your move.":"Your move.";
   $("b52msg").textContent=msg; const h=g.history(); const ml=$("b52ml"); if(ml){ ml.innerHTML=movesHtml(h); ml.scrollTop=ml.scrollHeight; }
   $("b52undo").disabled=G.thinking||!h.length;
@@ -94,25 +111,35 @@ function draw(){ if(!G) return; const g=G.g, hl=[];
 function finish(){ const g=G.g; if(!g.isGameOver()||G.over) return; G.over=true; window.CRMind64&&CRMind64.finish(G); window.CRGut65&&CRGut65.finish(G);
   if(g.isCheckmate()){ if(g.turn()===G.me) say("won"); else { say("lost"); const R=LS.get(KR,{}); R[G.bot.id]=(R[G.bot.id]||0)+1; LS.set(KR,R); } } else say("draw");
   if(G.bot.adaptive&&window.CRUltimate){ const res=g.isCheckmate()?(g.turn()===G.me?"loss":"win"):"draw"; CRUltimate.learn({moves:g.history(),me:G.me,result:res}).catch(e=>console.error(e)); } }
-function tap(sq){ if(G&&G.warn) return; if(!G||G.thinking||G.g.isGameOver()||G.g.turn()!==G.me) return; const g=G.g, pc=g.get(sq);
+function tap(sq){ if(G&&G.warn) return; if(!G||G.over||G.thinking||G.g.isGameOver()||G.g.turn()!==G.me) return; const g=G.g, pc=g.get(sq);
   if(pc&&pc.color===G.me){ G.sel=sq; draw(); return; } if(!G.sel) return;
   const c=g.moves({square:G.sel,verbose:true}).filter(m=>m.to===sq); G.sel=null; if(!c.length){ draw(); return; }
   const go=(m,sure)=>{ const u=m.from+m.to+(m.promotion||""), w=window.CRGuard?CRGuard.check(g.fen(),u):null;
     if(w&&G.guard&&!sure){ warn(w,m,go); return; } G.warn=null; $("b52warn").innerHTML="";
     window.CRBlunders&&CRBlunders.logBot(G.gid,{n:1,hung:w&&w.k==="hang"?1:0,bot:G.bot.name});
-    window.CRMind64&&CRMind64.before(G,m); const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
+    window.CRMind64&&CRMind64.before(G,m); G.hint=null; const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
   if(c[0].promotion) promo(G.me,t=>{ if(t) go(c.find(m=>m.promotion===t)); else draw(); }); else go(c[0]); }
 function warn(w,m,go){ G.warn=w; const el=$("b52warn"); draw(); G.B.draw(G.g.fen(),{hl:[{sq:w.sq,c:"#d23c3c",o:.65},{sq:m.from,c:"#3b6fb6",o:.5}],arrows:[{u:m.from+m.to,c:"orange"}]});
   el.innerHTML=`<div class="card b57w" role="alert"><b>${E_(w.msg)}</b><div class="row"><button class="bt go" id="b57tb">↶ Take back</button><button class="bt" id="b57pa">Play anyway</button></div></div>`;
   $("b57tb").onclick=()=>{ window.CRBlunders&&CRBlunders.logBot(G.gid,{heed:1}); G.warn=null; el.innerHTML=""; draw(); };
   $("b57pa").onclick=()=>{ window.CRBlunders&&CRBlunders.logBot(G.gid,{ign:1}); G.warn=null; el.innerHTML=""; go(m,true); }; }
-async function botMove(){ const tok=++G.token, game=G; G.thinking=true; draw();
-  let m=null; try{ m=G.bot.pick?await G.bot.pick(G.g.fen(),G.g.history()):G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(G.g.fen(),G.g.history()):await CRBotEngine.move(G.g.fen(),G.bot,{history:G.g.history()}); }catch(e){ console.error(e); }
+function quick(fen){ const g=new (CH())(fen), L=g.moves({verbose:true}); if(!L.length) return null; const V={p:1,n:3,b:3,r:5,q:9,k:0};
+  let best=null, bs=-1e9; L.forEach(m=>{ g.move(m); let s=(m.captured?V[m.captured]*10:0)+(g.isCheckmate()?1e5:0)+(g.inCheck()?2:0)+Math.random();
+    const R=g.moves({verbose:true}); const worst=R.reduce((w,r)=>Math.max(w,r.captured?V[r.captured]*10:0),0); s-=worst*0.9; g.undo(); if(s>bs){ bs=s; best=m; } }); return best; }
+const CAP=4700, MIN=700;
+async function botMove(){ const tok=++G.token, game=G; G.thinking=true; draw(); const t0=Date.now(), fen=G.g.fen(), hist=G.g.history();
+  const think=(async()=>{ try{ return G.bot.pick?await G.bot.pick(fen,hist):G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(fen,hist):await CRBotEngine.move(fen,G.bot,{history:hist,delay:0}); }catch(e){ console.error(e); return null; } })();
+  let m=await Promise.race([think,new Promise(r=>setTimeout(()=>r("cap"),CAP))]);
+  if(m==="cap"||!m) m=quick(fen); /* always move within 5 seconds */
+  const w=MIN+Math.random()*600-(Date.now()-t0); if(w>0) await new Promise(r=>setTimeout(r,w)); game.lastMs=Date.now()-t0;
   if(G!==game||tok!==G.token) return; G.thinking=false; if(!m){ draw(); return; }
   const r=G.g.move({from:m.from,to:m.to,promotion:m.promotion||"q"}); G.last=r;
   if(G.g.isGameOver()) finish(); else if(m.blunder&&G.bot.chat.blunder&&Math.random()<.5) say("blunder"); else if(G.g.inCheck()) say("check"); else if(r.captured) say("capture");
   draw(); }
-function undo(){ if(!G||G.thinking) return; if(G.warn){ G.warn=null; const w=$("b52warn"); if(w) w.innerHTML=""; draw(); return; } const g=G.g; G.token++; G.over=false;
+async function hint(){ if(!G||G.thinking||G.over||G.g.turn()!==G.me) return; const b=$("b69hint"); if(b) b.disabled=true; const fen=G.g.fen(); let m=null;
+  try{ if(window.CRBotEngine){ await CRBotEngine.boot(); const c=await Promise.race([CRBotEngine.candidates(fen,1,400),new Promise(r=>setTimeout(()=>r(null),3000))]); if(c&&c[0]) m={from:c[0].uci.slice(0,2),to:c[0].uci.slice(2,4)}; } }catch(e){}
+  if(!m){ const q=quick(fen); if(q) m={from:q.from,to:q.to}; } if(G&&G.g.fen()===fen){ G.hint=m; draw(); const el=$("b52msg"); if(el&&m) el.textContent="💡 Hint: try the piece and square shown in green."; } }
+function undo(){ if(!G||G.thinking) return; G.hint=null; G.resigned=false; if(G.warn){ G.warn=null; const w=$("b52warn"); if(w) w.innerHTML=""; draw(); return; } const g=G.g; G.token++; G.over=false;
   if(g.turn()===G.me){ g.undo(); g.undo(); } else g.undo(); // take back the bot's reply and your move
   if(g.history().length===0&&G.me==="b"){ /* bot moves first as White */ G.last=null; G.sel=null; draw(); botMove(); return; }
   const h=g.history({verbose:true}); G.last=h[h.length-1]||null; G.sel=null; draw(); }

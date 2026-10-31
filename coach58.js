@@ -8,11 +8,11 @@ function games(){ const c=LG(KG,null); return c&&c.games||[]; }
 function goal(){ try{ if(window.CRGoal) return CRGoal.get(); }catch(e){} return 0; }
 /* 5. snapshot */
 function snap(G){ const m=G.d.meta, me=G.me, gr=+(me==="w"?m.white_elo:m.black_elo)||0, gs=games(), last=gs.slice(-10), g0=gs.slice().reverse().find(g=>g.e);
-  const W=last.filter(g=>g.r===1).length, D=last.filter(g=>g.r===.5).length, L=last.length-W-D, gl=goal(), RN=window.CRRating&&CRRating.now(), now=RN&&RN.r?RN.r:(g0?g0.e:gr);
+  const W=last.filter(g=>g.r===1).length, D=last.filter(g=>g.r===.5).length, L=last.length-W-D, gl=goal(), RN=window.CRRating&&CRRating.now(), now=RN&&RN.r?RN.r:null; /* v69: never show a game's rating as "rating now" */
   const dots=last.map(g=>`<i class="${g.r===1?"w":g.r===.5?"d":"l"}" title="${g.r===1?"Win":g.r===.5?"Draw":"Loss"}">${g.r===1?"W":g.r===.5?"D":"L"}</i>`).join("");
   return `<div class="co17mis cr58snap" id="cr58snap"><h3 style="margin:0 0 6px">📸 Snapshot</h3><div class="cr58g">
    <div>${window.CRRating?CRRating.html(now||""):`<b>${now||"–"}</b>`}<span>rating now</span>${window.CRRating?CRRating.meta():""}</div><div><b>${gl||"–"}</b><span>${gl?"your goal":"no goal set"}</span></div><div><b>${last.length?`${W}-${D}-${L}`:"–"}</b><span>${last.length?`last ${last.length} games (W-D-L)`:"recent results"}</span></div></div>
-   ${dots?`<div class="cr58dots">${dots}</div><p class="co17sm">Oldest on the left.</p>`:`<p class="co17sm">Add your Chess.com or Lichess username to see recent results.</p>`}
+   ${dots?`<div class="cr58dots">${dots}</div><p class="co17sm">Oldest on the left.</p>`:`<p class="co17sm">${window.CRUser&&((CRUser.info()||{}).cc)?"Getting your recent results from Chess.com…":"Add your Chess.com or Lichess username to see recent results."}</p>`}
    ${gl&&now?`<p>${now>=gl?`You have reached your goal of <b>${gl}</b>. Time to set a new one.`:`<b class="cr68go">${gl-now}</b> points to go to your goal of ${gl}.`}</p>`:""}</div>`; }
 /* 6. strengths: 1-2 real things from this game */
 function strengths(G){ const S=[], mine=G.P.filter(p=>p.user), phN=["opening","middlegame","endgame"];
