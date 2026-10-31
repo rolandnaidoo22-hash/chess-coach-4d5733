@@ -49,7 +49,10 @@ async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {er
   busy=(async()=>{ paint(); let out={n:0};
     try{ const d=new Date(), url=`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/${d.getFullYear()}/${pad(d.getMonth()+1)}`;
       const r=await fetch(url,{cache:"no-cache"}); if(r.status===404){ throw new Error("nf"); } if(!r.ok) throw new Error("http "+r.status);
-      const j=await r.json(), G=(j.games||[]).filter(g=>g&&g.pgn&&g.rules==="chess"); st.u=u; st.nw=st.nw||{};
+      const j=await r.json(); let G=(j.games||[]).filter(g=>g&&g.pgn&&g.rules==="chess"); st.u=u; st.nw=st.nw||{};
+      /* v71: early in a month there are few games, so also read last month (at most once an hour) */
+      if(G.length<10&&(!st.pmAt||Date.now()-st.pmAt>3600000||st.pmU!==u||!(st.list||[]).some(x=>x.u===u))){ try{ const q=new Date(d.getFullYear(),d.getMonth()-1,1), r2=await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/${q.getFullYear()}/${pad(q.getMonth()+1)}`,{cache:"no-cache"});
+        if(r2.ok){ const j2=await r2.json(); G=(j2.games||[]).filter(g=>g&&g.pgn&&g.rules==="chess").concat(G); st.pmAt=Date.now(); st.pmU=u; } }catch(_){} }
       const first=!st.seen; const S=new Set(st.seen||[]), fresh=G.filter(g=>!S.has(idOf(g.url)));
       fresh.forEach(g=>{ S.add(idOf(g.url)); if(!first) st.nw[idOf(g.url)]=Date.now(); });
       keepList(G,u); st.seen=[...S].slice(-400); st.at=Date.now(); Object.keys(st.nw).forEach(k=>{ if(Date.now()-st.nw[k]>NEWFOR) delete st.nw[k]; }); SV(st);
