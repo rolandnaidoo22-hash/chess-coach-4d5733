@@ -27,7 +27,7 @@ async function pull(manual){ const u=user(); if(!u){ msg=""; paint(); return {er
       fresh.forEach(g=>{ S.add(idOf(g.url)); if(!first) st.nw[idOf(g.url)]=Date.now(); });
       st.seen=[...S].slice(-400); st.at=Date.now(); Object.keys(st.nw).forEach(k=>{ if(Date.now()-st.nw[k]>NEWFOR) delete st.nw[k]; }); SV(st);
       out.n=first?0:fresh.length; msg=out.n?`${out.n} new game${out.n>1?"s":""}`:(manual?"no new games":"");
-      if(!mergeCharts(G)&&window.CRCharts&&CRCharts._load) try{ await CRCharts._load(true); }catch(e){}
+      if(!first&&fresh.length&&!mergeCharts(fresh)&&window.CRCharts&&CRCharts._load) try{ await CRCharts._load(true); }catch(e){}
       if(fresh.length&&window.CRRating) CRRating.refresh();
       if((out.n||manual)&&!(navigator.onLine===false)) setTimeout(()=>quick(G),0); document.dispatchEvent(new CustomEvent("cr69games",{detail:out}));
     }catch(e){ msg=navigator.onLine===false?"":"couldn't reach Chess.com"; out.err=String(e&&e.message||e); }
@@ -38,12 +38,13 @@ async function quick(G,tries){ tries=tries||0; if(!window.Coach17||!Coach17.auto
   if(r==="busy"&&tries<12){ setTimeout(()=>quick(G,tries+1),10000); return; }
   document.dispatchEvent(new CustomEvent("cr69games",{detail:{}})); }
 function due(){ return !st.at||Date.now()-st.at>=EVERY; }
-function tick(){ if(document.hidden||navigator.onLine===false||!user()) return; if(due()) pull(false); }
+const busyApp=()=>!!(window.ReviewApp&&ReviewApp.isRunning()); /* never compete with a review that is running */
+function tick(){ if(document.hidden||navigator.onLine===false||!user()||busyApp()) return; if(due()) pull(false); }
 setInterval(()=>{ tick(); paint(); },15000);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&user()&&navigator.onLine!==false&&(!st.at||Date.now()-st.at>15000)) pull(false); });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&user()&&navigator.onLine!==false&&!busyApp()&&(!st.at||Date.now()-st.at>15000)) pull(false); });
 addEventListener("online",()=>pull(false)); addEventListener("offline",paint);
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest(".cr69go"); if(b){ e.preventDefault(); pull(true); } });
-const go=()=>setTimeout(()=>{ if(user()) pull(false); },1200);
+const go=()=>setTimeout(()=>{ const f=()=>{ if(user()&&!busyApp()) pull(false); }; window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):f(); },3000);
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",go); else go();
 window.CRSync={pull,isNew,seen,label,paint,state:()=>st,
   bar:()=>`<div class="cr69bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0 10px"><button class="cbtn blue cr69go" type="button" style="min-height:44px;font-size:16px">⬇ Get my latest games</button><small class="cr69at" style="color:#556">${label()}</small></div>`,
