@@ -79,6 +79,7 @@ function paint(){ const p=$("cr72"); if(!p) return; place();
       <div class="lg"><span><i style="background:#d23c3c"></i>your move</span>${m.best&&m.best!==m.uci&&m.best!==m.sug?`<span><i style="background:#2e9b4f"></i>better move</span>`:""}${m.th?`<span><i style="background:#e8a11b"></i>their threat</span>`:""}${m.sug||m.hl?`<span><i style="background:#2f6fd6"></i>missed space</span>`:""}</div>
       <div class="tx" id="cr72tx" style="border-left-color:${t[2]}">${E_(m.text)}${m.why?`<button type="button" class="wyb" id="cr74wb" aria-expanded="${wyOpen}">Why?</button>`:""}</div>${m.why&&wyOpen?`<div class="wy" id="cr74why"><b>Why it's better:</b> ${E_(m.why)}</div>`:""}
       <div class="rw"><button type="button" class="btn" id="cr72b" ${i===0?"disabled":""}>‹ Back</button><button type="button" class="btn primary" id="cr72n">${i===I.length-1?"Done ✓":"Next ›"}</button></div>`;
+    { const bx=p.querySelector(".bd"), nb=$("cr72n"); const over=Math.max(p.scrollHeight-p.clientHeight, nb?nb.getBoundingClientRect().bottom-innerHeight+4:0); if(over>0){ const n=Math.max(170,sz-over-2); bx.style.width=bx.style.height=n+"px"; } }
     if($("cr74wb")) $("cr74wb").onclick=()=>{ wyOpen=!wyOpen; paint(); };
     const back=()=>{ const b=view.back; view={k:"rev",g,r:view.r}; paint(); $("cr72").scrollTop=b||0; };
     $("cr72l").onclick=back; $("cr72b").onclick=()=>{ view.i--; paint(); }; $("cr72n").onclick=()=>{ if(view.i<I.length-1){ view.i++; paint(); } else back(); }; }
