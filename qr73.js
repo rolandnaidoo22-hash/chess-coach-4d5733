@@ -146,7 +146,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
       let rookOn=false; for(let r=0;r<8;r++){ const p=b[f+8*r]; if(p&&p.c===me&&(p.t==="r"||p.t==="q")) rookOn=true; } if(rookOn) continue;
       let pick=null; for(let s=0;s<64&&!pick;s++){ const p=b[s]; if(p&&p.c===me&&p.t==="r"&&s%8!==f){ const t=atk(b,s).find(q=>q%8===f&&!b[q]); if(t!=null) pick=[s,t]; } }
       if(pick&&(open||ph!=="open")){ used.file[f]=1; const sug=sqn(pick[0])+sqn(pick[1]); const hl=[]; for(let r=0;r<8;r++) hl.push(FI[f]+(r+1));
-        out.push(Object.assign({},base,{type:"file",d:0,short:`The ${FI[f]}-file was ${open?"open":"half-open"} and no rook used it`,text:`Open file not used: the ${FI[f]}-file ${open?"had no pawns on it":"had none of your pawns on it"}. Your rook on ${sqn(pick[0])} could have moved to ${sqn(pick[1])} to take control of it. You played ${you} instead.`,sug,hl,best:null})); break; } }
+        out.push(Object.assign({},base,{type:"file",d:0,short:`The ${FI[f]}-file was ${open?"open":"half-open"} and no rook used it`,text:`${open?"Open":"Half-open"} file not used: the ${FI[f]}-file ${open?"had no pawns on it":"had none of your pawns on it"}. Your rook on ${sqn(pick[0])} could have moved to ${sqn(pick[1])} to take control of it. You played ${you} instead.`,sug,hl,best:null})); break; } }
     // strong square (outpost) for a knight
     const opp=me==="w"?"b":"w";
     for(let s=0;s<64;s++){ const p=b[s]; if(!p||p.c!==me||p.t!=="n") continue;
