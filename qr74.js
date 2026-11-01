@@ -128,7 +128,7 @@ function explain(b,me,uci,best,pvB,pvA,mv,i,ph,d,scA){
       if(tg&&tg.c!==me){ if(!by(b,opp(me),t).length) good.push(`it wins their ${NAME[tg.t]} for free`); else if(VAL[tg.t]>VAL[p.t]) good.push(`it wins material: your ${pn} takes their ${NAME[tg.t]}`); else good.push(`it takes their ${NAME[tg.t]}`); }
       const hb=hanging(b,me), ha=hanging(ba,me);
       const saved=hb.filter(s=>!ha.includes(s===f?t:s)&&!(tg&&s===f&&false));
-      if(saved.length&&!(tg&&tg.c!==me)){ const s=saved[0], who=by(b,opp(me),s)[0]; good.push(`it ${s===f?"moves":"protects"} your ${nm(s)} on ${sqn(s)}${s===f?" out of danger":""}, which their ${nm(who)} on ${sqn(who)} was attacking`); }
+      if(saved.length&&!(tg&&tg.c!==me)&&!(saved[0]===f&&idx(uci)===f)){ const s=saved[0], who=by(b,opp(me),s)[0]; good.push(`it ${s===f?"moves":"protects"} your ${nm(s)} on ${sqn(s)}${s===f?" out of danger":""}, which their ${nm(who)} on ${sqn(who)} was attacking`); }
       if((p.t==="n"||p.t==="b")&&(f>>3)===home&&ph!=="end") good.push(`it brings a new piece (your ${pn}) into play`);
       if(ph==="open"&&p.t!=="k"&&p.t!=="q"&&(CEN.includes(t)||atk(ba,t).filter(x=>CEN.includes(x)).length>=1)) good.push(`it helps control the centre`);
       if(inChk(ba,opp(me))) good.push("it gives check");
