@@ -97,7 +97,7 @@ async function ensure(user,presetId){ let d=load(user);
 function botFor(d,strength,presetId){ const p=d.prof||profile(d), name=presetId?PRESET[presetId].name:d.user, el=avgElo(d);
   return {id:presetId||"ps-"+d.user.toLowerCase(),name:name+(strength?" "+STR[strength].label:""),elo:el+(strength?200*strength:0),style:(presetId?"Plays like Corban":"Plays like "+d.user)+" · "+(strength||presetId?STR[strength].label:"Their style"),styleUser:d.user,
     avatar:avatar((name[0]||"?").toUpperCase(),!!presetId),chat:{start:["Let's play. I'll play my usual openings."],capture:["Got one!"],check:["Check!"],lost:["Good game, you won."],won:["Good game!"],draw:["A draw."]},
-    pick:makePicker(d,strength)}; }
+    pick:makePicker(d,strength,{noDelay:true})}; }
 function avgElo(d){ const r=d.games.filter(g=>g.tc==="rapid"&&g.e).slice(-30); const a=(r.length?r:d.games.filter(g=>g.e).slice(-30)); return a.length?Math.round(a.reduce((s,g)=>s+g.e,0)/a.length/10)*10:0; }
 const pct=x=>(x*100).toFixed(x<0.1?1:0)+"%";
 function statsHtml(d){ const p=profile(d), B=book(d), nb=Object.keys(B.w).length+Object.keys(B.b).length, done=d.games.filter(g=>d.an[g.id]).length;
@@ -111,9 +111,12 @@ async function open(user,presetId,note){ const p=U().show("bots52"); let d=await
   p.innerHTML=`<h2>${name} <span class="elo">${el}</span></h2><div class="say"><span class="av">${avatar((name[0]||"?").toUpperCase(),!!presetId)}</span><span class="bub">${presetId?"Plays the openings Corban plays, and slips up about as often as he does.":"Plays the openings this player plays, and slips up about as often as they do."}</span></div>
    <div id="ps52note" class="mute"></div><div id="ps52prog"></div><div id="ps52st">${statsHtml(d)}</div>
    <h3>Strength</h3><div class="row" id="ps52s">${STR.map(s=>`<button class="bt ${s.id===strength?"go":""}" data-s="${s.id}">${s.id===0&&!presetId?"Their style":s.label}</button>`).join("")}</div>
-   <h3>Play as</h3><div class="row"><button class="bt go" data-c="w">♔ White</button><button class="bt go" data-c="b">♚ Black</button></div><div class="row"><button class="bt" id="ps52back">‹ All bots</button>${presetId?"":`<button class="bt" id="ps52del">🗑 Remove</button>`}</div>`;
+   <h3>Play as</h3><div class="row"><button class="bt sel69" data-c="w" aria-pressed="true">♔ White</button><button class="bt" data-c="b" aria-pressed="false">♚ Black</button><button class="bt" data-c="r" aria-pressed="false">🎲 Random</button></div>
+   <button class="play69" id="ps75play">▶ Play ${E_(name)}</button><div class="row"><button class="bt" id="ps52back">‹ All bots</button>${presetId?"":`<button class="bt" id="ps52del">🗑 Remove</button>`}</div>`;
   p.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{ strength=+b.dataset.s; U().LS.set(PFX+"str."+d.user.toLowerCase(),strength); p.querySelectorAll("[data-s]").forEach(x=>x.classList.toggle("go",x===b)); });
-  p.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>CRBots._startBot(botFor(d,strength,presetId),b.dataset.c));
+  p.classList.add("pro69"); let side="w"; /* v75: pick a side, then press Play (same as the other bots since v69) */
+  p.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{ side=b.dataset.c; p.querySelectorAll("[data-c]").forEach(y=>{ const on=y===b; y.classList.toggle("sel69",on); y.setAttribute("aria-pressed",String(on)); }); });
+  $("ps75play").onclick=()=>{ let c=side; if(c==="r") c=Math.random()<.5?"w":"b"; CRBots._startBot(botFor(d,strength,presetId),c); };
   $("ps52back").onclick=()=>CRBots.open(); if($("ps52del")) $("ps52del").onclick=()=>{ if(confirm("Remove this player's games from your phone?")){ localStorage.removeItem(PFX+d.user.toLowerCase()); CRBots.open(); } };
   const prog=(t,f)=>{ const e=$("ps52prog"); if(!e) return; e.innerHTML=f>=1?"":`<div class="card"><b>${E_(t)}</b><div style="height:10px;background:#eee;border-radius:5px;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(f*100)}%;background:#d4af37"></i></div></div>`; };
   const an=()=>{ const left=d.games.filter(g=>!d.an[g.id]).length; if(!left) return; analyseAll(d,(k,n)=>{ prog(`Checking games for mistakes: ${k} of ${n} (runs in the background)`,k/n); if(k===n||k%5===0){ const s=$("ps52st"); if(s) s.innerHTML=statsHtml(d); } }); };

@@ -28,7 +28,7 @@ html.dark-mode .p52 .card,html.dark-mode .p52 .lt,html.dark-mode .p52 .bt:not(.g
 #bots52 .b52ml{font-family:inherit;font-size:15px;background:#f7f5f0;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:min(70vh,640px);overflow:auto;line-height:1.65}
 #bots52 .b52ml .now{background:#fff3cd;border-radius:6px;font-weight:700;padding:0 4px}
 #bots52 .pb69{display:flex;align-items:center;gap:8px;min-height:40px;padding:2px 2px;font-size:15px}#bots52 .pb69 .av{width:32px;height:32px;font-size:20px;display:inline-flex;align-items:center;justify-content:center}#bots52 .pb69 small{color:#667;font-size:13px}
-#bots52 .pb69 .th69{margin-left:auto;font-size:13px;color:#555;min-height:18px}
+#bots52 .pb69 .th69{margin-left:auto;font-size:13px;color:#555;min-height:18px}#bots52 .pb69 .th69:not(:empty){background:#fff3cd;color:#6b4e00;border-radius:12px;padding:2px 10px;font-weight:700;animation:th75 1.2s ease-in-out infinite}@keyframes th75{50%{opacity:.55}}
 #bots52 .ctl69{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 4px}#bots52 .ctl69 button{min-height:50px;padding:4px 2px;border:1px solid #ccd;border-radius:10px;background:#fff;font-size:12px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}#bots52 .ctl69 button span{font-size:20px}#bots52 .ctl69 button:disabled{opacity:.45}
 #bots52 .play69{display:block;width:100%;min-height:60px;font-size:20px;font-weight:700;border-radius:14px;margin:14px 0 8px;background:#2e7d32;color:#fff;border:0}#bots52 .bt.sel69{outline:3px solid #2e7d32;outline-offset:1px}
 #bots52 .pro69{padding-bottom:110px}
@@ -46,13 +46,26 @@ function show(id){ try{ window.CRLearn&&CRLearn.close(); }catch(e){} try{ window
 const closers=[]; function onClose(f){ closers.push(f); }
 function closeAll(){ Object.values(pages).forEach(p=>{ p.classList.remove("on"); p.innerHTML=""; }); closers.forEach(f=>{ try{ f(); }catch(e){} }); }
 /* board: el gets an svg.b3d; draw(fen,{hl,dots,arrows}); onTap(square) */
+let AC=null; function sound(cap){ try{ if(localStorage.getItem("chessReview.v75.sound")==="off") return; AC=AC||new (window.AudioContext||window.webkitAudioContext)(); const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain(), n=AC.createBiquadFilter();
+  o.type="triangle"; o.frequency.setValueAtTime(cap?260:180,t); o.frequency.exponentialRampToValueAtTime(cap?120:90,t+0.07); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(cap?0.5:0.35,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+(cap?0.12:0.08));
+  n.type="lowpass"; n.frequency.value=1200; o.connect(n); n.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+0.15); (window.CRPlay75=window.CRPlay75||{anims:0}).sounds=((window.CRPlay75.sounds)||0)+1; }catch(e){} }
 function board(el,onTap){ const svg=document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.setAttribute("viewBox","0 0 360 360"); svg.classList.add("b3d"); el.appendChild(svg);
   const B={orient:"w",svg,fen:null,o:{}};
   const sqAt=ev=>{ let fr=window.boardFrac?window.boardFrac(svg,ev):null; if(!fr){ const r=svg.getBoundingClientRect(); if(!r.width) return null; fr=[(ev.clientX-r.left)/r.width,(ev.clientY-r.top)/r.height]; }
     const x=Math.floor(8*fr[0]), y=Math.floor(8*fr[1]); if(x<0||x>7||y<0||y>7) return null; return B.orient==="w"?"abcdefgh"[x]+(8-y):"abcdefgh"[7-x]+(y+1); };
-  let down=null; if(onTap){ svg.addEventListener("pointerdown",ev=>{ if(ev.button>0) return; const s=sqAt(ev); if(!s) return; down=s; try{ svg.setPointerCapture(ev.pointerId); }catch(e){} onTap(s); });
-    svg.addEventListener("pointerup",ev=>{ if(!down) return; const s=sqAt(ev), d=down; down=null; if(s&&s!==d) onTap(s); }); }
-  B.draw=(fen,o)=>{ B.fen=fen||B.fen; B.o=o||{}; svg.innerHTML=Trainer.boardSvg(B.fen,B.orient,Object.assign({loose:false},B.o),true); };
+  /* v75: pieces slide (180 ms), can be dragged, and a soft move sound plays */
+  const XY=sq=>{ const f="abcdefgh".indexOf(sq[0]), r=+sq[1]-1; return B.orient==="w"?[f*45,(7-r)*45]:[(7-f)*45,r*45]; };
+  B.pieceAt=sq=>{ const [x,y]=XY(sq); return [...svg.querySelectorAll('use[href^="#pc-"]')].find(u=>+u.getAttribute("x")===x&&+u.getAttribute("y")===y)||null; };
+  let down=null, drag=null; if(onTap){ svg.addEventListener("pointerdown",ev=>{ if(ev.button>0) return; const s=sqAt(ev); if(!s) return; down=s; try{ svg.setPointerCapture(ev.pointerId); }catch(e){} onTap(s);
+      const u=B.pieceAt(s); drag=u?{u,x:ev.clientX,y:ev.clientY,moved:false}:null; });
+    svg.addEventListener("pointermove",ev=>{ if(!down||!drag) return; const r=svg.getBoundingClientRect(), k=360/(r.width||360), dx=(ev.clientX-drag.x)*k, dy=(ev.clientY-drag.y)*k;
+      if(!drag.moved&&Math.hypot(dx,dy)<6) return; drag.moved=true; if(!drag.u.isConnected){ drag.u=B.pieceAt(down); if(!drag.u) return; } drag.u.style.transform=`translate(${dx}px,${dy}px)`; drag.u.parentNode.appendChild(drag.u); });
+    svg.addEventListener("pointerup",ev=>{ if(!down) return; const s=sqAt(ev), d=down, dr=drag; down=null; drag=null; if(dr&&dr.moved) B.dragged=true; if(dr&&dr.u.isConnected) dr.u.style.transform="";
+      if(s&&s!==d) onTap(s); B.dragged=false; }); }
+  B.draw=(fen,o)=>{ B.fen=fen||B.fen; B.o=o||{}; svg.innerHTML=Trainer.boardSvg(B.fen,B.orient,Object.assign({loose:false},B.o),true);
+    const a=B.o.anim; if(a&&!B.dragged){ try{ const u=B.pieceAt(a.to); if(u&&u.animate){ const [x0,y0]=XY(a.from), [x1,y1]=XY(a.to); u.parentNode.appendChild(u);
+        u.animate([{transform:`translate(${x0-x1}px,${y0-y1}px)`},{transform:"translate(0,0)"}],{duration:180,easing:"ease-out"}); (window.CRPlay75=window.CRPlay75||{anims:0}).anims++; } }catch(e){} }
+    if(a) sound(a.cap); };
   return B; }
 /* small static picture of a position (for memory hooks / guides) */
 function mini(fen,orient,o){ try{ return Trainer.boardSvg(fen,orient||"w",Object.assign({loose:false},o||{}),false); }catch(e){ return ""; } }
@@ -100,11 +113,11 @@ function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.
   if(me==="b") botMove(); }
 function movesHtml(h){ if(!h.length) return `<span class="mute">No moves yet.</span>`; const last=Math.floor((h.length-1)/2); let s="";
   for(let i=0;i<h.length;i+=2) s+=`<div class="${i/2===last?"now":""}"><b>${i/2+1}.</b> ${E_(h[i])}${h[i+1]?" "+E_(h[i+1]):""}</div>`; return s; }
-function draw(){ if(!G) return; const g=G.g, hl=[];
+function draw(anim){ if(!G) return; const g=G.g, hl=[];
   if(G.last) hl.push({sq:G.last.from,c:"#f6f669",o:.55},{sq:G.last.to,c:"#f6f669",o:.7}); if(G.hint) hl.push({sq:G.hint.from,c:"#2e7d32",o:.5},{sq:G.hint.to,c:"#2e7d32",o:.5});
   if(G.sel) hl.push({sq:G.sel,c:"#3b6fb6",o:.5});
   if(g.inCheck()) g.board().forEach(r=>r.forEach(x=>{ if(x&&x.type==="k"&&x.color===g.turn()) hl.push({sq:x.square,c:"#d23c3c",o:.6}); }));
-  G.B.draw(g.fen(),{hl,dots:G.sel?g.moves({square:G.sel,verbose:true}).map(m=>m.to):[]});
+  G.B.draw(g.fen(),{hl,anim:anim?{from:anim.from,to:anim.to,cap:!!anim.captured}:null,dots:G.sel?g.moves({square:G.sel,verbose:true}).map(m=>m.to):[]});
   const th=$("b69th"); if(th) th.textContent=G.thinking?`${G.bot.name} is thinking…`:""; const tu=$("b69turn"); if(tu) tu.textContent=!G.over&&!g.isGameOver()&&!G.thinking&&g.turn()===G.me?"Your move":"";
   ["b69res","b69hint"].forEach(id=>{ const b=$(id); if(b) b.disabled=G.over||g.isGameOver()||(id==="b69hint"&&(G.thinking||g.turn()!==G.me)); });
   let msg=""; if(G.resigned) msg="You resigned. "+G.bot.name+" wins. Tap New for another game."; else if(g.isCheckmate()) msg=g.turn()===G.me?"Checkmate. "+G.bot.name+" wins. Tap Undo to try again.":"🏆 Checkmate! You win!";
@@ -121,7 +134,7 @@ function tap(sq){ if(G&&G.warn) return; if(!G||G.over||G.thinking||G.g.isGameOve
   const go=(m,sure)=>{ const u=m.from+m.to+(m.promotion||""), w=window.CRGuard?CRGuard.check(g.fen(),u):null;
     if(w&&G.guard&&!sure){ warn(w,m,go); return; } G.warn=null; $("b52warn").innerHTML="";
     window.CRBlunders&&CRBlunders.logBot(G.gid,{n:1,hung:w&&w.k==="hang"?1:0,bot:G.bot.name});
-    window.CRMind64&&CRMind64.before(G,m); G.hint=null; const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(); if(g.isGameOver()) finish(); else botMove(); };
+    window.CRMind64&&CRMind64.before(G,m); G.hint=null; const r=g.move({from:m.from,to:m.to,promotion:m.promotion}); G.last=r; draw(r); if(g.isGameOver()) finish(); else botMove(); };
   if(c[0].promotion) promo(G.me,t=>{ if(t) go(c.find(m=>m.promotion===t)); else draw(); }); else go(c[0]); }
 function warn(w,m,go){ G.warn=w; const el=$("b52warn"); draw(); G.B.draw(G.g.fen(),{hl:[{sq:w.sq,c:"#d23c3c",o:.65},{sq:m.from,c:"#3b6fb6",o:.5}],arrows:[{u:m.from+m.to,c:"orange"}]});
   el.innerHTML=`<div class="card b57w" role="alert"><b>${E_(w.msg)}</b><div class="row"><button class="bt go" id="b57tb">↶ Take back</button><button class="bt" id="b57pa">Play anyway</button></div></div>`;
@@ -131,15 +144,23 @@ function quick(fen){ const g=new (CH())(fen), L=g.moves({verbose:true}); if(!L.l
   let best=null, bs=-1e9; L.forEach(m=>{ g.move(m); let s=(m.captured?V[m.captured]*10:0)+(g.isCheckmate()?1e5:0)+(g.inCheck()?2:0)+Math.random();
     const R=g.moves({verbose:true}); const worst=R.reduce((w,r)=>Math.max(w,r.captured?V[r.captured]*10:0),0); s-=worst*0.9; g.undo(); if(s>bs){ bs=s; best=m; } }); return best; }
 const CAP=4700, MIN=700;
+/* v75: think like a person: quick for forced moves, recaptures and opening moves; longer when it is tricky. Never more than 5 s. */
+function thinkMs(fen,m,hist){ const g=new (CH())(fen), L=g.moves({verbose:true}), V={p:1,n:3,b:3,r:5,q:9,k:0}; let kind="normal", lo=1000, hi=3000;
+  let mat=0; g.board().forEach(r=>r.forEach(x=>{ if(x) mat+=(x.color==="w"?1:-1)*V[x.type]; }));
+  const lastV=hist&&hist.length?(()=>{ const h=new (CH())(); try{ hist.forEach(x=>h.move(x)); }catch(e){} const v=h.history({verbose:true}); return v[v.length-1]; })():null;
+  const recap=m&&lastV&&lastV.captured&&m.to===lastV.to, ply=(hist||[]).length;
+  if(L.length<=1||recap||(m&&m.book)||ply<6){ kind="quick"; lo=400; hi=1000; }
+  else if(g.inCheck()||L.length>=35||(Math.abs(mat)<=1&&ply>=16&&L.length>=20)){ kind="long"; lo=3000; hi=4600; }
+  let ms=lo+Math.random()*(hi-lo)+(Math.random()*300-150); ms=Math.max(400,Math.min(4900,ms)); const o=new Number(ms); o.kind=kind; return o; }
 async function botMove(){ const tok=++G.token, game=G; G.thinking=true; draw(); const t0=Date.now(), fen=G.g.fen(), hist=G.g.history();
   const think=(async()=>{ try{ return G.bot.pick?await G.bot.pick(fen,hist):G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(fen,hist):await CRBotEngine.move(fen,G.bot,{history:hist,delay:0}); }catch(e){ console.error(e); return null; } })();
   let m=await Promise.race([think,new Promise(r=>setTimeout(()=>r("cap"),CAP))]);
   if(m==="cap"||!m) m=quick(fen); /* always move within 5 seconds */
-  const w=MIN+Math.random()*600-(Date.now()-t0); if(w>0) await new Promise(r=>setTimeout(r,w)); game.lastMs=Date.now()-t0;
+  const want=thinkMs(fen,m,hist), w=want-(Date.now()-t0); if(w>0) await new Promise(r=>setTimeout(r,w)); game.lastMs=Date.now()-t0; (game.delays=game.delays||[]).push({ms:game.lastMs,kind:want.kind});
   if(G!==game||tok!==G.token) return; G.thinking=false; if(!m){ draw(); return; }
   const r=G.g.move({from:m.from,to:m.to,promotion:m.promotion||"q"}); G.last=r;
   if(G.g.isGameOver()) finish(); else if(m.blunder&&G.bot.chat.blunder&&Math.random()<.5) say("blunder"); else if(G.g.inCheck()) say("check"); else if(r.captured) say("capture");
-  draw(); }
+  draw(r); }
 async function hint(){ if(!G||G.thinking||G.over||G.g.turn()!==G.me) return; const b=$("b69hint"); if(b) b.disabled=true; const fen=G.g.fen(); let m=null;
   try{ if(window.CRBotEngine){ await CRBotEngine.boot(); const c=await Promise.race([CRBotEngine.candidates(fen,1,400),new Promise(r=>setTimeout(()=>r(null),3000))]); if(c&&c[0]) m={from:c[0].uci.slice(0,2),to:c[0].uci.slice(2,4)}; } }catch(e){}
   if(!m){ const q=quick(fen); if(q) m={from:q.from,to:q.to}; } if(G&&G.g.fen()===fen){ G.hint=m; draw(); const el=$("b52msg"); if(el&&m) el.textContent="💡 Hint: try the piece and square shown in green."; } }
