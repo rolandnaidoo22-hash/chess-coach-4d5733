@@ -1,9 +1,9 @@
 /* v73: Quick review, full version. One short engine pass over the game finds every mistake, slip and missed chance in
    your moves, plus open-board chances you didn't use (open files, free pieces, strong squares). Grouped into
    Opening / Middlegame / Endgame, filled in as the check runs, saved per game. All text comes from local templates. */
-(function(){ "use strict"; if(window.CRQuick73) return; window.CRQuick72=window.CRQuick73={}; /* v72's file is not loaded any more */
+(function(){ "use strict"; if(window.CRQuick74) return; window.CRQuick72=window.CRQuick73=window.CRQuick74={}; /* v72's file is not loaded any more */
 const $=id=>document.getElementById(id), B=document.body, E_=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const BUDGET=36000, CK="chessReview.v73.quick";
+let wyOpen=false; const BUDGET=36000, CK="chessReview.v74.quick";
 const NAME={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"}, VAL={p:1,n:3,b:3,r:5,q:9,k:0}, FI="abcdefgh";
 const TY={blunder:["??","Blunder","#ca3431"],mistake:["?","Mistake","#e2852a"],inacc:["?!","Inaccuracy","#d6b52a"],miss:["✖","Missed win","#8e44ad"],
   free:["🎁","Free piece missed","#2f6fd6"],file:["📂","Open file not used","#2f6fd6"],outpost:["🏰","Strong square not used","#2f6fd6"]};
@@ -23,6 +23,7 @@ body.cr72q #cr66seg button.on:not([data-t=quick]){background:none;font-weight:40
 #cr72 .pb{height:8px;border-radius:4px;background:rgba(127,127,127,.25);overflow:hidden;margin:4px 0 8px}#cr72 .pb i{display:block;height:100%;width:0;background:var(--accent,#2f6fd6);transition:width .2s}
 #cr72 .hd{display:flex;align-items:center;gap:8px;margin-bottom:4px}#cr72 .hd b{flex:1;font-size:15px}
 #cr72 .bd{align-self:center;line-height:0}#cr72 .bd svg{width:100%;height:100%;border-radius:6px}
+#cr72 .wy{font-size:14px;line-height:1.35;margin:0 0 6px;padding:7px 10px;border-radius:12px;background:#eef6f0;border-left:5px solid #2e9b4f}#cr72 .wyb{margin-left:6px;padding:2px 10px;border-radius:10px;border:1px solid #2e9b4f;background:none;color:#2e9b4f;font-weight:700;font-size:13px}html.dark-mode #cr72 .wy{background:#1f2e24;color:#eee}
 #cr72 .tx{font-size:15px;line-height:1.35;margin:6px 0;padding:8px 10px;border-radius:12px;background:var(--card,#fff);border-left:5px solid #ca3431}
 #cr72 .lg{display:flex;gap:10px;font-size:12px;opacity:.85;flex-wrap:wrap}#cr72 .lg i{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:3px}
 #cr72 .rw{display:flex;gap:8px;margin-top:6px}#cr72 .rw button{flex:1;min-height:44px}
@@ -76,8 +77,9 @@ function paint(){ const p=$("cr72"); if(!p) return; place();
     p.innerHTML=`<div class="hd"><b>${i+1} of ${I.length} · Move ${mvNo(m.ply)} · ${t[1]}</b><button type="button" class="btn" id="cr72l">‹ List</button></div>
       <div class="bd" style="width:${sz}px;height:${sz}px">${board(m.fen,g.me,m)}</div>
       <div class="lg"><span><i style="background:#d23c3c"></i>your move</span>${m.best&&m.best!==m.uci&&m.best!==m.sug?`<span><i style="background:#2e9b4f"></i>better move</span>`:""}${m.th?`<span><i style="background:#e8a11b"></i>their threat</span>`:""}${m.sug||m.hl?`<span><i style="background:#2f6fd6"></i>missed space</span>`:""}</div>
-      <div class="tx" id="cr72tx" style="border-left-color:${t[2]}">${E_(m.text)}</div>
+      <div class="tx" id="cr72tx" style="border-left-color:${t[2]}">${E_(m.text)}${m.why?`<button type="button" class="wyb" id="cr74wb" aria-expanded="${wyOpen}">Why?</button>`:""}</div>${m.why&&wyOpen?`<div class="wy" id="cr74why"><b>Why it's better:</b> ${E_(m.why)}</div>`:""}
       <div class="rw"><button type="button" class="btn" id="cr72b" ${i===0?"disabled":""}>‹ Back</button><button type="button" class="btn primary" id="cr72n">${i===I.length-1?"Done ✓":"Next ›"}</button></div>`;
+    if($("cr74wb")) $("cr74wb").onclick=()=>{ wyOpen=!wyOpen; paint(); };
     const back=()=>{ const b=view.back; view={k:"rev",g,r:view.r}; paint(); $("cr72").scrollTop=b||0; };
     $("cr72l").onclick=back; $("cr72b").onclick=()=>{ view.i--; paint(); }; $("cr72n").onclick=()=>{ if(view.i<I.length-1){ view.i++; paint(); } else back(); }; }
 }
@@ -106,6 +108,51 @@ function phase(fen,ply){ const b=bd(fen); let mm=0; b.forEach(p=>{ if(p&&p.t!=="
   let wb=0,bb=0; for(let s=0;s<8;s++) if(b[s]&&b[s].c==="w") wb++; for(let s=56;s<64;s++) if(b[s]&&b[s].c==="b") bb++;
   if(ply>24||mm<=10||wb<4||bb<4) return "mid"; return "open"; }
 const isFree=(b,me,s)=>{ const p=b[s]; if(!p||p.c===me||p.t==="k"||VAL[p.t]<3) return false; const a=by(b,me,s); if(!a.length) return false; const d=by(b,p.c,s); return !d.length||Math.min(...a.map(i=>VAL[b[i].t]))<VAL[p.t]; };
+/* ---- v74: why the better move is better (facts checked on the board only) ---- */
+const CEN=["d4","e4","d5","e5"].map(x=>FI.indexOf(x[0])+8*(+x[1]-1));
+function play(b,u){ const n=b.slice(), f=idx(u), t=idx(u.slice(2,4)), p=n[f]; if(!p) return n;
+  if(p.t==="p"&&(f%8)!==(t%8)&&!n[t]) n[t-(p.c==="w"?8:-8)]=null;
+  if(p.t==="k"&&Math.abs((f%8)-(t%8))===2){ const r=t>f?f+3:f-4, rt=t>f?f+1:f-1; n[rt]=n[r]; n[r]=null; }
+  n[t]=u.length>4?{t:u[4],c:p.c}:p; n[f]=null; return n; }
+const opp=c=>c==="w"?"b":"w";
+// my pieces (value>=3) that the opponent can win: undefended, or attacked by something cheaper
+function hanging(b,me){ const o=[]; for(let s=0;s<64;s++){ const p=b[s]; if(!p||p.c!==me||p.t==="k"||VAL[p.t]<3) continue; const a=by(b,opp(me),s); if(!a.length) continue;
+  if(!by(b,me,s).length||Math.min(...a.map(i=>VAL[b[i].t]))<VAL[p.t]) o.push(s); } return o; }
+const inChk=(b,c)=>{ const k=b.findIndex(p=>p&&p.t==="k"&&p.c===c); return k>=0&&by(b,opp(c),k).length>0; };
+const ord=["pawn","knight","bishop","rook","queen","king"];
+function explain(b,me,uci,best,pvB,pvA,mv,i,ph){
+  const good=[], bad=[]; const nm=s=>NAME[(b[s]||{t:"p"}).t];
+  if(best&&best!==uci){ const f=idx(best), t=idx(best.slice(2,4)), p=b[f], ba=play(b,best), tg=b[t], home=me==="w"?0:7;
+    if(p){ const pn=NAME[p.t];
+      if(p.t==="k"&&Math.abs((f%8)-(t%8))===2) good.push("it castles, tucking your king away safely and bringing a rook into the game");
+      if(tg&&tg.c!==me){ if(!by(b,opp(me),t).length) good.push(`it wins their ${NAME[tg.t]} for free`); else if(VAL[tg.t]>VAL[p.t]) good.push(`it wins material: your ${pn} takes their ${NAME[tg.t]}`); else good.push(`it takes their ${NAME[tg.t]}`); }
+      const hb=hanging(b,me), ha=hanging(ba,me);
+      const saved=hb.filter(s=>!ha.includes(s===f?t:s)&&!(tg&&s===f&&false));
+      if(saved.length&&!(tg&&tg.c!==me)){ const s=saved[0], who=by(b,opp(me),s)[0]; good.push(`it ${s===f?"moves":"protects"} your ${nm(s)} on ${sqn(s)}${s===f?" out of danger":""}, which their ${nm(who)} on ${sqn(who)} was attacking`); }
+      if((p.t==="n"||p.t==="b")&&(f>>3)===home&&ph!=="end") good.push(`it brings a new piece (your ${pn}) into play`);
+      if(ph==="open"&&p.t!=="k"&&p.t!=="q"&&(CEN.includes(t)||atk(ba,t).filter(x=>CEN.includes(x)).length>=1)) good.push(`it helps control the centre`);
+      if(inChk(ba,opp(me))) good.push("it gives check");
+      else { const hit=atk(ba,t).filter(s=>ba[s]&&ba[s].c!==me&&ba[s].t!=="p"&&ba[s].t!=="k"&&(VAL[ba[s].t]>VAL[p.t]||!by(ba,opp(me),s).length)); if(hit.length&&!(tg&&tg.c!==me)) good.push(`it attacks their ${NAME[ba[hit[0]].t]} on ${sqn(hit[0])}`); }
+    } }
+  // what was wrong with your move
+  const f=idx(uci), t=idx(uci.slice(2,4)), p=b[f], ab=play(b,uci);
+  if(p){ const pn=NAME[p.t], rep=pvA&&pvA[0];
+    const ra=rep&&rep.length>=4?play(ab,rep):null, rp=rep?ab[idx(rep)]:null;
+    if(ra&&rp&&rp.c!==me&&!(ab[idx(rep.slice(2,4))])&&atk(ra,idx(rep.slice(2,4))).includes(t)&&VAL[p.t]>VAL[rp.t]&&p.t!=="p")
+      bad.push(`after your ${pn} move they can play ${rp.t==="p"?"a pawn":"their "+NAME[rp.t]} to ${rep.slice(2,4)}, hitting your ${pn}${p.t==="q"&&ph==="open"?", so they gain time and your queen has to move again":" so it has to move again"}`);
+    const hb=hanging(b,me).filter(s=>s!==f), ha=hanging(ab,me);
+    const ign=hb.filter(s=>ha.includes(s));
+    if(ign.length){ const s=ign[0], who=by(ab,opp(me),s)[0]; bad.push(`it ignored the threat to your ${nm(s)} on ${sqn(s)} from their ${NAME[ab[who].t]}`); }
+    else if(ha.includes(t)&&!(b[t]&&b[t].c!==me)) bad.push(`it left your ${pn} on ${uci.slice(2,4)} where they can win it`);
+    if(ph==="open"&&!bad.length&&p.t!=="p"&&p.t!=="k"&&i>=2&&mv[i-2]&&mv[i-2].uci.slice(2,4)===uci.slice(0,2)) bad.push(`it moved the same ${pn} twice while other pieces were still at home`);
+    if(!bad.length&&p.t==="q"&&ph==="open"&&i<20) { const kids=b.filter((q,s)=>q&&q.c===me&&(q.t==="n"||q.t==="b")&&(s>>3)===(me==="w"?0:7)).length; if(kids>=2) bad.push(`it brought your queen out early while ${kids} of your knights and bishops were still at home`); }
+  }
+  const cap=x=>x[0].toUpperCase()+x.slice(1);
+  const g=good.slice(0,2), out=[];
+  if(g.length) out.push(cap(g.join(", and "))+".");
+  if(bad.length) out.push("Your move: "+bad[0]+".");
+  return out.join(" ");
+}
 /* ---- the engine pass ---- */
 const wp=sc=>{ const cp=sc.mate!=null?(sc.mate>0?10000:-10000):sc.cp; return 50+50*(2/(1+Math.exp(-0.00368208*Math.max(-10000,Math.min(10000,cp))))-1); };
 let ENG=null; async function eng(){ if(ENG) return ENG; ENG=new Analyzer.Engine(()=>new Worker("stockfish.js")); await ENG.init(); return ENG; }
@@ -114,10 +161,10 @@ async function run(url){ const g=games().find(x=>x.url===url); if(!g) return; co
   try{ const pg=Analyzer.parsePgn(g.pgn), mv=pg.moves, N=mv.length; const t0=performance.now(); const per=Math.max(60,Math.min(400,Math.round(BUDGET/(N+1))));
     const r={items:[],n:N,at:0,done:false,reached:{},ph:"open"}; view={k:"rev",g,r}; if(on) paint();
     const e=await eng(); const S=[], used={file:{},outpost:{}}; let last=0;
-    for(let i=0;i<=N;i++){ if(J.stop) return; const fen=i<N?mv[i].before:mv[N-1].after; const a=await e.analyse(fen,14,per,1); S.push({sc:a.score,bm:(a.pv&&a.pv[0])||a.bm});
+    for(let i=0;i<=N;i++){ if(J.stop) return; const fen=i<N?mv[i].before:mv[N-1].after; const a=await e.analyse(fen,14,per,1); S.push({sc:a.score,bm:(a.pv&&a.pv[0])||a.bm,pv:(a.pv||[]).slice(0,3)});
       if(i>0){ const k=i-1, m=mv[k]; const ph=phase(m.before,k+1); r.reached[ph]=1; r.ph=ph; if(m.color===g.me) look(mv,S,k,g.me,ph,used).forEach(it=>r.items.push(it)); }
       r.at=i; if(view.k==="rev"&&view.r===r&&on&&(performance.now()-last>700||i===N)){ last=performance.now(); paint(); } }
-    r.items.sort((a,b)=>a.ply-b.ply); r.done=true; r.ms=Math.round(performance.now()-t0); window.CRQuick73.last=r; save(url,r); if(J.stop) return; job=null; if(view.k==="rev"&&view.r===r&&on) paint();
+    r.items.sort((a,b)=>a.ply-b.ply); r.done=true; r.ms=Math.round(performance.now()-t0); window.CRQuick74.last=r; save(url,r); if(J.stop) return; job=null; if(view.k==="rev"&&view.r===r&&on) paint();
   }catch(err){ console.error(err); job=null; view={k:"list"}; paint(); const p=$("cr72"); if(p) p.insertAdjacentHTML("afterbegin",`<div class="tx">Sorry, that game couldn't be checked. Try the full review instead.</div>`); } }
 function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S[i].bm, rep=S[i+1].bm, out=[];
   const bw=wp(S[i].sc), aw=100-wp(S[i+1].sc), d=Math.max(0,bw-aw), pc=NAME[(b[idx(m.uci)]||{t:"p"}).t], to=m.uci.slice(2,4), you=`your ${pc} to ${to}`;
@@ -136,7 +183,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
     else { const ty=d>=20?"blunder":d>=10?"mistake":"inacc", w={blunder:"Blunder",mistake:"Mistake",inacc:"Small slip"}[ty];
       const lead=bw>=70&&aw<55?`You let a win slip: moving ${you} threw away your lead.`:`${w}: you moved ${you}.`;
       main={type:ty,short:why?why.trim().replace(/^It /,"This "):`${w} with ${you}`,text:lead+why+(best?` Better was ${bestTxt}${tgt&&tgt.c!==me?`, taking their ${NAME[tgt.t]}`:""}.`:""),best,th}; } }
-  if(main) out.push(Object.assign({},base,main));
+  if(main){ try{ main.why=explain(b,me,m.uci,main.best,S[i].pv,S[i+1].pv,mv,i,ph); }catch(e){} out.push(Object.assign({},base,main)); }
   // open space you didn't use (only when your move wasn't the engine's choice)
   if(best&&best!==m.uci&&d>=2){
     // open / half-open file for a rook
@@ -158,6 +205,6 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
         s=64; break; } } }
   return out; }
 function tick(){ build(); if(on&&!B.classList.contains("hs-review")) close(); if(on) place(); }
-Object.assign(window.CRQuick73,{open,close,run,state:()=>view,last:null,phase});
+Object.assign(window.CRQuick74,{open,close,run,state:()=>view,last:null,phase});
 setInterval(tick,400); addEventListener("resize",()=>{ if(on&&view.k==="show") paint(); });
 })();
