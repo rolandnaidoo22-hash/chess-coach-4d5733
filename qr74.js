@@ -120,7 +120,7 @@ function hanging(b,me){ const o=[]; for(let s=0;s<64;s++){ const p=b[s]; if(!p||
   if(!by(b,me,s).length||Math.min(...a.map(i=>VAL[b[i].t]))<VAL[p.t]) o.push(s); } return o; }
 const inChk=(b,c)=>{ const k=b.findIndex(p=>p&&p.t==="k"&&p.c===c); return k>=0&&by(b,opp(c),k).length>0; };
 const ord=["pawn","knight","bishop","rook","queen","king"];
-function explain(b,me,uci,best,pvB,pvA,mv,i,ph){
+function explain(b,me,uci,best,pvB,pvA,mv,i,ph,d,scA){
   const good=[], bad=[]; const nm=s=>NAME[(b[s]||{t:"p"}).t];
   if(best&&best!==uci){ const f=idx(best), t=idx(best.slice(2,4)), p=b[f], ba=play(b,best), tg=b[t], home=me==="w"?0:7;
     if(p){ const pn=NAME[p.t];
@@ -137,6 +137,7 @@ function explain(b,me,uci,best,pvB,pvA,mv,i,ph){
   // what was wrong with your move
   const f=idx(uci), t=idx(uci.slice(2,4)), p=b[f], ab=play(b,uci);
   if(p){ const pn=NAME[p.t], rep=pvA&&pvA[0];
+    if(scA&&scA.mate!=null&&scA.mate>0&&rep){ const rp0=ab[idx(rep)]; if(rp0) bad.push(`it allowed a forced checkmate, starting with their ${NAME[rp0.t]} to ${rep.slice(2,4)}`); }
     const ra=rep&&rep.length>=4?play(ab,rep):null, rp=rep?ab[idx(rep)]:null;
     if(ra&&rp&&rp.c!==me&&!(ab[idx(rep.slice(2,4))])&&atk(ra,idx(rep.slice(2,4))).includes(t)&&VAL[p.t]>VAL[rp.t]&&p.t!=="p")
       bad.push(`after your ${pn} move they can play ${rp.t==="p"?"a pawn":"their "+NAME[rp.t]} to ${rep.slice(2,4)}, hitting your ${pn}${p.t==="q"&&ph==="open"?", so they gain time and your queen has to move again":" so it has to move again"}`);
@@ -149,6 +150,7 @@ function explain(b,me,uci,best,pvB,pvA,mv,i,ph){
   }
   const cap=x=>x[0].toUpperCase()+x.slice(1);
   const g=good.slice(0,2), out=[];
+  if(!g.length&&best&&best!==uci&&d>=5) g.push(`a deeper check of the position shows it keeps about ${Math.round(d)}% more of your winning chances than your move`);
   if(g.length) out.push(cap(g.join(", and "))+".");
   if(bad.length) out.push("Your move: "+bad[0]+".");
   return out.join(" ");
@@ -183,7 +185,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
     else { const ty=d>=20?"blunder":d>=10?"mistake":"inacc", w={blunder:"Blunder",mistake:"Mistake",inacc:"Small slip"}[ty];
       const lead=bw>=70&&aw<55?`You let a win slip: moving ${you} threw away your lead.`:`${w}: you moved ${you}.`;
       main={type:ty,short:why?why.trim().replace(/^It /,"This "):`${w} with ${you}`,text:lead+why+(best?` Better was ${bestTxt}${tgt&&tgt.c!==me?`, taking their ${NAME[tgt.t]}`:""}.`:""),best,th}; } }
-  if(main){ try{ main.why=explain(b,me,m.uci,main.best,S[i].pv,S[i+1].pv,mv,i,ph); }catch(e){} out.push(Object.assign({},base,main)); }
+  if(main){ try{ main.why=explain(b,me,m.uci,main.best,S[i].pv,S[i+1].pv,mv,i,ph,d,S[i+1].sc); }catch(e){} out.push(Object.assign({},base,main)); }
   // open space you didn't use (only when your move wasn't the engine's choice)
   if(best&&best!==m.uci&&d>=2){
     // open / half-open file for a rook
@@ -193,7 +195,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
       let rookOn=false; for(let r=0;r<8;r++){ const p=b[f+8*r]; if(p&&p.c===me&&(p.t==="r"||p.t==="q")) rookOn=true; } if(rookOn) continue;
       let pick=null; for(let s=0;s<64&&!pick;s++){ const p=b[s]; if(p&&p.c===me&&p.t==="r"&&s%8!==f){ const t=atk(b,s).find(q=>q%8===f&&!b[q]); if(t!=null) pick=[s,t]; } }
       if(pick&&(open||ph!=="open")){ used.file[f]=1; const sug=sqn(pick[0])+sqn(pick[1]); const hl=[]; for(let r=0;r<8;r++) hl.push(FI[f]+(r+1));
-        out.push(Object.assign({},base,{type:"file",d:0,short:`The ${FI[f]}-file was ${open?"open":"half-open"} and no rook used it`,text:`${open?"Open":"Half-open"} file not used: the ${FI[f]}-file ${open?"had no pawns on it":"had none of your pawns on it"}. Your rook on ${sqn(pick[0])} could have moved to ${sqn(pick[1])} to take control of it. You played ${you} instead.`,sug,hl,best:null})); break; } }
+        out.push(Object.assign({},base,{type:"file",d:0,short:`The ${FI[f]}-file was ${open?"open":"half-open"} and no rook used it`,text:`${open?"Open":"Half-open"} file not used: the ${FI[f]}-file ${open?"had no pawns on it":"had none of your pawns on it"}. Your rook on ${sqn(pick[0])} could have moved to ${sqn(pick[1])} to take control of it. You played ${you} instead.`,why:`A rook on ${open?"an open":"a half-open"} file can travel straight down it towards their side.`,sug,hl,best:null})); break; } }
     // strong square (outpost) for a knight
     const opp=me==="w"?"b":"w";
     for(let s=0;s<64;s++){ const p=b[s]; if(!p||p.c!==me||p.t!=="n") continue;
@@ -201,7 +203,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
         if(!by(b,me,t).some(q=>b[q].t==="p")) continue; let safe=true;
         for(const ff of [f-1,f+1]){ if(ff<0||ff>7) continue; for(let rr=0;rr<8;rr++){ const q=b[ff+8*rr]; if(q&&q.t==="p"&&q.c===opp&&(me==="w"?rr>r:rr<r)) safe=false; } }
         if(!safe||m.uci.slice(2,4)===sqn(t)) continue; used.outpost[t]=1;
-        out.push(Object.assign({},base,{type:"outpost",d:0,short:`${sqn(t)} was a strong square for your knight`,text:`Strong square not used: ${sqn(t)} was backed by your pawn and none of their pawns could ever chase a piece away from it. Your knight on ${sqn(s)} could have jumped there. You played ${you} instead.`,sug:sqn(s)+sqn(t),hl:[sqn(t)],best:null}));
+        out.push(Object.assign({},base,{type:"outpost",d:0,short:`${sqn(t)} was a strong square for your knight`,text:`Strong square not used: ${sqn(t)} was backed by your pawn and none of their pawns could ever chase a piece away from it. Your knight on ${sqn(s)} could have jumped there. You played ${you} instead.`,why:`A knight on ${sqn(t)} is protected by your pawn and can't be chased away by their pawns, so it can stay there for the rest of the game.`,sug:sqn(s)+sqn(t),hl:[sqn(t)],best:null}));
         s=64; break; } } }
   return out; }
 function tick(){ build(); if(on&&!B.classList.contains("hs-review")) close(); if(on) place(); }
