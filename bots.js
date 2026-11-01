@@ -150,7 +150,7 @@ function thinkMs(fen,m,hist){ const g=new (CH())(fen), L=g.moves({verbose:true})
   const lastV=hist&&hist.length?(()=>{ const h=new (CH())(); try{ hist.forEach(x=>h.move(x)); }catch(e){} const v=h.history({verbose:true}); return v[v.length-1]; })():null;
   const recap=m&&lastV&&lastV.captured&&m.to===lastV.to, ply=(hist||[]).length;
   if(L.length<=1||recap||(m&&m.book)||ply<6){ kind="quick"; lo=400; hi=1000; }
-  else if(g.inCheck()||L.length>=35||(Math.abs(mat)<=1&&ply>=16&&L.length>=20)){ kind="long"; lo=3000; hi=4600; }
+  else if(g.inCheck()||L.length>=42||(Math.abs(mat)<=1&&ply>=16&&L.filter(x=>x.captured).length>=2)){ kind="long"; lo=3000; hi=4600; }
   let ms=lo+Math.random()*(hi-lo)+(Math.random()*300-150); ms=Math.max(400,Math.min(4900,ms)); const o=new Number(ms); o.kind=kind; return o; }
 async function botMove(){ const tok=++G.token, game=G; G.thinking=true; draw(); const t0=Date.now(), fen=G.g.fen(), hist=G.g.history();
   const think=(async()=>{ try{ return G.bot.pick?await G.bot.pick(fen,hist):G.bot.adaptive&&window.CRUltimate?await CRUltimate.move(fen,hist):await CRBotEngine.move(fen,G.bot,{history:hist,delay:0}); }catch(e){ console.error(e); return null; } })();
