@@ -76,7 +76,7 @@ const wp=sc=>{ const cp=sc.mate!=null?(sc.mate>0?10000:-10000):sc.cp; return 50+
 let ENG=null; async function eng(){ if(ENG) return ENG; const E=window.Analyzer&&Analyzer.Engine; ENG=new E(()=>new Worker("stockfish.js")); await ENG.init(); return ENG; }
 async function run(url){ const g=games().find(x=>x.url===url); if(!g) return; const C=cache()[url]; if(C){ show(g,C); return; }
   if(job) job.stop=true; const J=job={stop:false}; view={k:"run",g}; paint();
-  try{ const pg=parsePgn(g.pgn), mv=pg.moves, N=mv.length; const t0=performance.now(); const per=Math.max(50,Math.min(300,Math.round(BUDGET/(N+1))));
+  try{ const pg=Analyzer.parsePgn(g.pgn), mv=pg.moves, N=mv.length; const t0=performance.now(); const per=Math.max(50,Math.min(300,Math.round(BUDGET/(N+1))));
     const e=await eng(); const S=[];
     for(let i=0;i<=N;i++){ if(J.stop) return; const fen=i<N?mv[i].before:mv[N-1].after; const r=await e.analyse(fen,14,per,1); S.push({sc:r.score,bm:r.pv&&r.pv[0]||r.bm});
       const pf=$("cr72pf"); if(pf) pf.style.width=Math.round(100*(i+1)/(N+1))+"%"; const pt=$("cr72pt"); if(pt) pt.textContent=`Checking move ${Math.ceil((i+1)/2)} of ${Math.ceil(N/2)}…`; }
