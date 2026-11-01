@@ -131,7 +131,7 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
   let main=null;
   if(best&&best!==m.uci&&d>=5){ const s0=S[i].sc, tgt=b[idx(best.slice(2,4))];
     if(s0.mate!=null&&s0.mate>0&&!(S[i+1].sc.mate!=null&&S[i+1].sc.mate<0)) main={type:"miss",short:`You had checkmate and missed it`,text:`Missed checkmate: ${bestTxt} started a forced mate. You played ${you} instead.`+why,best,th};
-    else if(tgt&&tgt.c!==me&&isFree(b,me,idx(best.slice(2,4)))) main={type:"free",short:`Their ${NAME[tgt.t]} on ${best.slice(2,4)} was free to take`,text:`Free piece missed: their ${NAME[tgt.t]} on ${best.slice(2,4)} wasn't protected. ${bestTxt[0].toUpperCase()+bestTxt.slice(1)} would have won it. You played ${you} instead.`+why,best,th,hl:[best.slice(2,4)]};
+    else if(tgt&&tgt.c!==me&&isFree(b,me,idx(best.slice(2,4)))) main={type:"free",short:`Their ${NAME[tgt.t]} on ${best.slice(2,4)} was free to take`,text:`Free piece missed: their ${NAME[tgt.t]} on ${best.slice(2,4)} wasn't protected. Your ${P(best)} on ${best.slice(0,2)} could have taken it. You played ${you} instead.`+why,best,th,hl:[best.slice(2,4)]};
     else if(tgt&&tgt.c!==me&&VAL[tgt.t]>=3&&bw>=aw+8) main={type:"miss",short:`Missed the chance to win their ${NAME[tgt.t]}`,text:`Missed chance: ${bestTxt}, taking their ${NAME[tgt.t]}, would have won material. You played ${you} instead.`+why,best,th};
     else { const ty=d>=20?"blunder":d>=10?"mistake":"inacc", w={blunder:"Blunder",mistake:"Mistake",inacc:"Small slip"}[ty];
       const lead=bw>=70&&aw<55?`You let a win slip: moving ${you} threw away your lead.`:`${w}: you moved ${you}.`;
