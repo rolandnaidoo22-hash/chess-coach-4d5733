@@ -68,12 +68,13 @@ function tick(){ if(!warm&&B.classList.contains("hs-review")&&window.ReviewApp&&
   if(busy){ let tx=a?$("progTxt").textContent:b?$("patProgTxt").textContent:"";
     let fw=a?$("progFill").style.width:b?($("patProgFill")||{style:{}}).style.width:"";
     const bg=!a&&!b&&window.CRBg, now=Date.now(); let note="Other checks wait until this one is finished.";
+    if(b&&window.CRBatchOwn) note="Patterns update as it goes. You can keep using the app.";
     if(bg){ const n=bg.n||1, f=Math.min(1,(bg.k+(bg.f||0))/n); tx=`Grading your recent games in the background: game ${Math.min(bg.k+1,n)} of ${n}…`; fw=Math.max(5,Math.round(100*f))+"%"; note="You can look around. Tap Cancel to stop it."; }
     else if(!a&&!b){ tx="Busy with another check…"; }
     const key=tx+"|"+fw; if(key!==lastKey){ lastKey=key; lastAt=now; }
     if(now-lastAt>90000) note="This is taking longer than usual. Tap Cancel, or reload the page.";
     $("cr66pt").textContent=tx||"Checking your game…"; $("cr66pf").style.width=fw||"5%"; const sm=$("cr66prog").querySelector("small"); if(sm&&sm.textContent!==note) sm.textContent=note;
-    document.querySelectorAll(BUSY).forEach(e=>{ if(!e.disabled){ e.disabled=true; e.dataset.cr66d="1"; } }); }
+    if(!(b&&!a&&window.CRBatchOwn)) document.querySelectorAll(BUSY).forEach(e=>{ if(e.id==="patRun"&&window.CRBatchOwn) return; if(!e.disabled){ e.disabled=true; e.dataset.cr66d="1"; } }); }
   else document.querySelectorAll("[data-cr66d]").forEach(e=>{ e.disabled=false; delete e.dataset.cr66d; });
   decorate(); }
 const GR={blunder:"a big mistake",mistake:"a mistake",miss:"a missed chance",inaccuracy:"a small slip"};

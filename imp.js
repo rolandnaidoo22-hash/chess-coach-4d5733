@@ -296,7 +296,7 @@ async function refreshList(force){ const C=cstore(); if(!force&&Date.now()-C.lis
   const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`)).json(); const arcs=(a.archives||[]).slice(-2).reverse(); let L=[];
   for(const u of arcs){ const j=await (await fetch(u)).json(); (j.games||[]).forEach(x=>{ if(!x.pgn||x.rules!=="chess"||x.time_class==="bullet") return; if(Date.now()-x.end_time*1000>35*864e5) return; L.push({id:String(x.url).replace(/\/$/,""),t:x.end_time*1000,tc:x.time_class}); }); }
   L.sort((x,y)=>y.t-x.t); C.list=L; C.listAt=Date.now(); C.user=user; LSs(CK5,C); C._arcs=arcs; return C; }
-async function gradeSome(n){ if(CL.run||!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()) return;
+async function gradeSome(n){ if(window.CRBatchOwn||CL.run||!window.Analyzer||!window.ReviewApp||!window.PatternStore) return; if(ReviewApp.isRunning()) return;
   const user=((window.CRUser&&CRUser.info())||{}).cc; if(!user) return; CL.run=true;
   try{ const C=await refreshList(false); const todo=C.list.filter(g=>!PatternStore.has(g.id)).slice(0,n);
     if(todo.length&&!ReviewApp.isRunning()){ ReviewApp.setRunning(true);

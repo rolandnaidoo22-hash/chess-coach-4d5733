@@ -523,6 +523,7 @@ body.p3d .trboard svg.b3d:not(.flat3d){margin-top:-12%}
   <label>Engine <select id="patMode"><option value="quick" selected>Quick (≈20 s/game)</option><option value="deep">Deep (2–5 min/game)</option></select></label>
   <button class="btn primary" id="patRun">🔍 Analyze my recent games</button></div>
  <div class="progress" id="patProg"><div class="pbar"><div id="patProgFill"></div></div><div class="ptxt" id="patProgTxt"></div><button class="btn" id="patCancel">Stop</button></div>
+<style>.pop78{position:relative;max-width:360px;margin:6px 0;padding:8px 30px 6px 10px;border:1px solid #81b64c;border-radius:10px;background:#f4fbef;font-size:13px;line-height:1.35}.pop78 p{margin:4px 0}.pop78x{position:absolute;top:4px;right:6px;border:0;background:none;font-size:16px;cursor:pointer}#pop78b{padding:2px 8px;font-size:12px}</style>
  <div class="perr" id="patErr"></div>
  <div id="patBody"></div>
 </section>
@@ -4822,7 +4823,10 @@ async function analyzeGame(pgnText, opts, progress){
     return {sw:toWhite(r.score,turn),pv:r.pv,alt:r.alt?{sw:toWhite(r.alt.score,turn),uci:r.alt.pv[0]}:null}; };
   const chk=()=>{ if(opts.cancelled&&opts.cancelled()) throw new Error("cancelled"); }; const TM={start:Math.round(performance.now()-(window.__s||performance.now()))};
   for(let i=infos.length;i<N;i++){ chk(); progress({phase:"moves",i,n:N-1,t:performance.now()-t0,pass:legacy?0:1});
-    const book=!legacy&&i<=bookTo&&i>0; const d=legacy?mode.depth:P1.d, t=legacy?mode.time:P1.t;
+    const book=!legacy&&i<=bookTo&&i>0; let d=legacy?mode.depth:P1.d, t=legacy?mode.time:P1.t;
+    /* v78 fast batch: opening-book positions need no engine time; clearly decided positions get a short look */
+    if(opts.fast&&!legacy&&i<bookTo){ infos[i]={sw:{cp:20},pv:[g.moves[i].uci],alt:null}; depthOf[i]=0; continue; }
+    if(opts.fast&&!legacy&&i>=2){ const pw=infos[i-1]&&infos[i-1].sw, pw2=infos[i-2]&&infos[i-2].sw; const big=x=>x&&(x.mate!=null||Math.abs(x.cp)>=700); if(big(pw)&&big(pw2)){ d=8; t=70; } }
     infos[i]=await one(i,d,t); depthOf[i]=legacy?2:book?0:1; if(!legacy) save("p1"); }
   const build=()=>{ const plies=[];
   g.moves.forEach((mv,i)=>{
@@ -4848,6 +4852,7 @@ async function analyzeGame(pgnText, opts, progress){
     if(opts.cancelled&&opts.cancelled()) throw new Error("cancelled");
     progress({phase:"threats",i:k,n:mine.length,t:performance.now()-t0});
     p.threat=null; const c=mk(p.fen_before); if(c.isCheck()) continue;
+    if(opts.fast){ if(p.ply<=bookTo) continue; const me0=clamp(cpOf(povScore(p.eval_before,p.color))); if(Math.abs(me0)>=600) continue; }
     const nf=nullFen(p.fen_before); const nc=mk(nf); if(!nc.moves().length||nc.isGameOver()) continue;
     const opp=other(p.color); const now=clamp(cpOf(povScore(p.eval_before,opp)));
     const r=await eng.analyse(nf,legacy?mode.tdepth:Math.min(mode.tdepth,11),legacy?mode.ttime:Math.min(mode.ttime,350),1); if(!r.pv.length) continue;
@@ -5277,36 +5282,49 @@ async function fetchGames(user,which){
   if(which!=="month"&&which!=="all") games=games.slice(0,+which);
   return games;
 }
+/* v78: several engines at once on computers; one on phones or low memory */
+function poolSize(n){ const c=navigator.hardwareConcurrency||2, mem=navigator.deviceMemory||8, phone=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  let k=Math.min(4,Math.max(1,c-1)); if(phone||mem<4) k=(phone&&mem>=8&&c>=8)?2:1; return Math.max(1,Math.min(k,n)); }
+function perGame(mode){ try{ const S=JSON.parse(localStorage.getItem("chessReview.batchSpeed")||"{}"); if(S[mode]) return S[mode]; }catch(e){} return mode==="quick"?12:30; }
+window.CRBatch78={poolSize,perGame};
 function bprog(txt,pct){ $("patProg").classList.add("on"); $("patProgTxt").textContent=txt; $("patProgFill").style.width=(pct||0).toFixed(1)+"%"; }
-async function runBatch(){
-  if(batch||ReviewApp.isRunning()) return; const user=($("uname").value||"").trim(); $("patErr").textContent="";
+const JOBK="chessReview.batchJob.v78";
+function popup78(n){ const old=$("pop78"); if(old) old.remove(); const pp=$("patProg"); if(!pp) return;
+  pp.insertAdjacentHTML("afterend",`<div id="pop78" class="pop78" role="dialog" aria-label="What is happening"><button type="button" class="btn" id="pop78b">‹ Back</button><button type="button" class="pop78x" id="pop78x" aria-label="Close">✕</button>
+   <p><b>Checking ${n>=50?"all your":n+" of your"} games.</b> Your patterns show up after the first 10 and get better as more are checked.</p><p>You can keep using the app. If you close it, it carries on next time. Games are only checked once, so next time is quick.</p></div>`);
+  const x=()=>{ const e=$("pop78"); if(e) e.remove(); }; $("pop78x").onclick=x; $("pop78b").onclick=x; }
+async function runBatch(resume){
+  if(batch||ReviewApp.isRunning()) return; const job=resume&&resume.user?resume:null; const user=job?job.user:($("uname").value||"").trim(); $("patErr").textContent="";
   if(!user){ $("patErr").textContent="Type your Chess.com username in “Review a new game” first."; return; }
-  const which=$("patN").value, mode=$("patMode").value;
+  const which=job?job.which:$("patN").value, mode=job?job.mode:$("patMode").value;
+  try{ localStorage.setItem(JOBK,JSON.stringify({user,which,mode,at:Date.now()})); }catch(e){}
   batch={cancel:false}; ReviewApp.setRunning(true); $("patRun").disabled=true; ReviewApp.keepAwake(true);
   let done=0, skipped=0, failed=0;
   try{
     bprog("Getting your games from Chess.com…",1);
     const games=await fetchGames(user.toLowerCase(),which);
-    const todo=games.filter(g=>!PatternStore.has(g.url.replace(/\/$/,"")));
+    const PS=PatternStore.all(); const todo=games.filter(g=>{ const r=PS[g.url.replace(/\/$/,"")]; return !r||(mode!=="quick"&&r.mode==="Quick"); }); /* once per game and engine setting; newest first */
     skipped=games.length-todo.length;
     if(!todo.length){ bprog(`All ${games.length} games are already analyzed.`,100); setTimeout(()=>$("patProg").classList.remove("on"),2500); render(); return; }
-    let eng=await ReviewApp.getEngine(); const t0=performance.now();
-    for(let k=0;k<todo.length;k++){
-      if(batch.cancel) break; const g=todo[k];
-      const opp=g.white.username.toLowerCase()===user.toLowerCase()?g.black.username:g.white.username;
-      const head=`Game ${k+1} of ${todo.length} (vs ${opp})`;
-      try{
-        const d=await Analyzer.analyzeGame(g.pgn,{engine:eng,username:user,side:"auto",mode,cancelled:()=>batch.cancel},p=>{
-          const f=p.phase==="moves"?0.85*(p.i/(p.n||1)):p.phase==="threats"?0.85+0.15*(p.i/(p.n||1)):0;
-          const el=(performance.now()-t0)/1000, per=(k+f)>0.3?el/(k+f):null, left=per?Math.round(per*(todo.length-k-f)):null;
-          bprog(`${head}: ${p.phase==="moves"?`move ${Math.ceil((p.i+1)/2)} of ${Math.ceil((p.n||1)/2)}`:"checking threats"}${left!=null?` · about ${left<90?left+" s":Math.round(left/60)+" min"} left`:""}`,100*(k+f)/todo.length); });
-        d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn); try{ const me=(((window.CRUser&&CRUser.info())||{}).cc||"").trim().toLowerCase(); if(me&&me===user.toLowerCase()&&window.CRKeepChecked) CRKeepChecked(d,g.url,g.end_time); }catch(_){} done++;
-        if((k+1)%3===0) render(true);
-      }catch(err){ if(String(err.message)==="cancelled") break; console.error(err); failed++; try{ eng.quit(); }catch(e){} eng=await ReviewApp.getEngine(true); }
-    }
+    const K=poolSize(todo.length), t0=performance.now(); let started=0, fin=0; const frac={};
+    const est=Math.round(todo.length*perGame(mode)/K);
+    if(todo.length>=15&&!job) popup78(todo.length);
+    const report=()=>{ const f=fin+Object.values(frac).reduce((a,b)=>a+b,0), el=(performance.now()-t0)/1000, left=f>0.5?Math.round(el/f*(todo.length-f)):Math.round(est);
+      bprog(`Game ${Math.min(todo.length,fin+1)} of ${todo.length} · about ${left<90?left+" s":Math.round(left/60)+" min"} left · Patterns update as it goes`,100*f/todo.length); };
+    report(); window.CRBatchOwn=true; ReviewApp.setRunning(false);
+    const lane=async(w)=>{ let eng=new Analyzer.Engine(()=>new Worker("stockfish.js")); try{ eng.send("setoption name Threads value 1"); }catch(e){} await eng.init(); try{ eng.send("setoption name Threads value 1"); await eng.ready(); }catch(e){}
+      try{ while(!batch.cancel){ const k=started++; if(k>=todo.length) break; const g=todo[k]; frac[w]=0;
+        try{ const d=await Analyzer.analyzeGame(g.pgn,{engine:eng,username:user,side:"auto",mode,fast:true,cancelled:()=>batch.cancel},p=>{ frac[w]=p.phase==="moves"?0.7*(p.i/(p.n||1)):p.phase==="check"?0.7+0.15*(p.i/(p.n||1)):p.phase==="threats"?0.85+0.15*(p.i/(p.n||1)):0; });
+          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn); try{ const me=(((window.CRUser&&CRUser.info())||{}).cc||"").trim().toLowerCase(); if(me&&me===user.toLowerCase()&&window.CRKeepChecked) CRKeepChecked(d,g.url,g.end_time); }catch(_){} done++;
+          try{ const S=JSON.parse(localStorage.getItem("chessReview.batchSpeed")||"{}"); S[mode]=Math.round(((performance.now()-t0)/1000*K/Math.max(1,done))*10)/10; localStorage.setItem("chessReview.batchSpeed",JSON.stringify(S)); }catch(_){}
+        }catch(err){ if(String(err.message)==="cancelled") break; console.error(err); failed++; try{ eng.quit(); }catch(e){} eng=new Analyzer.Engine(()=>new Worker("stockfish.js")); await eng.init(); }
+        frac[w]=0; fin++; report(); if(fin===10||(fin>10&&fin%5===0)||fin===todo.length||(fin<10&&fin%3===0)) render(true); await new Promise(r=>setTimeout(r,0)); } }
+      finally{ delete frac[w]; try{ eng.quit(); }catch(e){} } };
+    await Promise.all(Array.from({length:K},(_,w)=>lane(w)));
+    window.__batchT={games:done,secs:Math.round((performance.now()-t0)/100)/10,K};
     bprog(`${batch.cancel?"Stopped":"Done"}: ${done} new game${done===1?"":"s"} analyzed${skipped?`, ${skipped} already done`:""}${failed?`, ${failed} failed`:""}. Tap the button again any time to continue.`,100);
   }catch(e){ console.error(e); $("patErr").textContent="Couldn't reach Chess.com (are you online?). Games you review one by one still count here."; }
-  finally{ batch=null; ReviewApp.setRunning(false); $("patRun").disabled=false; ReviewApp.keepAwake(false); render(); }
+  finally{ try{ if(!batch||!batch.closing) localStorage.removeItem(JOBK); }catch(e){} batch=null; window.CRBatchOwn=false; const pp=$("pop78"); if(pp) pp.remove(); ReviewApp.setRunning(false); $("patRun").disabled=false; ReviewApp.keepAwake(false); render(); }
 }
 /* ---------------- charts (inline SVG) ---------------- */
 function lineChart(pts,{h=150,min,max,color="#3b6fb6",avg=true,label=v=>v,dots}={}){
@@ -5457,7 +5475,10 @@ async function openMove(rec,ply){
 }
 function close(keepPaste){ open=false; const s=$("pat"); if(s) s.classList.remove("on"); }
 function toggle(){ open=!open; $("pat").classList.toggle("on",open); if(open){ $("paste").classList.remove("open","gopen"); render(); $("pat").scrollIntoView({block:"start"}); } }
-$("bOpenPat").onclick=toggle; $("patRun").onclick=runBatch; $("patCancel").onclick=()=>{ if(batch) batch.cancel=true; };
+$("bOpenPat").onclick=toggle; $("patRun").onclick=()=>runBatch();
+/* v78: carry on with an unfinished run after the app was closed */
+window.addEventListener("pagehide",()=>{ if(batch){ batch.closing=true; } });
+setTimeout(()=>{ try{ const j=JSON.parse(localStorage.getItem(JOBK)||"null"); if(j&&j.user&&Date.now()-j.at<7*864e5&&!batch) runBatch(j); }catch(e){} },8000); $("patCancel").onclick=()=>{ if(batch) batch.cancel=true; };
 syncSaved(); $("patCount").textContent=Object.keys(PatternStore.all()).length?`(${Object.keys(PatternStore.all()).length})`:"";
 window.PatternsUI={render,close,toggle,openMove,runBatch};
 })();
@@ -10215,7 +10236,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 
 <script defer src="traps.js?v=54ux"></script>
 <script defer src="board3d.js?v=69"></script>
-<script defer src="imp.js?v=77"></script>
+<script defer src="imp.js?v=78"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
 <script defer src="home.js?v=68"></script>
@@ -10253,7 +10274,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="plain64.js?v=67"></script>
 <script defer src="mind64.js?v=69"></script>
 <script defer src="gut65.js?v=67"></script>
-<script defer src="review66.js?v=77"></script>
+<script defer src="review66.js?v=78"></script>
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr74.js?v=74"></script><script defer src="pat76.js?v=76"></script>
 <script defer src="rating68.js?v=68"></script>
