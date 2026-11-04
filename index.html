@@ -227,6 +227,7 @@ header .ver{display:inline-block;font-size:11px;font-weight:700;background:#2624
 .pdrill{background:#eef6e6;border-radius:8px;padding:7px 9px;font-size:13px;margin-top:8px}
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .p76r{display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0}.p76r span{width:105px}.p76r i{flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden}.p76r i b{display:block;height:100%}.p76r em{font-style:normal;width:62px;text-align:right}.p76 .pul{margin:4px 0;padding-left:18px;font-size:13px}.p76link{font-size:13px;font-weight:600}.p76win{border-color:#81b64c}
+.tt3line{font-size:14px;margin:4px 0 8px;padding:6px 8px;background:#f6f6f2;border-radius:8px}.tt3g{color:#2e9b4f}.tt3f{color:#d23c3c}#patProg.done .pbar{display:none}#patGo{margin-left:4px}
 .pbox{border:1px solid var(--line);border-radius:10px;padding:4px 10px 10px;margin:10px 0;min-width:0;background:#fff}
 .pul{margin:0;padding-left:18px;font-size:14px}.pul li{margin:4px 0}
 .pch{width:100%;height:auto;display:block}
@@ -519,9 +520,9 @@ body.p3d .trboard svg.b3d:not(.flat3d){margin-top:-12%}
 </section>
 <section class="card pat" id="pat">
  <h2 class="pth">📊 My patterns</h2>
- <div class="pctl"><label>Games <select id="patN"><option value="10">Last 10</option><option value="20" selected>Last 20</option><option value="month">All of this month</option><option value="all">All my games</option></select></label>
-  <label>Engine <select id="patMode"><option value="quick" selected>Quick (≈20 s/game)</option><option value="deep">Deep (2–5 min/game)</option></select></label>
-  <button class="btn primary" id="patRun">🔍 Analyze my recent games</button></div>
+ <div class="pctl"><label>Games <select id="patN"><option value="10">Last 10</option><option value="20" selected>Last 20</option><option value="month">All of this month</option><option value="all">All my games</option></select></label><button class="btn primary" id="patGo">Analyze</button>
+  <label>Engine <select id="patMode"><option value="quick" selected>Quick (about 5–15 s/game)</option><option value="deep">Deep (2–5 min/game)</option></select></label>
+  <button class="btn" id="patRun">🔍 Analyze my last game</button></div><p class="pm" id="patFrom"></p>
  <div class="progress" id="patProg"><div class="pbar"><div id="patProgFill"></div></div><div class="ptxt" id="patProgTxt"></div><button class="btn" id="patCancel">Stop</button></div>
 <style>.pop78{position:relative;max-width:360px;margin:6px 0;padding:8px 30px 6px 10px;border:1px solid #81b64c;border-radius:10px;background:#f4fbef;font-size:13px;line-height:1.35}.pop78 p{margin:4px 0}.pop78x{position:absolute;top:4px;right:6px;border:0;background:none;font-size:16px;cursor:pointer}#pop78b{padding:2px 8px;font-size:12px}</style>
  <div class="perr" id="patErr"></div>
@@ -5293,19 +5294,30 @@ function popup78(n){ const old=$("pop78"); if(old) old.remove(); const pp=$("pat
   pp.insertAdjacentHTML("afterend",`<div id="pop78" class="pop78" role="dialog" aria-label="What is happening"><button type="button" class="btn" id="pop78b">‹ Back</button><button type="button" class="pop78x" id="pop78x" aria-label="Close">✕</button>
    <p><b>Checking ${n>=50?"all your":n+" of your"} games.</b> Your patterns show up after the first 10 and get better as more are checked.</p><p>You can keep using the app. If you close it, it carries on next time. Games are only checked once, so next time is quick.</p></div>`);
   const x=()=>{ const e=$("pop78"); if(e) e.remove(); }; $("pop78x").onclick=x; $("pop78b").onclick=x; }
+/* v79: which games Patterns shows (set when Analyze is tapped) */
+const RANGEK="chessReview.patRange.v79";
+function getRange(){ try{ return localStorage.getItem(RANGEK)||"20"; }catch(e){ return "20"; } }
+function setRange(v){ try{ localStorage.setItem(RANGEK,v); }catch(e){} }
+const gnum=r=>{ const m=/(\d+)\/?$/.exec(r.link||r.id||""); return m?+m[1]:0; };
+function rangeRecs(all,which){ const S=all.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||gnum(b)-gnum(a));
+  if(which==="all") return S; if(which==="month"){ const m=new Date().toISOString().slice(0,7); const M=S.filter(r=>(r.date||"").replace(/\./g,"-").startsWith(m)); return M.length?M:S.slice(0,10); }
+  return S.slice(0,+which||20); }
+window.CRRange79={rangeRecs,getRange,setRange};
+function doneBanner(txt){ const pp=$("patProg"); bprog(txt,100); pp.classList.add("done"); $("patCancel").textContent="✕"; $("patCancel").setAttribute("aria-label","Close"); }
 async function runBatch(resume){
   if(batch||ReviewApp.isRunning()) return; const job=resume&&resume.user?resume:null; const user=job?job.user:($("uname").value||"").trim(); $("patErr").textContent="";
   if(!user){ $("patErr").textContent="Type your Chess.com username in “Review a new game” first."; return; }
-  const which=job?job.which:$("patN").value, mode=job?job.mode:$("patMode").value;
+  const which=job?job.which:(resume&&resume.which)||$("patN").value, mode=job?job.mode:$("patMode").value;
+  if(which!=="1") setRange(which);
   try{ localStorage.setItem(JOBK,JSON.stringify({user,which,mode,at:Date.now()})); }catch(e){}
-  batch={cancel:false}; ReviewApp.setRunning(true); $("patRun").disabled=true; ReviewApp.keepAwake(true);
+  $("patProg").classList.remove("done"); $("patCancel").textContent="Stop"; batch={cancel:false}; ReviewApp.setRunning(true); $("patRun").disabled=true; ReviewApp.keepAwake(true);
   let done=0, skipped=0, failed=0;
   try{
     bprog("Getting your games from Chess.com…",1);
     const games=await fetchGames(user.toLowerCase(),which);
     const PS=PatternStore.all(); const todo=games.filter(g=>{ const r=PS[g.url.replace(/\/$/,"")]; return !r||(mode!=="quick"&&r.mode==="Quick"); }); /* once per game and engine setting; newest first */
     skipped=games.length-todo.length;
-    if(!todo.length){ bprog(`All ${games.length} games are already analyzed.`,100); setTimeout(()=>$("patProg").classList.remove("on"),2500); render(); return; }
+    if(!todo.length){ doneBanner(games.length===1?"✅ Your last game is already checked.":`✅ All ${games.length} games are already checked.`); render(); return; }
     const K=poolSize(todo.length), t0=performance.now(); let started=0, fin=0; const frac={};
     const est=Math.round(todo.length*perGame(mode)/K);
     if(todo.length>=15&&!job) popup78(todo.length);
@@ -5322,7 +5334,7 @@ async function runBatch(resume){
       finally{ delete frac[w]; try{ eng.quit(); }catch(e){} } };
     await Promise.all(Array.from({length:K},(_,w)=>lane(w)));
     window.__batchT={games:done,secs:Math.round((performance.now()-t0)/100)/10,K};
-    bprog(`${batch.cancel?"Stopped":"Done"}: ${done} new game${done===1?"":"s"} analyzed${skipped?`, ${skipped} already done`:""}${failed?`, ${failed} failed`:""}. Tap the button again any time to continue.`,100);
+    doneBanner(batch.cancel?`Stopped. ${done} game${done===1?"":"s"} checked. Tap Analyze to carry on.`:`✅ Done. ${done} game${done===1?"":"s"} checked${skipped?`, ${skipped} already done`:""}${failed?`, ${failed} couldn't be read`:""}.`);
   }catch(e){ console.error(e); $("patErr").textContent="Couldn't reach Chess.com (are you online?). Games you review one by one still count here."; }
   finally{ try{ if(!batch||!batch.closing) localStorage.removeItem(JOBK); }catch(e){} batch=null; window.CRBatchOwn=false; const pp=$("pop78"); if(pp) pp.remove(); ReviewApp.setRunning(false); $("patRun").disabled=false; ReviewApp.keepAwake(false); render(); }
 }
@@ -5424,9 +5436,9 @@ function progressHtml(){ const p=A.progress; if(!p) return "<p class='pm'>Analyz
    ${row("Missed chances per game",p.miss[0],p.miss[1],"down")}${row("Win rate",p.win[0],p.win[1],"up","%")}${row("Rating",p.elo[0],p.elo[1],"up")}</table>`; }
 function render(keepOpen){
   const box=$("patBody"); if(!box) return;
-  syncSaved(); const recs=Object.values(PatternStore.all());
-  $("patCount").textContent=recs.length?`(${recs.length})`:"";
-  if(!recs.length){ box.innerHTML=`<p class="pm">No games analyzed yet. Tap <b>Analyze my recent games</b> above (Quick takes about 20 seconds per game), or review games one by one. Every reviewed game is added here.</p>`; return; }
+  syncSaved(); const allR=Object.values(PatternStore.all()), rg=getRange(); const recs=rangeRecs(allR,rg); window.__patRange=recs;
+  $("patCount").textContent=allR.length?`(${allR.length})`:""; const pf=$("patFrom"); if(pf){ const nm={"10":"Last 10","20":"Last 20",month:"This month",all:"All my games"}[rg]||("Last "+rg); pf.innerHTML=recs.length?`Showing <b>${nm}</b>: from <b>${recs.length}</b> game${recs.length===1?"":"s"}${rg!=="all"&&rg!=="month"&&recs.length<+rg?` (tap Analyze to check the rest)`:""}.`:""; }
+  if(!recs.length){ box.innerHTML=`<p class="pm">No games analyzed yet. Pick games above and tap <b>Analyze</b>, or review games one by one. Every reviewed game is added here.</p>`; return; }
   A=Pt.aggregate(recs); const G=A.games; const top=A.ranked.slice(0,3);
   const R=A.results, how=R.how, me=(recs.filter(r=>r.me==="w").length>=recs.length/2)?"w":"b";
   const tr=A.trend; const dates=tr.length?`${tr[0].date} to ${tr[tr.length-1].date}`:"";
@@ -5434,7 +5446,7 @@ function render(keepOpen){
   h+=`<h3 class="ph3">🔁 Your top 3 repeating mistakes</h3>`+top.map(card).join("");
   h+=`<div class="pgrid"><div class="pbox"><h3 class="ph3">✅ What you're doing well</h3><ul class="pul">${wellDone().map(x=>`<li>${x}</li>`).join("")}</ul></div>
      <div class="pbox"><h3 class="ph3">📈 Progress</h3>${progressHtml()}</div></div>`;
-  try{ if(window.CRPat76) h+=CRPat76.html(recs,window.Trainer&&Trainer.tt3All?Trainer.tt3All():[]); }catch(e){ console.error(e); }
+  try{ if(window.CRPat76) h+=CRPat76.html(recs,window.Trainer&&Trainer.tt3Sel?Trainer.tt3Sel():[]); }catch(e){ console.error(e); }
   h+=`<div class="pbox"><h3 class="ph3">Biggest repeated mistakes</h3>${hbars(A.ranked.map(it=>({l:it.title,v:it.count,t:`${it.count} <small>(${it.games}g)</small>`,c:"#ee6b55"})))}<p class="pm">Number of times · (g) = number of games it happened in. Ranked by how often it happens and how much it costs.</p></div>`;
   h+=`<div class="pbox"><h3 class="ph3">Accuracy per game</h3>${lineChart(tr.map(t=>({v:t.acc,res:t.res})),{min:0,max:100,dots:true})}<p class="pm">Thin line = each game (dot green = win, red = loss), thick line = average of the last 5.</p></div>`;
   const et=tr.filter(t=>t.elo!=null); h+=`<div class="pbox"><h3 class="ph3">Rating (${A.mainTc&&+A.mainTc>=60?Math.round(+A.mainTc/60)+" min games":"main time control"})</h3>${lineChart(et.map(t=>({v:t.elo,res:t.res})),{avg:false,color:"#81b64c",dots:true})}</div>`;
@@ -5475,10 +5487,10 @@ async function openMove(rec,ply){
 }
 function close(keepPaste){ open=false; const s=$("pat"); if(s) s.classList.remove("on"); }
 function toggle(){ open=!open; $("pat").classList.toggle("on",open); if(open){ $("paste").classList.remove("open","gopen"); render(); $("pat").scrollIntoView({block:"start"}); } }
-$("bOpenPat").onclick=toggle; $("patRun").onclick=()=>runBatch();
+$("bOpenPat").onclick=toggle; $("patRun").onclick=()=>runBatch({which:"1"}); $("patGo").onclick=()=>runBatch({which:$("patN").value});
 /* v78: carry on with an unfinished run after the app was closed */
 window.addEventListener("pagehide",()=>{ if(batch){ batch.closing=true; } });
-setTimeout(()=>{ try{ const j=JSON.parse(localStorage.getItem(JOBK)||"null"); if(j&&j.user&&Date.now()-j.at<7*864e5&&!batch) runBatch(j); }catch(e){} },8000); $("patCancel").onclick=()=>{ if(batch) batch.cancel=true; };
+setTimeout(()=>{ try{ const j=JSON.parse(localStorage.getItem(JOBK)||"null"); if(j&&j.user&&Date.now()-j.at<7*864e5&&!batch) runBatch(j); }catch(e){} },8000); $("patCancel").onclick=()=>{ if(batch) batch.cancel=true; else $("patProg").classList.remove("on","done"); };
 syncSaved(); $("patCount").textContent=Object.keys(PatternStore.all()).length?`(${Object.keys(PatternStore.all()).length})`:"";
 window.PatternsUI={render,close,toggle,openMove,runBatch};
 })();
@@ -8857,6 +8869,19 @@ function tt3Score(moves,me,start){ let c; try{ c=new Chess(start||START); }catch
     const had=end.filter(x=>passedOf(x.fb,me).length); if(had.length){ const pushes=end.filter(x=>x.m.piece==="p"&&isPassed(x.fb,x.m.from,me)).length+(end.some(x=>x.m.promotion)?2:0); S[8]=pushes>=2?1:0; if(!S[8]) ex(8,had[0].fb,`Move ${had[0].n}: you had a passed pawn on ${passedOf(had[0].fb,me).join(", ")} but pushed it only ${pushes} time${pushes===1?"":"s"}.`,passedOf(had[0].fb,me)); } }
   return {s:S,x:X,n:my.length}; }
 function tt3Store(){ return LS.get(TT3K,{}); }
+/* v79: the 3x3 card counts every analysed game in the chosen range (scored from the saved game moves, cached) */
+function tt3Sel(){ const R=window.__patRange; if(!R) return tt3All().slice(0,60); const S=tt3Store(), app={}; let ch=false;
+  try{ (window.ReviewApp?ReviewApp.loadGames():[]).forEach(g=>{ const id=(g.id||"").replace(/\/$/,""); if(id&&g.data&&g.data.plies) app[id]=g.data; }); }catch(e){}
+  const out=[]; R.forEach(r=>{ const id=String(r.link||r.id||"").replace(/\/$/,""); let sc=S[id];
+    if(!sc||sc.v!==2&&sc.src!=="pat"&&sc.src!=="cc"){ let mv=null, st=null;
+      if(app[id]){ mv=app[id].plies.map(p=>p.uci); st=app[id].start_fen; }
+      else if(r.pgn){ try{ const c=new Chess(); c.loadPgn(r.pgn); mv=c.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||"")); }catch(e){} }
+      if(mv){ const x=tt3Score(mv,r.me,st); if(x){ sc=Object.assign(x,{d:r.date||"",o:r.me==="w"?r.black:r.white,me:r.me,l:r.link||id,src:"pat"}); if(id){ S[id]=sc; ch=true; } } } }
+    if(sc) out.push(Object.assign({},sc,{r:r.res})); });
+  if(ch) try{ LS.set(TT3K,S); }catch(e){}
+  out.n=R.length; return out; }
+function tt3Line(A){ const ok=A.filter(a=>a.n>=2&&a.pct!=null); const good=ok.filter(a=>a.pct>=70).sort((a,b)=>b.pct-a.pct).slice(0,2).map(a=>a.nm.toLowerCase()), bad=ok.filter(a=>a.pct<50).sort((a,b)=>a.pct-b.pct).slice(0,2).map(a=>a.nm.toLowerCase());
+  return [good.length?`<b class="tt3g">Good:</b> ${good.join(", ")}.`:"",bad.length?`<b class="tt3f">Fix next:</b> ${bad.join(", ")}.`:""].filter(Boolean).join(" ")||"Keep going: no clear strong or weak job yet."; }
 function tt3All(){ const S=Object.assign({},tt3Store()); try{ (window.ReviewApp?ReviewApp.loadGames():[]).forEach(g=>{ const id=(g.id||"").replace(/\/$/,""); if(!id||S[id]&&S[id].src==="cc") return; const d=g.data&&ReviewApp.upgrade?ReviewApp.upgrade(g.data):g.data; if(!d||!d.plies) return;
     const me=d.meta.user_color||((d.plies.find(p=>p.user)||{}).color)||"w"; const sc=tt3Score(d.plies.map(p=>p.uci),me,d.start_fen); if(sc) S[id]=Object.assign(sc,{d:d.meta.date||"",o:me==="w"?d.meta.black:d.meta.white,me,l:d.meta.link||"",src:"app"}); }); }catch(e){ console.error(e); }
   return Object.values(S).sort((a,b)=>(b.d||"").localeCompare(a.d||"")); }
@@ -8869,15 +8894,14 @@ async function tt3Fetch(user,max,prog){ const a=await (await fetch(`https://api.
 function tt3User(){ try{ const u=localStorage.getItem("chessReview.username"); if(u) return u; }catch(e){} const r=recs()[0]; return r?(r.me==="w"?r.white:r.black):""; }
 function tt3Agg(G){ return TT3N.map((nm,k)=>{ const v=G.map(g=>g.s[k]).filter(x=>x!=null); const pass=v.filter(x=>x===1).length; return {k,nm,n:v.length,pass,pct:v.length?Math.round(100*pass/v.length):null,ex:G.filter(g=>g.x&&g.x[k]).slice(0,3).map(g=>Object.assign({g},g.x[k]))}; }); }
 const tt3Col=p=>p==null?"#bbb":p>=70?"#2e9b4f":p>=40?"#e0b000":"#d23c3c";
-function tt3Box(){ const G=tt3All().slice(0,60); const A=tt3Agg(G); const W=A.filter(a=>a.n>=2&&a.pct!=null).sort((a,b)=>a.pct-b.pct);
-  return `<div class="card tt3card" id="tt3Card"><h3>🧭 3x3 report card</h3><p class="trsmall">Know the stage, then do its 3 jobs. How often you did each job${G.length?` (last ${G.length} games)`:""}. Tap a square for examples from your games.</p>
+function tt3Box(){ const G=tt3Sel(); const A=tt3Agg(G);
+  return `<div class="card tt3card" id="tt3Card"><h3>🧭 3x3 report card</h3><p class="trsmall">Know the stage, then do its 3 jobs. <b>From ${G.length} game${G.length===1?"":"s"}</b>${G.n&&G.n>G.length?` (${G.n-G.length} had too few moves to score)`:""}. Tap a square for examples.</p><p class="tt3line" id="tt3Line">${tt3Line(A)}</p>
   ${G.length?`<div class="tt3grid">${TT3.map((S,si)=>`<div class="tt3row"><div class="tt3lab" style="background:${S.c}">${S.i}<br>${S.n}</div>${[0,1,2].map(j=>{ const a=A[si*3+j]; return `<button class="tt3c" data-p="${a.k}" style="border-color:${tt3Col(a.pct)}"><b>${a.nm}</b><span class="tt3pct" style="color:${tt3Col(a.pct)}">${a.pct==null?"–":a.pct+"%"}</span><span class="tt3bar"><i style="width:${a.pct||0}%;background:${tt3Col(a.pct)}"></i></span><small>${a.n?`${a.pass}/${a.n} games`:"no games yet"}</small></button>`; }).join("")}</div>`).join("")}</div>
-  ${W.length?`<h4>Which jobs you break most</h4><div class="tt3bars">${W.map(a=>`<div class="tt3b" data-p="${a.k}"><span>${a.nm}</span><span class="tt3bar big"><i style="width:${100-a.pct}%;background:#d23c3c"></i></span><b>${100-a.pct}%</b></div>`).join("")}</div>
-  <p class="tt3worst">⚠ Your #1 job to fix: <b>${W[0].nm}</b> (missed in ${100-W[0].pct}% of games).</p>`:""}<div id="tt3Ex"></div>`:`<p>No games scored yet.</p>`}
+  <div id="tt3Ex"></div>`:`<p>No games scored yet.</p>`}
   <div class="tracts"><button class="btn" id="tt3Fetch">📥 Score my last 50 Chess.com games</button><button class="btn try" id="tt3Learn">🧭 Learn the 3x3</button></div><p class="trsmall" id="tt3Msg"></p></div>`; }
 function tt3ExHtml(a){ if(!a) return ""; if(!a.ex.length) return `<p class="trsmall">${a.pct===100?"You did this in every game. 👏":"No examples saved for this job yet."}</p>`;
   return `<h4>${a.nm}: examples from your games</h4><div class="tt3exs">${a.ex.map(e=>`<div class="tt3ex"><div class="tt3mini">${boardSvg(e.fen,e.g.me,{hl:e.hl.map(sq=>({sq,c:"#d23c3c",o:.55})),arrows:e.ar||[]})}</div><p>${e_(e.t)}<br><small>vs ${e_(e.g.o||"?")} · ${e_(e.g.d||"")} ${e.g.l?`· <a href="${e_(e.g.l)}" target="_blank" rel="noopener">game</a>`:""}</small></p><button class="btn" data-tq="${e_(e.fen)}" data-tme="${e.g.me}">🧭 Coach this position</button></div>`).join("")}</div>`; }
-function tt3WireBox(root){ const box=root.querySelector("#tt3Card"); if(!box) return; const G=tt3All().slice(0,60), A=tt3Agg(G);
+function tt3WireBox(root){ const box=root.querySelector("#tt3Card"); if(!box) return; const G=tt3Sel(), A=tt3Agg(G);
   const wireEx=()=>box.querySelectorAll("[data-tq]").forEach(b=>b.onclick=()=>open("tt3",{fen:b.dataset.tq,me:b.dataset.tme}));
   box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ box.querySelectorAll(".tt3c").forEach(x=>x.classList.toggle("sel",x.dataset.p===b.dataset.p)); $("tt3Ex").innerHTML=tt3ExHtml(A[+b.dataset.p]); wireEx(); $("tt3Ex").scrollIntoView({block:"nearest"}); });
   $("tt3Learn").onclick=()=>open("tt3");
@@ -9153,7 +9177,7 @@ function renderHome(){ const h=$("home"); if(!h) return; const due=Math.min(10,p
 ["bOpenPaste","bOpenGames","bOpenPat"].forEach(id=>{ const b=$(id); if(b) b.addEventListener("click",()=>close()); });
 const hb=$("homeBtn"); if(hb) hb.onclick=()=>{ close(); if(window.PatternsUI) PatternsUI.close(); $("paste").classList.remove("open","gopen"); renderHome(); window.scrollTo({top:0,behavior:"smooth"}); };
 renderHome();
-window.Trainer={_aud:()=>({puzzle:puzzleItems().map(x=>({fen:x.e.fen,a:x.e.best})),threat:threatItems().map(x=>({fen:x.af,a:x.e.reply})),safe:safeItems().map(x=>({fen:x.e.fen,a:x.e.best})),fork:forkGameItems().map(x=>({fen:x.fen,a:x.ans[0]})),quiet:quietPool(),gamepos:gamePositions(),mymates:myMates().map(x=>({fen:x.e.fen,a:x.e.best})),setup:setupSources(),sprint:sprintPool().map(x=>({fen:x.f})),deck:buildDeck().session.queue.map(id=>{ const x=puzzleItems().find(y=>y.id===id); return {fen:x.e.fen,a:x.e.best}; })}),saveNote,getNote,_lp:()=>st&&st.pz?{pz:st.pz,lock:!!st.lock}:null,_basicAns:(f,id)=>{ const B=BASICS.find(x=>x.id===id), c=new Chess(f); const m=c.moves({verbose:true}).find(m=>{ const t=new Chess(f); t.move(m); return B.ok(f,m,t.fen())&&!(B.bad&&B.bad(t.fen())); }); return m?m.from+m.to:null; },tt3Html,tt3Wire,tt3Svg,tt3Verdict,tt3Box,tt3WireBox,tt3Stage,tt3Score,tt3Eval,tt3All,TT3,_fen:()=>board&&board.last&&board.last[0],looseOn,looseSvg,setLoose:v=>LS.set(LOOSEK,v),hopeForData,realChessBox,wireTm,cctOf,loosePieces,mobility,_orient:()=>board&&board.orient,_turn:()=>st.g&&!st.thinking&&!st.asking?st.g.turn():null,_sprintAns:()=>window.__spAns||[],_forkAns:()=>window.__fkAns||[],_mateSol:()=>{ const c=new Chess(st.fen); const m=c.moves({verbose:true}).find(m=>{const d=new Chess(st.fen); d.move(m); return d.isCheckmate();}); return m?m.from+m.to:null; },open,close,renderHome,ruleForPly,ruleForEvent,RULES,boardSvg,puzzleItems,threatItems,safeItems,_bump:bump,streak};
+window.Trainer={_aud:()=>({puzzle:puzzleItems().map(x=>({fen:x.e.fen,a:x.e.best})),threat:threatItems().map(x=>({fen:x.af,a:x.e.reply})),safe:safeItems().map(x=>({fen:x.e.fen,a:x.e.best})),fork:forkGameItems().map(x=>({fen:x.fen,a:x.ans[0]})),quiet:quietPool(),gamepos:gamePositions(),mymates:myMates().map(x=>({fen:x.e.fen,a:x.e.best})),setup:setupSources(),sprint:sprintPool().map(x=>({fen:x.f})),deck:buildDeck().session.queue.map(id=>{ const x=puzzleItems().find(y=>y.id===id); return {fen:x.e.fen,a:x.e.best}; })}),saveNote,getNote,_lp:()=>st&&st.pz?{pz:st.pz,lock:!!st.lock}:null,_basicAns:(f,id)=>{ const B=BASICS.find(x=>x.id===id), c=new Chess(f); const m=c.moves({verbose:true}).find(m=>{ const t=new Chess(f); t.move(m); return B.ok(f,m,t.fen())&&!(B.bad&&B.bad(t.fen())); }); return m?m.from+m.to:null; },tt3Html,tt3Wire,tt3Svg,tt3Verdict,tt3Box,tt3WireBox,tt3Sel,tt3Line,tt3Stage,tt3Score,tt3Eval,tt3All,TT3,_fen:()=>board&&board.last&&board.last[0],looseOn,looseSvg,setLoose:v=>LS.set(LOOSEK,v),hopeForData,realChessBox,wireTm,cctOf,loosePieces,mobility,_orient:()=>board&&board.orient,_turn:()=>st.g&&!st.thinking&&!st.asking?st.g.turn():null,_sprintAns:()=>window.__spAns||[],_forkAns:()=>window.__fkAns||[],_mateSol:()=>{ const c=new Chess(st.fen); const m=c.moves({verbose:true}).find(m=>{const d=new Chess(st.fen); d.move(m); return d.isCheckmate();}); return m?m.from+m.to:null; },open,close,renderHome,ruleForPly,ruleForEvent,RULES,boardSvg,puzzleItems,threatItems,safeItems,_bump:bump,streak};
 })();
 function chkJoin(){ try{ const fm=/#fen=([^&]+)/.exec(location.hash); if(fm){ const f=decodeURIComponent(fm[1]); history.replaceState(null,"",location.pathname); setTimeout(()=>Trainer.open("editor",{fen:f}),300); } }catch(e){} try{ const jm=/#join=([a-z0-9]{6})/.exec(location.hash); if(jm){ history.replaceState(null,"",location.pathname); setTimeout(()=>Trainer.open("friend",{join:jm[1]}),300); } }catch(e){} } chkJoin(); window.addEventListener("hashchange",chkJoin);
 try{ if(typeof buildSummary==="function"){ buildSummary(); wireGraph(); show(); } }catch(e){ console.error(e); }
@@ -10274,7 +10298,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="plain64.js?v=67"></script>
 <script defer src="mind64.js?v=69"></script>
 <script defer src="gut65.js?v=67"></script>
-<script defer src="review66.js?v=78"></script>
+<script defer src="review66.js?v=79"></script>
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr74.js?v=74"></script><script defer src="pat76.js?v=76"></script>
 <script defer src="rating68.js?v=68"></script>

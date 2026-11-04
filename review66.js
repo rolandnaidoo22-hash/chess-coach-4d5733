@@ -62,7 +62,7 @@ function sync(){ const p=$("paste"); if(!p||!$("cr66seg")) return; const pt=$("p
 let warm=0, lastKey="", lastAt=0;
 function tick(){ if(!warm&&B.classList.contains("hs-review")&&window.ReviewApp&&ReviewApp.getEngine){ warm=1; setTimeout(()=>{ try{ ReviewApp.getEngine(); }catch(e){} },400); }
   if(!build()) return; chooser(); sync();
-  const pr=$("prog"), pp=$("patProg"), a=pr&&pr.classList.contains("on"), b=pp&&pp.classList.contains("on");
+  const pr=$("prog"), pp=$("patProg"), a=pr&&pr.classList.contains("on"), b=pp&&pp.classList.contains("on")&&!pp.classList.contains("done");
   let busy=a||b; try{ busy=busy||ReviewApp.isRunning(); }catch(e){}
   B.classList.toggle("cr66busy",!!busy);
   if(busy){ let tx=a?$("progTxt").textContent:b?$("patProgTxt").textContent:"";
