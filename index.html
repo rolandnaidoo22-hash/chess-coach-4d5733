@@ -226,6 +226,7 @@ header .ver{display:inline-block;font-size:11px;font-weight:700;background:#2624
 .pchip{border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 8px;font-size:12px;cursor:pointer}.pchip small{color:var(--mute)}
 .pdrill{background:#eef6e6;border-radius:8px;padding:7px 9px;font-size:13px;margin-top:8px}
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.p76r{display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0}.p76r span{width:105px}.p76r i{flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden}.p76r i b{display:block;height:100%}.p76r em{font-style:normal;width:62px;text-align:right}.p76 .pul{margin:4px 0;padding-left:18px;font-size:13px}.p76link{font-size:13px;font-weight:600}.p76win{border-color:#81b64c}
 .pbox{border:1px solid var(--line);border-radius:10px;padding:4px 10px 10px;margin:10px 0;min-width:0;background:#fff}
 .pul{margin:0;padding-left:18px;font-size:14px}.pul li{margin:4px 0}
 .pch{width:100%;height:auto;display:block}
@@ -5015,7 +5016,7 @@ function extract(d){
           if(tr&&(tr.from+tr.to)!==p.uci.slice(0,4)){ noTradeDone=true; ev.push(Object.assign({k:"notrade",lead,trade:tr.from+tr.to,tradeSan:tr.san},base)); } } } }
   });
   const v7=(d.summary&&d.summary.v7)||{}, mine=v7[me]||{}, theirs=v7[other(me)]||{};
-  const mv=myMoves.map(p=>[p.ply,CLS.indexOf(p.cls),p.spent_s==null?null:Math.round(p.spent_s*10)/10,p.clock_s==null?null:Math.round(p.clock_s),p.phase==null?-1:p.phase,p.bad?p.bad.count:-1,p.bad&&p.bad.B&&p.bad.B.state==="missed"?1:0,Math.round((p.ep_loss||0)*1000)]);
+  const mv=myMoves.map(p=>[p.ply,CLS.indexOf(p.cls),p.spent_s==null?null:Math.round(p.spent_s*10)/10,p.clock_s==null?null:Math.round(p.clock_s),p.phase==null?-1:p.phase,p.bad?p.bad.count:-1,p.bad&&p.bad.B&&p.bad.B.state==="missed"?1:0,Math.round((p.ep_loss||0)*1000),(()=>{ const e=userPov(p.eval_before,me); return !e?null:e.mate!=null?(e.mate>0?1500:-1500):Math.max(-1500,Math.min(1500,Math.round(e.cp))); })()]);
   return {v:1,id:meta.link||"",link:meta.link||"",date:meta.date||"",white:meta.white,black:meta.black,me,
     myElo:+(me==="w"?meta.white_elo:meta.black_elo)||null,oppElo:+(me==="w"?meta.black_elo:meta.white_elo)||null,
     res,how:howEnded(meta),tc:String(meta.time_control||""),opening:openingName(meta),eco:meta.eco||"",n:myMoves.length,
@@ -5415,6 +5416,7 @@ function render(keepOpen){
   h+=`<h3 class="ph3">🔁 Your top 3 repeating mistakes</h3>`+top.map(card).join("");
   h+=`<div class="pgrid"><div class="pbox"><h3 class="ph3">✅ What you're doing well</h3><ul class="pul">${wellDone().map(x=>`<li>${x}</li>`).join("")}</ul></div>
      <div class="pbox"><h3 class="ph3">📈 Progress</h3>${progressHtml()}</div></div>`;
+  try{ if(window.CRPat76) h+=CRPat76.html(recs,window.Trainer&&Trainer.tt3All?Trainer.tt3All():[]); }catch(e){ console.error(e); }
   h+=`<div class="pbox"><h3 class="ph3">Biggest repeated mistakes</h3>${hbars(A.ranked.map(it=>({l:it.title,v:it.count,t:`${it.count} <small>(${it.games}g)</small>`,c:"#ee6b55"})))}<p class="pm">Number of times · (g) = number of games it happened in. Ranked by how often it happens and how much it costs.</p></div>`;
   h+=`<div class="pbox"><h3 class="ph3">Accuracy per game</h3>${lineChart(tr.map(t=>({v:t.acc,res:t.res})),{min:0,max:100,dots:true})}<p class="pm">Thin line = each game (dot green = win, red = loss), thick line = average of the last 5.</p></div>`;
   const et=tr.filter(t=>t.elo!=null); h+=`<div class="pbox"><h3 class="ph3">Rating (${A.mainTc&&+A.mainTc>=60?Math.round(+A.mainTc/60)+" min games":"main time control"})</h3>${lineChart(et.map(t=>({v:t.elo,res:t.res})),{avg:false,color:"#81b64c",dots:true})}</div>`;
@@ -5440,6 +5442,7 @@ function render(keepOpen){
   h+=`<p class="pm">How this works: every move you played is checked by Stockfish (Quick mode in the batch). Patterns only count when the engine confirms they cost something, so the numbers are on the cautious side. The phone keeps a small summary of each game, not the full review. <button class="btn" id="patClear">Clear pattern data</button></p>`;
   box.innerHTML=h;
   try{ if(window.Trainer){ box.insertAdjacentHTML("afterbegin",Trainer.tt3Box()+Trainer.realChessBox()); Trainer.wireTm(box); Trainer.tt3WireBox(box); } }catch(e){ console.error(e); }
+  try{ window.CRPat76&&CRPat76.wire(box); }catch(e){ console.error(e); }
   box.querySelectorAll("[data-ply]").forEach(b=>b.onclick=()=>openMove(A.recs[+b.dataset.g],+b.dataset.ply));
   const c=$("patClear"); if(c) c.onclick=()=>{ if(confirm("Clear all pattern data? Your saved reviews in My games stay.")){ PatternStore.clear(); render(); } };
 }
@@ -8715,8 +8718,8 @@ function friendGame(o){ netClose(); clearInterval(FTIMER); const link=o.mode==="
   draw(); if(link){ if(o.join){ me="b"; joinNet(o.join); } else hostNet(); } else start();
   window.__fr={get G(){ return G; },me:()=>me,net:()=>NET&&{open:NET.peer&&NET.peer.open,id:NET.peer&&NET.peer.id,conn:NET.conn&&NET.conn.open,destroyed:NET.peer&&NET.peer.destroyed}}; }
 
-/* ================= v13: the 3x3 system (Chess Coach Kevin) ================= */
-const TT3_VID="https://www.youtube.com/watch?v=n2N-pcV4F-M", TT3K="chessReview.tt3.v1", TT3ON="chessReview.tt3on.v1", TT3Q="chessReview.tt3quiz.v1";
+/* ================= v13: the 3x3 system (v76: our own wording, no outside names or video) ================= */
+const TT3K="chessReview.tt3.v1", TT3ON="chessReview.tt3on.v1", TT3Q="chessReview.tt3quiz.v1";
 const TT3=[{k:"op",n:"Opening",i:"🌱",c:"#2e9b4f",p:[["Develop","Knights and bishops out"],["Control the centre","Pawns and pieces aim at d4 e4 d5 e5"],["Castle","King safe in the corner"]]},
  {k:"mid",n:"Middlegame",i:"⚔",c:"#3b6fb6",p:[["Attack weaknesses","Uncastled king, loose pieces and pawns"],["Improve your pieces","Wake up your worst piece"],["Stop their plans","What does THEIR last move want?"]]},
  {k:"end",n:"Endgame",i:"👑",c:"#8a4fd1",p:[["Activate your king","March it to the centre"],["Attack weak pawns","Go after pawns nobody protects"],["Passed pawn","Make one, push it (trade when ahead)"]]}];
@@ -8838,15 +8841,15 @@ function tt3All(){ const S=Object.assign({},tt3Store()); try{ (window.ReviewApp?
   return Object.values(S).sort((a,b)=>(b.d||"").localeCompare(a.d||"")); }
 async function tt3Fetch(user,max,prog){ const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user)}/games/archives`)).json(); const arcs=(a.archives||[]).slice().reverse(); const S=tt3Store(); let n=0, games=[];
   for(const u of arcs){ if(games.length>=max) break; const j=await (await fetch(u)).json(); games=games.concat((j.games||[]).filter(g=>g.rules==="chess"&&g.pgn&&!/\[SetUp "1"\]/.test(g.pgn)).reverse()); }
-  for(const g of games.slice(0,max)){ const id=(g.url||"").replace(/\/$/,""); n++; if(prog) prog(n,Math.min(max,games.length)); if(S[id]&&S[id].v===2) continue; const c=new Chess(); try{ c.loadPgn(g.pgn); }catch(e){ continue; }
+  for(const g of games.slice(0,max)){ const id=(g.url||"").replace(/\/$/,""); n++; if(prog) prog(n,Math.min(max,games.length)); const me0=(g.white.username||"").toLowerCase()===user.toLowerCase()?"w":"b", rr=(me0==="w"?g.white:g.black).result, r0=rr==="win"?"W":/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(rr)?"D":"L"; if(S[id]&&S[id].v===2){ S[id].r=r0; continue; } const c=new Chess(); try{ c.loadPgn(g.pgn); }catch(e){ continue; }
     const me=(g.white.username||"").toLowerCase()===user.toLowerCase()?"w":"b"; const sc=tt3Score(c.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||"")),me); if(!sc) continue;
-    S[id]=Object.assign(sc,{d:new Date(g.end_time*1000).toISOString().slice(0,10),o:me==="w"?g.black.username:g.white.username,me,l:g.url,src:"cc",v:2}); await new Promise(r=>setTimeout(r,0)); }
+    S[id]=Object.assign(sc,{d:new Date(g.end_time*1000).toISOString().slice(0,10),o:me==="w"?g.black.username:g.white.username,me,l:g.url,src:"cc",v:2,r:r0}); await new Promise(r=>setTimeout(r,0)); }
   LS.set(TT3K,S); return S; }
 function tt3User(){ try{ const u=localStorage.getItem("chessReview.username"); if(u) return u; }catch(e){} const r=recs()[0]; return r?(r.me==="w"?r.white:r.black):""; }
 function tt3Agg(G){ return TT3N.map((nm,k)=>{ const v=G.map(g=>g.s[k]).filter(x=>x!=null); const pass=v.filter(x=>x===1).length; return {k,nm,n:v.length,pass,pct:v.length?Math.round(100*pass/v.length):null,ex:G.filter(g=>g.x&&g.x[k]).slice(0,3).map(g=>Object.assign({g},g.x[k]))}; }); }
 const tt3Col=p=>p==null?"#bbb":p>=70?"#2e9b4f":p>=40?"#e0b000":"#d23c3c";
 function tt3Box(){ const G=tt3All().slice(0,60); const A=tt3Agg(G); const W=A.filter(a=>a.n>=2&&a.pct!=null).sort((a,b)=>a.pct-b.pct);
-  return `<div class="card tt3card" id="tt3Card"><h3>🧭 3x3 report card</h3><p class="trsmall">Coach Kevin's system: 3 stages × 3 jobs. How often you did each job${G.length?` (last ${G.length} games)`:""}. Tap a square for examples from your games.</p>
+  return `<div class="card tt3card" id="tt3Card"><h3>🧭 3x3 report card</h3><p class="trsmall">Know the stage, then do its 3 jobs. How often you did each job${G.length?` (last ${G.length} games)`:""}. Tap a square for examples from your games.</p>
   ${G.length?`<div class="tt3grid">${TT3.map((S,si)=>`<div class="tt3row"><div class="tt3lab" style="background:${S.c}">${S.i}<br>${S.n}</div>${[0,1,2].map(j=>{ const a=A[si*3+j]; return `<button class="tt3c" data-p="${a.k}" style="border-color:${tt3Col(a.pct)}"><b>${a.nm}</b><span class="tt3pct" style="color:${tt3Col(a.pct)}">${a.pct==null?"–":a.pct+"%"}</span><span class="tt3bar"><i style="width:${a.pct||0}%;background:${tt3Col(a.pct)}"></i></span><small>${a.n?`${a.pass}/${a.n} games`:"no games yet"}</small></button>`; }).join("")}</div>`).join("")}</div>
   ${W.length?`<h4>Which jobs you break most</h4><div class="tt3bars">${W.map(a=>`<div class="tt3b" data-p="${a.k}"><span>${a.nm}</span><span class="tt3bar big"><i style="width:${100-a.pct}%;background:#d23c3c"></i></span><b>${100-a.pct}%</b></div>`).join("")}</div>
   <p class="tt3worst">⚠ Your #1 job to fix: <b>${W[0].nm}</b> (missed in ${100-W[0].pct}% of games).</p>`:""}<div id="tt3Ex"></div>`:`<p>No games scored yet.</p>`}
@@ -8875,14 +8878,13 @@ function tt3(arg){ arg=arg||{};
   if(arg.fen){ const fen=arg.fen, me=arg.me||fen.split(" ")[1]; shell("🧭 3x3 coach","Your position from a real game: which stage is it, and which job comes first?"); board.orient=me; const dr=(f,o)=>board.draw(f,Object.assign({loose:false},o));
     $("trSide").innerHTML=`<div class="trq"><p class="tomove"><span class="dotc ${me}"></span>You are ${SIDE(me)}</p></div>${tt3Html(fen,me)}<div class="tracts"><button class="btn" id="t3Pl">🤖 Play it out from here</button><button class="btn" id="t3L">🧭 The 3x3 lesson</button></div>`;
     tt3Wire($("trSide"),dr); dr(fen,{}); $("t3Pl").onclick=()=>open("play",{fen:setTurn(fen,me),me}); $("t3L").onclick=()=>open("tt3"); return; }
-  shell("🧭 The 3x3 system","Coach Kevin's system for finding a good move in ANY position: know the stage, then do its 3 jobs.");
+  shell("🧭 The 3x3 system","A simple way to find a good move in any position: know the stage, then do its 3 jobs.");
   const G=tt3All(), A=tt3Agg(G); const my=k=>{ const a=A[k]; return a.ex[0]?{fen:a.ex[0].fen,me:a.ex[0].g.me,t:a.ex[0].t,mine:1}:null; };
   $("trSide").innerHTML=`<div class="lcard"><h4>The idea</h4><p>Every position belongs to one of 3 <b>stages</b>. Each stage has 3 <b>jobs</b>. When you don't know what to do: <b>1)</b> name the stage, <b>2)</b> check its 3 jobs, <b>3)</b> do the first one that isn't done. (Always do CCT first: checks, captures, threats!)</p></div>
    <div class="tt3big">${TT3.map((S,si)=>`<div class="tt3row"><div class="tt3lab" style="background:${S.c}">${S.i}<br>${S.n}</div>${S.p.map((p,j)=>{ const a=A[si*3+j]; return `<button class="tt3c" data-g="${si*3+j}" style="border-color:${S.c}"><b>${p[0]}</b><small>${p[1]}</small>${a.pct!=null?`<span class="tt3pct" style="color:${tt3Col(a.pct)}">you: ${a.pct}%</span>`:""}</button>`; }).join("")}</div>`).join("")}</div>
    <div class="lcard ex"><h4 id="t3H">Tap a square above</h4><p id="t3T" class="lst">Each square shows the job on the board${G.length?", using a position from YOUR games when there is one":""}.</p></div>
    <div class="lcard"><h4>How to tell the stage</h4><ul><li>🌱 <b>Opening</b>: the first ~10 moves, while pieces are still at home.</li><li>⚔ <b>Middlegame</b>: pieces are out, kings castled, the fight begins.</li><li>👑 <b>Endgame</b>: queens gone and only a few pieces left. Now the king fights too!</li></ul></div>
    <div class="tracts"><button class="btn primary big" id="t3Q">🎯 Drill: which stage & which job?</button><button class="btn try big" id="t3E">👑 Drill: win the endgame vs the bot</button></div>
-   <div class="lcard"><h4>📺 Watch the video</h4><a class="btn vid" href="${TT3_VID}" target="_blank" rel="noopener">▶ Chess Coach Kevin: The EXACT system to find good moves</a></div>
    <div class="tracts"><button class="btn" id="t3B">↩ All thinking methods</button></div>`;
   const pick=k=>{ const si=Math.floor(k/3), j=k%3, m=my(k), base=TT3EX[k], P=m||base; board.orient=P.me; const r=tt3Eval(P.fen,P.me,si).items[j];
     board.draw(P.fen,Object.assign({loose:false},r.o)); $("t3H").innerHTML=`${TT3[si].i} ${TT3[si].n} job ${j+1}: ${TT3[si].p[j][0]} ${m?`<span class="mine">from your game</span>`:""}`;
@@ -10253,7 +10255,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="gut65.js?v=67"></script>
 <script defer src="review66.js?v=70"></script>
 <script defer src="resume67.js?v=67"></script>
-<script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr74.js?v=74"></script>
+<script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr74.js?v=74"></script><script defer src="pat76.js?v=76"></script>
 <script defer src="rating68.js?v=68"></script>
 <script defer src="sync69.js?v=71c"></script>
 <script defer src="kids68.js?v=68"></script>
