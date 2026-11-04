@@ -303,10 +303,11 @@ async function gradeSome(n){ if(CL.run||!window.Analyzer||!window.ReviewApp||!wi
       try{ const need=new Set(todo.map(g=>g.id)), pg={}; const a=await (await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`)).json();
         for(const u of (a.archives||[]).slice(-2).reverse()){ const j=await (await fetch(u)).json(); (j.games||[]).forEach(x=>{ const id=String(x.url).replace(/\/$/,""); if(need.has(id)) pg[id]=x.pgn; }); }
         let eng=await ReviewApp.getEngine();
-        for(let k=0;k<todo.length;k++){ const g=todo[k]; if(!pg[g.id]) continue; CL.txt=`Grading game ${k+1} of ${todo.length} (quick check)…`; paintClean(true);
-          try{ const d=await Analyzer.analyzeGame(pg[g.id],{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>false},()=>{}); d.meta.link=g.id; d.meta.pgn=pg[g.id]; PatternStore.put(d,pg[g.id]); try{ window.CRKeepChecked&&CRKeepChecked(d,g.id,g.t||g.end_time||Math.floor(Date.now()/1000)); }catch(_){} }
+        const BG=window.CRBg={k:0,n:todo.length,t:Date.now(),cancel:false};
+        for(let k=0;k<todo.length;k++){ if(BG.cancel) break; const g=todo[k]; BG.k=k; BG.t=Date.now(); if(!pg[g.id]) continue; CL.txt=`Grading game ${k+1} of ${todo.length} (quick check)…`; paintClean(true);
+          try{ const d=await Analyzer.analyzeGame(pg[g.id],{engine:eng,username:user,side:"auto",mode:"quick",cancelled:()=>!!(window.CRBg&&CRBg.cancel)},pr=>{ try{ if(window.CRBg&&pr&&pr.n){ CRBg.f=(pr.phase==='moves'?0.85:0.85+0.15*0)*(pr.phase==='moves'?pr.i/pr.n:1)+(pr.phase==='threats'?0.15*pr.i/pr.n:0); CRBg.t=Date.now(); } }catch(_){} }); d.meta.link=g.id; d.meta.pgn=pg[g.id]; PatternStore.put(d,pg[g.id]); try{ window.CRKeepChecked&&CRKeepChecked(d,g.id,g.t||g.end_time||Math.floor(Date.now()/1000)); }catch(_){} }
           catch(e){ console.error(e); try{ eng.quit(); }catch(_){} eng=await ReviewApp.getEngine(true); } }
-      } finally { ReviewApp.setRunning(false); } }
+      } finally { window.CRBg=null; ReviewApp.setRunning(false); } }
   }catch(e){ console.error(e); }
   CL.run=false; CL.txt=""; snapshot(); paintClean(); try{ injectTilesRefresh(); }catch(e){} }
 function cleanStats(){ const C=cstore(), recs=recsSorted(), byId={}; recs.forEach(r=>byId[r.id]=r); const now=Date.now(), wk=monday(now);
