@@ -34,6 +34,8 @@ function hangingMoves(fen){ const C=CH(), g=new C(fen), me=g.turn(), op=me==="w"
 async function move(fen,bot,opt){ opt=opt||{}; const C=CH(), g=new C(fen), legal=g.moves({verbose:true}); if(!legal.length) return null;
   const t0=Date.now(), me=g.turn(), hist=opt.history||[];
   const done=async m=>{ const wait=Math.max(0,(opt.delay!=null?opt.delay:500+Math.random()*700)-(Date.now()-t0)); if(wait) await sleep(wait); return m; };
+  // v81: Pip and Maisie sometimes play an anonymous move from their rating band. No saved games means this does nothing.
+  if((bot.id==="pip"||bot.id==="maisie")&&window.CRBrain&&CRBrain.bookMove){ try{ const hint=CRBrain.bookMove(bot.elo,hist,legal); if(hint&&Math.random()<0.5) return done(Object.assign({book:true},hint)); }catch(e){} }
   // 1. opening book from the bot's own list
   const book=bot.openings&&bot.openings[me==="w"?0:1]; const myPly=Math.floor(hist.length/2);
   if(book&&myPly<book.length&&Math.random()<0.85){ const m=legal.find(x=>x.san===book[myPly]); if(m) return done(Object.assign({book:true},m)); }

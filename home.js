@@ -49,6 +49,7 @@ const TILES=[
  ["games","📚","My games",()=>"Games you already reviewed",()=>{ closeAll(); setMode("review",true); $("paste").classList.add("gopen"); try{ ReviewApp.renderGames(); }catch(e){} }],
  ["trap","🪤","Trap Radar",()=>"Opening traps you fall for",()=>{ setMode("app",true); window.TrapRadar&&TrapRadar.open(); },"",{"data-hs-only":"trap"}],
  ["study52","🔍","Study your opponent",()=>"Report from public games",()=>{ setMode("app",true); window.CRStudy&&CRStudy.open(); }],
+ ["feed81","📰","Opponent Feed",()=>{ try{ return window.CRBrain?CRBrain.blurb():"Rivals, openings, and a tip"; }catch(e){ return "Rivals, openings, and a tip"; } },()=>{ setMode("app",true); window.CRFeed&&CRFeed.open(); },"",{"data-br81":"feed"}],
  ["bots52","🤖","Play the bots",()=>window.CRUltimate&&CRUltimate.inviteDue()?"📬 1 new message":"Pick a bot, from easy to strong",()=>{ setMode("app",true); window.CRBots&&CRBots.open(); }],
  ["play","🤝","Play a friend",()=>"Or the computer",()=>{ setMode("app",true); T().open("sec","play"); }],
  ["puzzles","🧩","Puzzles",()=>"From your own mistakes",()=>{ setMode("app",true); T().open("sec","puzzles"); }],
@@ -81,7 +82,7 @@ const TILES=[
 const ORDER=[
  ["Review",["coach","kids68","ask59","review","games","bs64","gc65","trap"]],
  ["Play",["bots52","corban52","ultimo52","play"]],
- ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
+ ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","feed81","open52","puzzles","v42pod","drills","lessons","board"]],
  ["Progress",["v45","v46mo","v42ch","progress","td64","v42xp","photo68","set"]]];
 function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
   ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);

@@ -5327,7 +5327,7 @@ async function runBatch(resume){
     const lane=async(w)=>{ let eng=new Analyzer.Engine(()=>new Worker("stockfish.js")); try{ eng.send("setoption name Threads value 1"); }catch(e){} await eng.init(); try{ eng.send("setoption name Threads value 1"); await eng.ready(); }catch(e){}
       try{ while(!batch.cancel){ const k=started++; if(k>=todo.length) break; const g=todo[k]; frac[w]=0;
         try{ const d=await Analyzer.analyzeGame(g.pgn,{engine:eng,username:user,side:"auto",mode,fast:true,cancelled:()=>batch.cancel},p=>{ frac[w]=p.phase==="moves"?0.7*(p.i/(p.n||1)):p.phase==="check"?0.7+0.15*(p.i/(p.n||1)):p.phase==="threats"?0.85+0.15*(p.i/(p.n||1)):0; });
-          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn); try{ const me=(((window.CRUser&&CRUser.info())||{}).cc||"").trim().toLowerCase(); if(me&&me===user.toLowerCase()&&window.CRKeepChecked) CRKeepChecked(d,g.url,g.end_time); }catch(_){} done++;
+          d.meta.link=g.url; d.meta.pgn=g.pgn; PatternStore.put(d,g.pgn); if(which==="1"){ try{ storeGame(d); loadData(d); }catch(e){ console.error(e); } } try{ const me=(((window.CRUser&&CRUser.info())||{}).cc||"").trim().toLowerCase(); if(me&&me===user.toLowerCase()&&window.CRKeepChecked) CRKeepChecked(d,g.url,g.end_time); }catch(_){} done++;
           try{ const S=JSON.parse(localStorage.getItem("chessReview.batchSpeed")||"{}"); S[mode]=Math.round(((performance.now()-t0)/1000*K/Math.max(1,done))*10)/10; localStorage.setItem("chessReview.batchSpeed",JSON.stringify(S)); }catch(_){}
         }catch(err){ if(String(err.message)==="cancelled") break; console.error(err); failed++; try{ eng.quit(); }catch(e){} eng=new Analyzer.Engine(()=>new Worker("stockfish.js")); await eng.init(); }
         frac[w]=0; fin++; report(); if(fin===10||(fin>10&&fin%5===0)||fin===todo.length||(fin<10&&fin%3===0)) render(true); await new Promise(r=>setTimeout(r,0)); } }
@@ -10266,7 +10266,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=78"></script>
 <script defer src="wish.js?v=55"></script>
 <script defer src="learn.js?v=54ux"></script>
-<script defer src="home.js?v=68"></script>
+<script defer src="home.js?v=81"></script>
 <script defer src="onboard.js?v=55b"></script>
 <script defer src="v42.js?v=56ch"></script>
 <script defer src="assess.js?v=54ux"></script>
@@ -10306,6 +10306,8 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr74.js?v=74"></script><script defer src="pat76.js?v=76"></script>
 <script defer src="rating68.js?v=68"></script>
 <script defer src="sync69.js?v=71c"></script>
+<script defer src="brain81.js?v=81b"></script>
+<script defer src="review81c.js?v=81c"></script>
 <script defer src="kids68.js?v=68"></script>
 <script defer src="photo68.js?v=70"></script>
 <script defer src="lesson64.js?v=67"></script>
