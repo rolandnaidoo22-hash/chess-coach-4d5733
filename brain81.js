@@ -170,7 +170,7 @@ async function pullOne(o,idx,total,t0,limit){ JOB.text="Rival "+(idx+1)+" of "+t
   const urls=arch.archives||[]; let keys=urls.map(monthOf).filter(Boolean);
   if(o.lastPulled){ const d=new Date(o.lastPulled-3*DAY); const cut=d.getUTCFullYear()*12+d.getUTCMonth(); keys=keys.filter(k=>{ const p=k.split("/").map(Number); return p[0]*12+(p[1]-1)>=cut; }); }
   const done=new Set(o.months||[]); const todo=keys.filter(k=>!done.has(k)); const by={}; urls.forEach(u=>{ const k=monthOf(u); if(k) by[k]=u; });
-  for(let j=0;j<todo.length;j++){ if(JOB.cancel) throw new Error("cancel"); if(Date.now()-t0>limit){ saveOpps(); pauseJob("Paused to be polite. Tap Update brain to continue."); return "pause"; }
+    for(let j=0;j<todo.length;j++){ if(JOB.cancel) throw new Error("cancel"); if(limit&&Date.now()-t0>limit){ saveOpps(); pauseJob("Paused to be polite. Tap Update brain to continue."); return "pause"; }
     if(busyApp()){ saveOpps(); pauseJob("Paused while a review is running."); return "pause"; }
     const k=todo[j]; JOB.text=(o.name||o.u)+" · "+k+" · month "+(j+1)+" of "+todo.length; JOB.pct=Math.round(100*(idx+(j/Math.max(1,todo.length)))/Math.max(1,total)); paintProg();
     let jsn=null; try{ jsn=await getJson(by[k]); }catch(e){ if(String(e&&e.message)==="cancel") throw e; continue; }
@@ -181,9 +181,9 @@ async function run(manual){ if(JOB.on) return; JOB.manual=!!manual; JOB.err="";
   if(navigator.onLine===false){ JOB.err="offline"; JOB.text="You're offline. The brain will try when you're back."; paintProg(); return; }
   if(!me()){ JOB.err="nouser"; JOB.text="Add your Chess.com name in Settings first."; paintProg(); return; }
   if(!manual){ const m=meta(); if(m.failAt&&Date.now()-m.failAt<30*60*1000) return; if(m.lastDaily&&Date.now()-m.lastDaily<DAY&&!(m.chunks&&m.chunksD===dayKey()&&m.chunks<3&&m.lastPullNote&&/Paused/.test(m.lastPullNote))) return; }
-  JOB.on=true; JOB.cancel=false; JOB.text="Looking up rivals…"; JOB.pct=4; paintProg(); const t0=Date.now(); const limit=manual?12*60*1000:4*60*1000;
+  JOB.on=true; JOB.cancel=false; JOB.text="Looking up rivals…"; JOB.pct=4; paintProg(); const t0=Date.now(); const limit=manual?0:4*60*1000;
   try{ const list=needPull(); if(!list.length){ const m=meta(); m.lastDaily=Date.now(); saveMeta(); finishJob(listOpps().length?"Everyone is up to date.":"No rivals yet. Sync a few of your games first."); return; }
-    for(let i=0;i<list.length;i++){ if(JOB.cancel) throw new Error("cancel"); if(Date.now()-t0>limit){ pauseJob("Paused to be polite. Tap Update brain to continue."); return; }
+    for(let i=0;i<list.length;i++){ if(JOB.cancel) throw new Error("cancel"); if(limit&&Date.now()-t0>limit){ pauseJob("Paused to be polite. Tap Update brain to continue."); return; }
       const r=await pullOne(list[i],i,list.length,t0,limit); if(r==="pause") return; }
     const m=meta(); m.lastDaily=Date.now(); m.chunks=0; saveMeta(); finishJob("Caught up. Summaries are saved on this phone."); }
   catch(e){ const msg=String(e&&e.message||e); if(msg==="cancel"){ finishJob("Stopped. What was read is saved."); return; }
@@ -209,13 +209,13 @@ function progHtml(){ if(JOB.on) return `<div id="br81prog" class="card" aria-liv
   const m=meta(); const note=JOB.text||m.lastPullNote||"Not updated yet. Tap Update brain, or leave the app open and it runs once a day.";
   return `<div id="br81prog" class="card"><button type="button" class="bt go" id="br81go">Update brain</button><p class="mute" style="margin:6px 0 0">${E(note)}${m.lastPullAt&&!JOB.text?" · "+E(when(m.lastPullAt)):""}</p></div>`; }
 function bindProg(){ const g=document.getElementById("br81go"), s=document.getElementById("br81stop"); if(g) g.onclick=()=>run(true); if(s) s.onclick=()=>cancel(); }
-function learnedToday(){ const d=dayKey(); const names=new Set(); let mine=0; listOpps().forEach(o=>(o.h2h||[]).forEach(g=>{ if(g.added&&dayKey(g.added)===d){ mine++; names.add(o.u); } })); return {mine, opps:[...names], archive:(touchToday().archive)||0}; }
-function todayHtml(){ const t=learnedToday(); const n=listOpps().length; const games=listOpps().reduce((s,o)=>s+(o.h2h||[]).length,0);
-  if(!me()) return `<div class="card"><b>Today</b><p style="margin:4px 0 0">Add your Chess.com name in Settings, then sync your games. The brain stays empty until then, and everything else still works.</p></div>`;
-  if(!n) return `<div class="card"><b>Today added</b><p style="margin:4px 0 0">Nothing yet. Open Review and tap Get my latest games. Rivals show up here after that.</p></div>`;
-  const bits=[]; if(t.mine) bits.push(t.mine+" of your game"+(t.mine===1?"":"s")); if(t.opps.length) bits.push(t.opps.length+" rival"+(t.opps.length===1?"":"s")); if(t.archive) bits.push(t.archive+" public game"+(t.archive===1?"":"s")+" summarised");
-  const line=bits.length?("Today added "+bits.join(" · ")+"."):("No new games today. The brain already knows "+n+" rival"+(n===1?"":"s")+" from "+games+" game"+(games===1?"":"s")+".");
-  return `<div class="card"><b>Today added</b><p style="margin:4px 0 0">${E(line)}</p></div>`; }
+function brainCounts(){ const os=listOpps(); return {rivals:os.length, pub:os.reduce((s,o)=>s+(o.gamesSeen||0),0)}; }
+/* Counts are everything saved on this phone, not games played today. */
+function todayHtml(){ const c=brainCounts();
+  if(!me()) return `<div class="card"><b>From your saved games</b><p style="margin:4px 0 0">Add your Chess.com name in Settings, then sync your games. The brain stays empty until then, and everything else still works.</p></div>`;
+  if(!c.rivals) return `<div class="card"><b>From your saved games</b><p style="margin:4px 0 0">No rivals yet. Sync your games in Review. Update brain then reads every rival's public games.</p></div>`;
+  const pub=c.pub?(c.pub+" public game"+(c.pub===1?"":"s")+" summarised."):"Public games not read yet. Tap Update brain.";
+  return `<div class="card"><b>From your saved games</b><p style="margin:4px 0 0">${c.rivals} rival${c.rivals===1?"":"s"} · ${pub}</p></div>`; }
 function mini(id,icon,title,sub){ return `<button type="button" data-go="${id}"><b>${icon} ${E(title)}</b><small>${E(sub)}</small></button>`; }
 function renderHome(){ const body=shell("Home",()=>{ try{ CRHome.goHome(); }catch(e){ location.hash=""; } }); view="home";
   const map=openingMap(), rv=rivals(), tr=allTraps(), pz=allPuzzles(), w=weekly(), gh=ghosts(), lg=league(), bv=botView().filter(b=>b.n);
