@@ -190,7 +190,7 @@ function render(){
   const me=meColor();
   const rows=ORDER.map(k=>{
     const wn=wC[k]||0, bn=bC[k]||0;
-    return `<div class="row"><div class="n" style="color:${wn?NUMCOL[k]:"#666"}">${wn}</div><div class="mid"><span class="ic" style="background:${COL[k]}">${ICON[k]}</span>${LABEL[k]}</div><div class="n" style="color:${bn?NUMCOL[k]:"#666"}">${bn}</div></div>`;
+    return `<div class="row"><div class="n" style="color:${wn?NUMCOL[k]:"#666"}">${wn}</div><div class="mid"><span class="ic" style="background:${COL[k]}">${ICON[k]}</span><span class="lab">${LABEL[k]}</span></div><div class="n" style="color:${bn?NUMCOL[k]:"#666"}">${bn}</div></div>`;
   }).join("");
   $("gr76body").innerHTML=`
     <div class="players"><div class="av ${me==="w"?"me":"opp"}">♟</div><div></div><div class="av ${me==="b"?"me":"opp"}">♟</div></div>
@@ -211,8 +211,9 @@ function continueReview(){
 function openLatest(){
   try{ window.CRHome&&CRHome.setMode("review",true); }catch(e){}
   let loaded=false;
-  try{ const list=window.ReviewApp&&ReviewApp.loadGames&&ReviewApp.loadGames(); if(list&&list[0]){ const d=ReviewApp.upgrade?ReviewApp.upgrade(list[0].data):list[0].data; if(d&&typeof loadData==="function"){ loadData(d); loaded=true; } } }catch(e){}
-  setTimeout(()=>{ render(); openReview(); }, loaded?200:100);
+  try{ const list=window.ReviewApp&&ReviewApp.loadGames&&ReviewApp.loadGames(); if(list&&list[0]){ const d=ReviewApp.upgrade?ReviewApp.upgrade(list[0].data):list[0].data; if(d&&d.plies&&d.plies.length&&typeof loadData==="function"){ loadData(d); loaded=true; } } }catch(e){}
+  if(!loaded){ try{ const raw=localStorage.getItem("chessReview.coach.games.v1"); const L=raw?JSON.parse(raw):[]; const hit=(L||[]).find(x=>x&&x.data&&x.data.plies&&x.data.plies.length); if(hit&&typeof loadData==="function"){ loadData(hit.data); loaded=true; } }catch(e){} }
+  setTimeout(()=>{ render(); openReview(); }, loaded?250:100);
 }
 function afterSummary(){ try{ if(plies().length){ wireEntry(); render(); openReview(); } }catch(e){} }
 function wireEntry(){
