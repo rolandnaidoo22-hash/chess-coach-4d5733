@@ -149,8 +149,8 @@ const CSS=`#gr76{position:fixed;inset:0;z-index:85;background:#1a1a1a;color:#eee
 #gr76 .players{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:6px}
 #gr76 .av{width:52px;height:52px;border-radius:8px;background:#3a3a3a;display:flex;align-items:center;justify-content:center;font-size:28px;justify-self:center;border:3px solid transparent}
 #gr76 .av.me{border-color:#81b64c}#gr76 .av.opp{border-color:#555}
-#gr76 .accrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:4px 0 10px}
-#gr76 .acc{font-size:28px;font-weight:800;text-align:center;border-radius:10px;padding:6px 10px;min-width:72px;justify-self:center}
+#gr76 .accrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:4px 0 10px;grid-auto-flow:column}
+#gr76 .acc{font-size:28px;font-weight:800;text-align:center;border-radius:10px;padding:8px 14px;min-width:84px;justify-self:center;line-height:1}
 #gr76 .acc.w{background:#fff;color:#111}#gr76 .acc.b{background:#333;color:#fff}
 #gr76 .alab{font-size:12px;color:#9a9a9a;text-align:center;font-weight:700}
 #gr76 .skills{display:flex;align-items:center;gap:10px;margin:4px 0 12px;color:#8ab4f8;font-weight:800;font-size:15px}
@@ -193,7 +193,7 @@ function render(){
     return `<div class="row"><div class="n" style="color:${wn?NUMCOL[k]:"#666"}">${wn}</div><div class="mid"><span class="ic" style="background:${COL[k]}">${ICON[k]}</span><span class="lab">${LABEL[k]}</span></div><div class="n" style="color:${bn?NUMCOL[k]:"#666"}">${bn}</div></div>`;
   }).join("");
   $("gr76body").innerHTML=`
-    <div class="players"><div class="av ${me==="w"?"me":"opp"}">♟</div><div></div><div class="av ${me==="b"?"me":"opp"}">♟</div></div>
+    <div class="players"><div class="av ${me==="w"?"me":"opp"}" aria-label="White">♟</div><div class="alab">Players</div><div class="av ${me==="b"?"me":"opp"}" aria-label="Black">♟</div></div>
     <div class="accrow"><div class="acc w">${showAcc(wAcc)}</div><div class="alab">Accuracy</div><div class="acc b">${showAcc(bAcc)}</div></div>
     <div class="skills"><span>Skills</span><span>+1</span><span class="star">★</span></div>
     ${rows}`;
