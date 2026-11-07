@@ -146,7 +146,7 @@ async function analyse(o){ const cache=LS.get(KW,{}), key=o.k+"|"+o.n; if(cache[
       let m=null; try{ m=c.move(g.mv[i]); }catch(e){} if(!m) break; } }
   const min=o.n>=6?2:1; const list=Object.values(pos).filter(p=>p.n>=min).sort((a,b)=>a.ply-b.ply||b.n-a.n).slice(0,14);
   let rel=null; if(window.CRBusy) rel=await CRBusy.acquire(); let E; try{ E=await engine(); }catch(e){ rel&&rel(); throw e; } let found=null, worst=null; try{
-  for(let i=0;i<list.length;i++){ const p=list[i]; prog(true,`Checking your moves… ${i+1} of ${list.length}`,8+88*i/list.length);
+  for(let i=0;i<list.length;i++){ if(window.CRGate&&CRGate.wantsStop()) break; const p=list[i]; prog(true,`Checking your moves… ${i+1} of ${list.length}`,8+88*i/list.length);
     const san=Object.keys(p.moves).sort((a,b)=>p.moves[b]-p.moves[a])[0];
     const before=await E.analyse(p.fen,12,500,1); const bu=before.bm||before.pv[0]; if(!bu) continue;
     const c=new C(p.fen); const mv=c.move(san); if(!mv) continue; mv.moveNo=p.fen.split(" ")[5];

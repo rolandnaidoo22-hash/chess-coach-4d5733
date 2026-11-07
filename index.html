@@ -5173,6 +5173,7 @@ async function keepAwake(on){
        if(!on&&wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){ wakeLock=null; }
 }
 async function analyze(pgn){
+  if(running&&window.CRGate&&CRGate.wantsStop()){ for(let i=0;i<40&&running;i++) await new Promise(r=>setTimeout(r,100)); }
   if(running&&window.Coach17&&Coach17._imp&&Coach17._imp.running){ Coach17._imp.cancel=true; for(let i=0;i<50&&running;i++) await new Promise(r=>setTimeout(r,100)); } /* v69: your own review goes first; the quiet background check steps aside */
   if(running) return; $("perr").textContent="";
   pgn=(pgn||$("pgnIn").value).trim();
@@ -5186,16 +5187,19 @@ async function analyze(pgn){
   // v67: this exact game was already reviewed at this strength: open the saved review at once
   try{ const want=mode==="quick"?/^Quick/:/^(?!Quick)/; const hit=loadGames().find(g=>g.data&&g.data.meta&&(g.data.meta.pgn||"").trim()===pgn&&want.test(g.data.meta.depth||"")&&(side==="auto"||g.data.meta.user_color===side));
     if(hit&&!window.CR67_NOCACHE){ currentId=hit.id; const d=upgrade(hit.data); loadData(d); $("paste").classList.remove("open"); window.scrollTo(0,0); renderGames(); if(window.V42&&V42.toast) V42.toast("Opened your saved review of this game"); return d; } }catch(e){ console.error(e); }
-  running=true; cancelFlag=false; $("bAnalyze").disabled=true; keepAwake(true);
+  const stamp=currentId;
+  const taken=()=>!(window.CRGate?CRGate.shouldApply(stamp,currentId):stamp===currentId);
+  running=true; cancelFlag=false; try{ window.CRGate&&CRGate.allow(); }catch(e){} $("bAnalyze").disabled=true; keepAwake(true);
   try{
     showProgress({phase:"engine"});
     const eng=await getEngine();
     const RK="chessReview.v67.run"; let resume=null; try{ const r=JSON.parse(localStorage.getItem(RK)||"null"); if(r&&r.pgn===pgn&&r.mode===mode&&r.side===side) resume=r.st; }catch(e){}
     let lastSave=0, quickShown=false;
     const onSave=st=>{ const now=Date.now(); if(now-lastSave<1500&&st.ph==="p1"&&st.infos.length<st.n) return; lastSave=now; try{ localStorage.setItem(RK,JSON.stringify({pgn,mode,side,uname,at:now,st})); }catch(e){} };
-    const onQuick=q=>{ q.meta.pgn=pgn; quickShown=true; try{ loadData(q); $("paste").classList.remove("open"); window.scrollTo(0,0); }catch(e){ console.error(e); } };
-    const d=await Analyzer.analyzeGame(pgn,{engine:eng,username:uname,side,mode,cancelled:()=>cancelFlag,legacy:!!window.CR67_LEGACY,resume,onSave,onQuick},showProgress); d.meta.pgn=pgn;
+    const onQuick=q=>{ if(taken()||cancelFlag) return; q.meta.pgn=pgn; quickShown=true; try{ loadData(q); $("paste").classList.remove("open"); window.scrollTo(0,0); }catch(e){ console.error(e); } };
+    const d=await Analyzer.analyzeGame(pgn,{engine:eng,username:uname,side,mode,cancelled:()=>cancelFlag||!!(window.CRGate&&CRGate.wantsStop()),legacy:!!window.CR67_LEGACY,resume,onSave,onQuick},showProgress); d.meta.pgn=pgn;
     try{ localStorage.removeItem(RK); }catch(e){}
+    if(taken()){ const keep=currentId; try{ storeGame(d); }catch(e){} currentId=keep; try{ renderGames(); }catch(e){} $("prog").classList.remove("on"); return d; }
     window.__crView=quickShown?{ply:typeof cur!=="undefined"?cur:0,tab:window.CRRev59&&CRRev59.tab&&CRRev59.tab()}:null;
     showProgress({phase:"build",n:1,i:1}); $("progTxt").textContent=`Done in ${d.meta.seconds} s.`; $("progFill").style.width="100%";
     const ok=storeGame(d); if(!ok) $("perr").textContent="Analysis done, but there's no room left to save it on this phone. Delete some old games.";
@@ -9679,7 +9683,9 @@ async function autoImport(force,opts){ if(IMP.running) return "busy"; const info
     games.sort((x,y)=>(y.end_time||0)-(x.end_time||0)); const have=opts&&opts.have, todo=games.slice(0,10).filter(g=>{ const id=String(g.url).replace(/\/$/,""); return have?!have.has(id):!PatternStore.has(id); }).slice(0,5);
     const s1=S(); s1.lastImp=Date.now(); save(s1);
     if(!todo.length){ setImp("✓ No new games. You're up to date.",100); setTimeout(()=>{ if(!IMP.running) setImp("",0); },3500); return; }
+    if(IMP.cancel){ setImp("Stopped.",0); return; }
     for(let k=0;k<todo.length;k++){ const g=todo[k];
+      if(IMP.cancel) break;
       if(IMP.paused){ IMP.wantResume=true; setImp(`Paused (${todo.length-k} new game${todo.length-k>1?"s":""} waiting). Open My Coach to continue.`,100*k/todo.length); break; }
       if(window.CRUser&&CRUser.id()!==uid) break;
       if(ReviewApp.isRunning()&&!held) break;
@@ -10301,7 +10307,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="plain64.js?v=67"></script>
 <script defer src="mind64.js?v=69"></script>
 <script defer src="gut65.js?v=67"></script>
-<script defer src="review66.js?v=80"></script>
+<script defer src="gate82.js?v=82"></script><script defer src="review66.js?v=82"></script>
 <script defer src="resume67.js?v=67"></script>
 <script defer src="moves67.js?v=71"></script><script defer src="moves71.js?v=71"></script><script defer src="qr81.js?v=81"></script><script defer src="pat76.js?v=76"></script>
 <script defer src="rating68.js?v=68"></script>

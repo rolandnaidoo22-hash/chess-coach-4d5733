@@ -49,7 +49,7 @@ async function compare(G){ try{ CRHome.setMode("app",true); }catch(e){} const g=
   const pgn=c.pgn(), plans=G.tol.plans.slice(), bot=G.bot.name, p=CR52.show("tl64");
   p.innerHTML=`<h2>💭 Your plans vs ${E_(bot)}</h2><div id="tl64o">${window.CRMem?CRMem.loader("Checking each move…"):"Checking each move…"}</div>`;
   let d; for(let w=0;ReviewApp.isRunning()&&w<240;w++){ if(w===2&&$("tl64o")) $("tl64o").insertAdjacentHTML("beforeend",`<p class="mute">Another game is being checked first. This starts right after.</p>`); await new Promise(r=>setTimeout(r,1000)); }
-  try{ ReviewApp.setRunning(true); const eng=await ReviewApp.getEngine(); d=await Analyzer.analyzeGame(pgn,{engine:eng,username:"You",side:me,mode:"quick",cancelled:()=>false},()=>{}); d.meta.pgn=pgn; }catch(e){ $("tl64o").innerHTML=`<p>Couldn't check this game: ${E_(e.message)}</p>`; return; }finally{ ReviewApp.setRunning(false); }
+  try{ ReviewApp.setRunning(true); const eng=await ReviewApp.getEngine(); d=await Analyzer.analyzeGame(pgn,{engine:eng,username:"You",side:me,mode:"quick",cancelled:()=>!!(window.CRGate&&CRGate.wantsStop())},()=>{}); d.meta.pgn=pgn; }catch(e){ $("tl64o").innerHTML=`<p>Couldn't check this game: ${E_(e.message)}</p>`; return; }finally{ ReviewApp.setRunning(false); }
   const R=rows(d,plans); d.meta.plans64={}; R.forEach(r=>d.meta.plans64[r.i]={plan:r.plan,text:r.text,fit:r.fit,needed:r.needed,line:r.line});
   const rec={id:"tl"+Date.now(),at:Date.now(),bot,me,pgn,rows:R}; const L=LG(KP,[]); L.unshift(rec); LS(KP,L.slice(0,10)); render(rec,d); ask(rec); return rec; }
 function render(rec,d){ const o=$("tl64o"); if(!o) return; const n=rec.rows.filter(r=>r.fit==="fit"||r.fit==="ok").length;
