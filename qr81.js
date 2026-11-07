@@ -37,7 +37,8 @@ body.cr72q #cr66seg button.on:not([data-t=quick]){background:none;font-weight:40
 #cr72 .worst{border:2px solid #ca3431}
 html.dark-mode #cr72 .g,html.dark-mode #cr72 .tx,html.dark-mode #cr72 .sec{background:#262626;color:#eee}`;
 const st=document.createElement("style"); st.textContent=css; document.head.appendChild(st);
-let on=false, job=null, view={k:"list"};
+let on=false, job=null, view={k:"list"}, fail=null, jobs=null;
+function slotOf(){ if(!jobs&&window.CRGate82) jobs=CRGate82.createJobSlot(); if(!jobs) jobs={start(){ if(job) job.stop=true; const J={stop:false,gen:1}; job=J; return J; },stop(){ if(job) job.stop=true; },isCurrent(J){ return job===J; },active(J){ return !!J&&job===J&&!J.stop; }}; return jobs; }
 const cache=()=>{ try{ return JSON.parse(localStorage.getItem(CK)||"{}"); }catch(e){ return {}; } };
 const save=(id,v)=>{ try{ const c=cache(); c[id]=v; const ks=Object.keys(c); while(ks.length>15) delete c[ks.shift()]; localStorage.setItem(CK,JSON.stringify(c)); }catch(e){} };
 function games(){ try{ return window.CRSync?CRSync.list():[]; }catch(e){ return []; } }
@@ -56,10 +57,14 @@ const mvNo=ply=>Math.ceil(ply/2);
 function itemRow(it,k,cls){ const t=TY[it.type]; const lab=it.label||t[1]; return `<button type="button" class="it ${cls||""}" data-k="${k}"><span class="ic" style="background:${t[2]}">${t[0]}</span><span class="l"><b>Move ${mvNo(it.ply)} · ${lab}</b>${E_(it.short)}</span><span class="ch">›</span></button>`; }
 function paint(){ const p=$("cr72"); if(!p) return; place();
   if(view.k==="list"){ const L=games(), C=cache();
-    p.innerHTML=`<p class="hint">Pick a game. You'll see every mistake, missed chance and unused open space, split into opening, middlegame and endgame.</p>`+(L.length?`<div class="gl">`+L.map(x=>{ const c=x.res==="Lost"?"L":x.res==="Won"?"W":"D", cc=C[x.url];
+    const err=fail?`<div class="tx" id="cr72err">${E_(fail.text)}</div><div class="rw"><button type="button" class="btn" id="cr72retry">Try again</button><button type="button" class="btn" id="cr72back">‹ Back</button></div>`:"";
+    p.innerHTML=err+`<p class="hint">Pick a game. You'll see every mistake, missed chance and unused open space, split into opening, middlegame and endgame.</p>`+(L.length?`<div class="gl">`+L.map(x=>{ const c=x.res==="Lost"?"L":x.res==="Won"?"W":"D", cc=C[x.url];
       return `<button type="button" class="g ${c}" data-u="${E_(x.url)}"><span class="r">${x.res==="Lost"?"Lost":x.res==="Won"?"Won":"Draw"}</span><span class="t"><b>vs ${E_(x.op)}${x.or?` (${E_(x.or)})`:""}</b><small>${new Date(x.t*1000).toLocaleDateString()} · ${E_(x.tc||"")} · you were ${x.me==="w"?"White":"Black"}</small></span><span class="go">${cc&&cc.done?"See it ›":"Check ›"}</span></button>`; }).join("")+`</div>`
       :`<p class="hint">No games yet. Add your Chess.com username, then tap below.</p>${window.CRSync?CRSync.bar():""}`);
-    p.querySelectorAll(".g").forEach(b=>b.onclick=()=>run(b.dataset.u)); return; }
+    p.querySelectorAll(".g").forEach(b=>b.onclick=()=>run(b.dataset.u));
+    if($("cr72retry")) $("cr72retry").onclick=()=>{ const u=fail&&fail.url; fail=null; if(u) run(u); };
+    if($("cr72back")) $("cr72back").onclick=()=>{ fail=null; paint(); };
+    return; }
   if(view.k==="rev"){ const r=view.r, g=view.g, I=r.items, sc=p.scrollTop;
     const worst=r.done?I.map((it,k)=>[it,k]).filter(([it])=>it.d>0).sort((a,b)=>b[0].d-a[0].d).slice(0,3):[];
     let h=`<div class="hd"><b>vs ${E_(g.op)} · ${g.res}</b><button type="button" class="btn" id="cr72l">‹ Games</button></div>`;
@@ -70,8 +75,8 @@ function paint(){ const p=$("cr72"); if(!p) return; place();
     if(r.done) h+=`<div class="rw"><button type="button" class="btn" id="cr72f">📋 Open full review</button></div>`;
     else h+=`<div class="rw"><button type="button" class="btn" id="cr72c">Cancel</button></div>`;
     p.innerHTML=h; p.scrollTop=sc;
-    $("cr72l").onclick=()=>{ if(job&&!r.done) job.stop=true; view={k:"list"}; paint(); };
-    if($("cr72c")) $("cr72c").onclick=()=>{ if(job) job.stop=true; view={k:"list"}; paint(); }; if($("cr72f")) $("cr72f").onclick=()=>full(g);
+    $("cr72l").onclick=()=>{ stopJob(); view={k:"list"}; paint(); };
+    if($("cr72c")) $("cr72c").onclick=()=>{ stopJob(); view={k:"list"}; paint(); }; if($("cr72f")) $("cr72f").onclick=()=>full(g);
     p.querySelectorAll(".it").forEach(b=>b.onclick=()=>{ view={k:"show",g,r,i:+b.dataset.k,back:p.scrollTop}; paint(); }); return; }
   if(view.k==="show"){ const I=view.r.items, i=view.i, m=I[i], g=view.g, t=TY[m.type], lab=m.label||t[1];
     const top=$("cr72").getBoundingClientRect().top, room=innerHeight-top-12-236, sz=Math.max(220,Math.min(innerWidth-16,room,560));
@@ -169,17 +174,24 @@ function explain(b,me,uci,best,pvB,pvA,mv,i,ph,d,scA){
 }
 /* ---- the engine pass ---- */
 const wp=sc=>{ const cp=sc.mate!=null?(sc.mate>0?10000:-10000):sc.cp; return 50+50*(2/(1+Math.exp(-0.00368208*Math.max(-10000,Math.min(10000,cp))))-1); };
-let ENG=null; async function eng(){ if(ENG) return ENG; ENG=new Analyzer.Engine(()=>new Worker("stockfish.js")); await ENG.init(); return ENG; }
-async function run(url){ const g=games().find(x=>x.url===url); if(!g) return; const C=cache()[url]; if(C&&C.done){ view={k:"rev",g,r:C}; paint(); return; }
-  if(job) job.stop=true; const J=job={stop:false};
+let ENG=null, aside=null;
+async function eng(){ if(ENG&&ENG._gateDead){ try{ ENG.quit(); }catch(e){} ENG=null; } if(ENG) return ENG; ENG=new Analyzer.Engine(()=>new Worker("stockfish.js")); await ENG.init(); return ENG; }
+function stopJob(){ const s=slotOf(); const cur=s.current(); if(!cur||cur.stop) return; s.stop(); job=s.current(); try{ if(ENG&&ENG.gateStop) ENG.gateStop(); else if(ENG) ENG.send("stop"); }catch(e){} }
+async function run(url){ const g=games().find(x=>x.url===url); if(!g) return; const C=cache()[url]; if(C&&C.done){ stopJob(); fail=null; view={k:"rev",g,r:C}; paint(); return; }
+  const s=slotOf(); if(job&&!job.stop) stopJob(); const J=s.start(); job=J; fail=null;
+  if(!aside&&window.CRGate&&CRGate.stepAside) aside=CRGate.stepAside();
   try{ const pg=Analyzer.parsePgn(g.pgn), mv=pg.moves, N=mv.length; const t0=performance.now(); const per=Math.max(60,Math.min(400,Math.round(BUDGET/(N+1))));
-    const r={items:[],n:N,at:0,done:false,reached:{},ph:"open"}; view={k:"rev",g,r}; if(on) paint();
-    const e=await eng(); const S=[], used={file:{},outpost:{}}; let last=0;
-    for(let i=0;i<=N;i++){ if(J.stop) return; const fen=i<N?mv[i].before:mv[N-1].after; const a=await e.analyse(fen,14,per,1); S.push({sc:a.score,bm:(a.pv&&a.pv[0])||a.bm,pv:(a.pv||[]).slice(0,3)});
+    const r={items:[],n:N,at:0,done:false,reached:{},ph:"open",url}; view={k:"rev",g,r}; if(on) paint();
+    const e=await eng(); if(!s.active(J)) return; const S=[], used={file:{},outpost:{}}; let last=0;
+    for(let i=0;i<=N;i++){ if(!s.active(J)) return; const fen=i<N?mv[i].before:mv[N-1].after; const a=await e.analyse(fen,14,per,1); if(!s.active(J)) return; S.push({sc:a.score,bm:(a.pv&&a.pv[0])||a.bm,pv:(a.pv||[]).slice(0,3)});
       if(i>0){ const k=i-1, m=mv[k]; const ph=phase(m.before,k+1); r.reached[ph]=1; r.ph=ph; if(m.color===g.me) look(mv,S,k,g.me,ph,used).forEach(it=>r.items.push(it)); }
-      r.at=i; if(view.k==="rev"&&view.r===r&&on&&(performance.now()-last>700||i===N)){ last=performance.now(); paint(); } }
-    r.items.sort((a,b)=>a.ply-b.ply); r.done=true; r.ms=Math.round(performance.now()-t0); window.CRQuick81.last=r; save(url,r); if(J.stop) return; job=null; if(view.k==="rev"&&view.r===r&&on) paint();
-  }catch(err){ console.error(err); job=null; view={k:"list"}; paint(); const p=$("cr72"); if(p) p.insertAdjacentHTML("afterbegin",`<div class="tx">Sorry, that game couldn't be checked. Try the full review instead.</div>`); } }
+      r.at=i; if(view.k==="rev"&&view.r===r&&view.g===g&&on&&(performance.now()-last>700||i===N)){ last=performance.now(); paint(); } }
+    if(!s.active(J)) return;
+    r.items.sort((a,b)=>a.ply-b.ply); r.done=true; r.ms=Math.round(performance.now()-t0); window.CRQuick81.last=r; save(url,r); if(s.isCurrent(J)) job=null; if(view.k==="rev"&&view.r===r&&view.g===g&&on) paint();
+  }catch(err){ if(!s.isCurrent(J)) return; console.error(err); job=null; try{ if(ENG&&ENG._gateDead){ try{ ENG.quit(); }catch(e){} ENG=null; } }catch(e){}
+    if(J.stop){ if(view.k!=="list"){ view={k:"list"}; if(on) paint(); } return; }
+    fail={url, text:"That check stopped before it finished. Tap Try again, or pick another game."}; view={k:"list"}; if(on) paint();
+  } finally { if(s.isCurrent(J)||!s.current()||s.current().stop){ if(aside){ const a=aside; aside=null; try{ a.back(); }catch(e){} } } } }
 function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S[i].bm, rep=S[i+1].bm, out=[];
   const bw=wp(S[i].sc), aw=100-wp(S[i+1].sc), d=Math.max(0,bw-aw), pc=NAME[(b[idx(m.uci)]||{t:"p"}).t], to=m.uci.slice(2,4), you=`your ${pc} to ${to}`;
   const P=s=>NAME[(b[idx(s)]||{t:"p"}).t];
@@ -227,6 +239,6 @@ function look(mv,S,i,me,ph,used){ const m=mv[i], fen=m.before, b=bd(fen), best=S
         s=64; break; } } }
   return out; }
 function tick(){ build(); if(on&&!B.classList.contains("hs-review")) close(); if(on) place(); }
-Object.assign(window.CRQuick81,{open,close,run,state:()=>view,last:null,phase,look,_test:{bd,play,landsSafe,unsafeLanding,atk,by,idx,sqn,VAL,FI}});
+Object.assign(window.CRQuick81,{open,close,run,stop:stopJob,state:()=>view,last:null,phase,look,_test:{bd,play,landsSafe,unsafeLanding,atk,by,idx,sqn,VAL,FI}});
 setInterval(tick,400); addEventListener("resize",()=>{ if(on&&view.k==="show") paint(); });
 })();

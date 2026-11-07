@@ -41,7 +41,7 @@ function build(){ const hs=document.querySelector("#hs .hsP"); if(!hs||$("cr66to
    <div id="cr66seg" role="tablist"><button type="button" data-t="game">This game</button><button type="button" data-t="games">My games<span id="cr66gc"></span></button><button type="button" data-t="pat">Patterns<span id="cr66pc"></span></button></div>
    <div id="cr66prog" role="status"><div class="r"><span id="cr66pt">Checking your game…</span><button type="button" class="btn" id="cr66cancel">Cancel</button></div><div class="pbar"><i id="cr66pf"></i></div><small>Other checks wait until this one is finished.</small></div></div>`);
   $("cr66new").onclick=openNew; $("cr66seg").querySelectorAll("button").forEach(b=>b.onclick=()=>tab(b.dataset.t));
-  $("cr66cancel").onclick=()=>{ const p=$("prog"); if(p&&p.classList.contains("on")) $("bCancel").click(); else if(window.CRBg){ CRBg.cancel=true; $("cr66pt").textContent="Stopping…"; } else { const c=$("patCancel"); if(c) c.click(); } };
+  $("cr66cancel").onclick=()=>{ $("cr66pt").textContent="Stopping…"; if(window.CRGate){ CRGate.cancelAll(); return; } const p=$("prog"); if(p&&p.classList.contains("on")) $("bCancel").click(); else if(window.CRBg){ CRBg.cancel=true; } else { const c=$("patCancel"); if(c) c.click(); } };
   return true; }
 function chooser(){ const pb=$("pbody"); if(!pb||$("cr66ch")||!pb.dataset.v43) return; const kids=[...pb.children], top=el=>kids.find(k=>k.contains(el));
   const g={}; ["latest","li","paste"].forEach(k=>{ const d=document.createElement("div"); d.className="cr66g"; d.dataset.g=k; g[k]=d; });
@@ -59,21 +59,22 @@ function sync(){ const p=$("paste"); if(!p||!$("cr66seg")) return; const pt=$("p
   $("cr66seg").querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",b.dataset.t===t); b.setAttribute("aria-selected",b.dataset.t===t); });
   $("cr66new").classList.toggle("on",p.classList.contains("open"));
   const gc=$("gcount"), pc=$("patCount"); $("cr66gc").textContent=gc?" "+gc.textContent.trim():""; $("cr66pc").textContent=pc?" "+pc.textContent.trim():""; }
-let warm=0, lastKey="", lastAt=0;
+let warm=0, bannerMem={lastKey:"", lastAt:0};
 function tick(){ if(!warm&&B.classList.contains("hs-review")&&window.ReviewApp&&ReviewApp.getEngine){ warm=1; setTimeout(()=>{ try{ ReviewApp.getEngine(); }catch(e){} },400); }
   if(!build()) return; chooser(); sync();
   const pr=$("prog"), pp=$("patProg"), a=pr&&pr.classList.contains("on"), b=pp&&pp.classList.contains("on")&&!pp.classList.contains("done");
-  let busy=a||b; try{ busy=busy||ReviewApp.isRunning(); }catch(e){}
+  let running=false; try{ running=!!(window.ReviewApp&&ReviewApp.isRunning()); }catch(e){}
+  const model=window.CRGate&&CRGate.bannerModel?CRGate.bannerModel({
+    progOn:!!a, patOn:!!(pp&&pp.classList.contains("on")), patDone:!!(pp&&pp.classList.contains("done")),
+    running, batchOwn:!!window.CRBatchOwn,
+    progTxt:($("progTxt")||{}).textContent||"", progWidth:($("progFill")||{style:{}}).style.width||"",
+    patTxt:($("patProgTxt")||{}).textContent||"", patWidth:($("patProgFill")||{style:{}}).style.width||"",
+    bg:!a&&!b&&window.CRBg?CRBg:null, imp:(window.Coach17&&Coach17._imp)||null, study:(window.CRImp&&CRImp._study)||null,
+    now:Date.now(), lastKey:bannerMem.lastKey, lastAt:bannerMem.lastAt
+  }):null;
+  const busy=model?model.busy:(a||b||running);
   B.classList.toggle("cr66busy",!!busy);
-  if(busy){ let tx=a?$("progTxt").textContent:b?$("patProgTxt").textContent:"";
-    let fw=a?$("progFill").style.width:b?($("patProgFill")||{style:{}}).style.width:"";
-    const bg=!a&&!b&&window.CRBg, now=Date.now(); let note="Other checks wait until this one is finished.";
-    if(b&&window.CRBatchOwn) note="You can keep using the app.";
-    if(bg){ const n=bg.n||1, f=Math.min(1,(bg.k+(bg.f||0))/n); tx=`Grading your recent games in the background: game ${Math.min(bg.k+1,n)} of ${n}…`; fw=Math.max(5,Math.round(100*f))+"%"; note="You can look around. Tap Cancel to stop it."; }
-    else if(!a&&!b){ tx="Busy with another check…"; }
-    const key=tx+"|"+fw; if(key!==lastKey){ lastKey=key; lastAt=now; }
-    if(now-lastAt>90000) note="This is taking longer than usual. Tap Cancel, or reload the page.";
-    $("cr66pt").textContent=tx||"Checking your game…"; $("cr66pf").style.width=fw||"5%"; const sm=$("cr66prog").querySelector("small"); if(sm&&sm.textContent!==note) sm.textContent=note;
+  if(busy){ if(model){ bannerMem.lastKey=model.key; bannerMem.lastAt=model.lastAt; $("cr66pt").textContent=model.tx; $("cr66pf").style.width=model.fw; const sm=$("cr66prog").querySelector("small"); if(sm&&sm.textContent!==model.note) sm.textContent=model.note; }
     if(!(b&&!a&&window.CRBatchOwn)) document.querySelectorAll(BUSY).forEach(e=>{ if(e.id==="patRun"&&window.CRBatchOwn) return; if(!e.disabled){ e.disabled=true; e.dataset.cr66d="1"; } }); }
   else document.querySelectorAll("[data-cr66d]").forEach(e=>{ e.disabled=false; delete e.dataset.cr66d; });
   decorate(); }

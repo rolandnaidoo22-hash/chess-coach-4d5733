@@ -26,7 +26,7 @@ function finish(G){ try{ if(!G||!G.gid) return; const L=all().filter(x=>x.gid===
 let busy=false;
 async function check(only){ if(busy) return; const P=LG(KP,[]).filter(p=>!only||String(p.gid)===String(only)); if(!P.length) return; busy=true;
   try{ for(const p of P){ for(let w=0;ReviewApp.isRunning()&&w<240;w++) await new Promise(r=>setTimeout(r,1000));
-      let d; try{ ReviewApp.setRunning(true); const eng=await ReviewApp.getEngine(); d=await Analyzer.analyzeGame(p.pgn,{engine:eng,username:"You",side:p.me,mode:"quick",cancelled:()=>false},()=>{}); }catch(e){ d=null; } finally{ ReviewApp.setRunning(false); }
+      let d; try{ ReviewApp.setRunning(true); const eng=await ReviewApp.getEngine(); d=await Analyzer.analyzeGame(p.pgn,{engine:eng,username:"You",side:p.me,mode:"quick",cancelled:()=>!!(window.CRGate&&CRGate.wantsStop())},()=>{}); }catch(e){ d=null; } finally{ ReviewApp.setRunning(false); }
       if(!d) continue; const A=all(); A.forEach(x=>{ if(x.gid===p.gid){ const q=d.plies[x.ply-1]; if(q){ x.cls=q.cls; x.fen=q.fen_before||x.fen; x.uci=q.uci||x.uci; } } }); save(A); LS(KP,LG(KP,[]).filter(z=>z.gid!==p.gid)); } }
   finally{ busy=false; } }
 /* ---------- game review (in-app or synced online games) ---------- */
