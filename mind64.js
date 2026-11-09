@@ -112,6 +112,7 @@ function moodHtml(){ const s=state(); if(!s.on) return `<div class="mood64" id="
 function refresh(){ const g=$("hsG"); if(g){ const m=$("mood64"), h=moodHtml(); if(m) m.outerHTML=h; else g.insertAdjacentHTML("afterbegin",h); wire($("mood64")); }
   const bl=$("tg64b"); if(bl){ const c=card("b"); if(c){ bl.outerHTML=c; wire($("tg64b")); } else bl.remove(); } }
 setInterval(()=>{ const g=$("hsG"); if(g&&!$("mood64")) refresh(); },1000);
+try{ refresh(); }catch(e){}
 function gate(p){ const c=card("b"); if(!c||!p) return; p.insertAdjacentHTML("afterbegin",c); wire($("tg64b")); }
 function overlay(html){ let d=$("tg64o"); if(d) d.remove(); d=document.createElement("div"); d.id="tg64o"; d.innerHTML=`<div class="s">${html}</div>`; document.body.appendChild(d); return d; }
 /* one calm puzzle: no timer, no rating, no score */

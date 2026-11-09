@@ -28,7 +28,10 @@ body.hs-app #hs .hsP{display:none!important}
 .hsG button .i{font-size:30px;line-height:1.1}.hsG button b{font-size:16.5px}.hsG button small{color:var(--mute);font-size:12.5px;line-height:1.3}
 .hsG button.wide{grid-column:1/-1;min-height:84px;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;border:none}.hsG button.wide small{color:#e8f0ff}.hsG button.wide.kid68{background:linear-gradient(135deg,#ef6c3a,#8e57c4);min-height:72px}.hsG button.wide .i{font-size:38px}
 .hsP .hsPh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 8px}.hsP h2{margin:0;font-size:20px}.hsP button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font:inherit;font-weight:700;padding:0 14px;cursor:pointer}
-html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262626;color:#eee;border-color:#3a3a3a}`;
+html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262626;color:#eee;border-color:#3a3a3a}
+.mood64{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;grid-column:1/-1;border:1px solid var(--line,#ddd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14.5px;min-height:50px;box-sizing:border-box}
+.mood64.warm{background:#f3f7ee;border-color:#cfe0bf}.mood64 a{font-weight:700;color:#3b6fb6;min-height:32px;display:inline-flex;align-items:center}.mood64 #mood64c{flex-basis:100%}
+html.dark-mode .mood64{background:#262626;color:#eee}`;
 const MODES=["home","review","goal","set","app"]; let mode=null, chosen=false;
 const TITLES={review:"📋 Review a game",goal:"🎯 Rating goal",set:"⚙ Settings"};
 function T(){ return window.Trainer; }
@@ -84,11 +87,15 @@ const ORDER=[
  ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
  ["Progress",["v45","v46mo","v42ch","progress","td64","v42xp","photo68","set"]]];
 function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
+  // Reserve the Mood check row in the first paint so it cannot pop in later and shove the tiles down.
+  g.insertAdjacentHTML("afterbegin",`<div class="mood64" id="mood64"><span>🌤 <b>Mood check:</b> things look steady</span><a href="#" data-tg="diary">My Tilt Diary</a></div>`);
+  const ph=$("mood64"); if(ph) ph.querySelectorAll("[data-tg=diary]").forEach(a=>a.onclick=e=>{ e.preventDefault(); try{ window.CRMind64&&CRMind64.diary(); }catch(x){} });
   ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);
     ids.forEach(id=>{ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;
       if(attrs) Object.keys(attrs).forEach(k=>b.setAttribute(k,attrs[k]));
       b.innerHTML=`<span class="i">${i}</span><span><b>${name}</b><br><small></small></span>`; b.querySelector("small").textContent=sub();
-      b.onclick=()=>{ try{ t[4](); }catch(e){ console.error(e); } }; g.appendChild(b); }); }); }
+      b.onclick=()=>{ try{ t[4](); }catch(e){ console.error(e); } }; g.appendChild(b); }); });
+  try{ window.CRMind64&&CRMind64.refresh(); }catch(e){} }
 /* "Start here" for new players: Read guides -> Learn the basics -> Pip. Hidden once dismissed. */
 const SKEY="chessReview.v54.startHide";
 function startCard(g){ try{ if(localStorage.getItem(SKEY)) return; }catch(e){}
