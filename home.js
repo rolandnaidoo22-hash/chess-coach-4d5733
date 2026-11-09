@@ -12,7 +12,7 @@ body.hs-on:not(.hs-home) #hs .hsP{display:block}#hs .hsP{display:none}
 body.hs-on:not(.hs-review) header,body.hs-on:not(.hs-review) #summary,body.hs-on:not(.hs-review) section.main,body.hs-on:not(.hs-review) #footer,body.hs-on:not(.hs-review) #paste,body.hs-on:not(.hs-review) #ng16{display:none!important}
 body.hs-review:not(.hs-game) header,body.hs-review:not(.hs-game) #summary,body.hs-review:not(.hs-game) section.main,body.hs-review:not(.hs-game) #footer{display:none!important}
 body.hs-on:not(.hs-goal):not(.hs-set) #home{display:none!important}
-body.hs-goal #home>*:not(.wgoal),body.hs-set #home>*:not(.ub16):not(.set3d):not(.nfa40){display:none!important}
+body.hs-goal #home>*:not(.wgoal),body.hs-set #home>*:not(.ub16):not(.set3d):not(.nfa40):not(.set82){display:none!important}
 body:not(.hs-set) #home>.nfa40{display:none!important}
 #home>.nfa40{font-size:12px;color:var(--mute);margin:12px 2px;line-height:1.4}
 body.hs-app #hs .hsP{display:none!important}
@@ -28,7 +28,16 @@ body.hs-app #hs .hsP{display:none!important}
 .hsG button .i{font-size:30px;line-height:1.1}.hsG button b{font-size:16.5px}.hsG button small{color:var(--mute);font-size:12.5px;line-height:1.3}
 .hsG button.wide{grid-column:1/-1;min-height:84px;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(135deg,#2f7d32,#3b6fb6);color:#fff;border:none}.hsG button.wide small{color:#e8f0ff}.hsG button.wide.kid68{background:linear-gradient(135deg,#ef6c3a,#8e57c4);min-height:72px}.hsG button.wide .i{font-size:38px}
 .hsP .hsPh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 8px}.hsP h2{margin:0;font-size:20px}.hsP button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font:inherit;font-weight:700;padding:0 14px;cursor:pointer}
-html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262626;color:#eee;border-color:#3a3a3a}`;
+html.dark-mode .hsG button:not(.wide),html.dark-mode .hsP button{background:#262626;color:#eee;border-color:#3a3a3a}
+#hsG:not([data-tab="home"]) #mood64{display:none}
+.hsAll{grid-column:1/-1;text-align:center;color:var(--mute);font-size:13px;margin:10px 0 0}
+#hs .hsSub{text-transform:none}#hs{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+#hsNav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:900;background:var(--card,#fff);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));justify-content:space-around;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+body.hs-home #hsNav{display:flex}
+#hsNav button{flex:1;max-width:120px;min-height:52px;border:0;background:none;color:var(--mute);font:inherit;font-size:11.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;cursor:pointer}
+#hsNav button.on{color:var(--accent,#3b6fb6);background:rgba(59,111,182,.10)}
+#hsNav button:focus-visible{outline:2px solid var(--accent,#3b6fb6);outline-offset:-2px}
+@media print{#hsNav{display:none!important}}`;
 const MODES=["home","review","goal","set","app"]; let mode=null, chosen=false;
 const TITLES={review:"📋 Review a game",goal:"🎯 Rating goal",set:"⚙ Settings"};
 function T(){ return window.Trainer; }
@@ -83,12 +92,37 @@ const ORDER=[
  ["Play",["bots52","corban52","ultimo52","play"]],
  ["Train",["start54","tf54","ls64","bl57","learn","read52","study52","open52","puzzles","v42pod","drills","lessons","board"]],
  ["Progress",["v45","v46mo","v42ch","progress","td64","v42xp","photo68","set"]]];
-function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent="";
-  ORDER.forEach(([title,ids])=>{ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h);
-    ids.forEach(id=>{ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;
-      if(attrs) Object.keys(attrs).forEach(k=>b.setAttribute(k,attrs[k]));
-      b.innerHTML=`<span class="i">${i}</span><span><b>${name}</b><br><small></small></span>`; b.querySelector("small").textContent=sub();
-      b.onclick=()=>{ try{ t[4](); }catch(e){ console.error(e); } }; g.appendChild(b); }); }); }
+/* v82: a short Home (coach, review, your most-used) plus one tab per section in a bottom bar, instead of one long list of every tile. */
+const UKEY="chessReview.v82.use", TKEY="chessReview.v82.tab", TABS=["home","Review","Play","Train","Progress"], HOME_TOP=["coach","review","games"], PICKS=["bots52","bl57","tf54","v42pod"];
+let tab="home"; try{ const t=sessionStorage.getItem(TKEY); if(TABS.includes(t)) tab=t; }catch(e){}
+const uses=()=>{ try{ return JSON.parse(localStorage.getItem(UKEY)||"{}")||{}; }catch(e){ return {}; } };
+function used(id){ try{ const u=uses(); u[id]=(u[id]||0)+1; localStorage.setItem(UKEY,JSON.stringify(u)); }catch(e){} }
+function mostUsed(){ const u=uses(), all=[].concat(...ORDER.map(o=>o[1])); const top=Object.keys(u).filter(id=>all.includes(id)&&!HOME_TOP.includes(id)&&id!=="set"&&id!=="start54").sort((a,b)=>u[b]-u[a]).slice(0,4);
+  PICKS.forEach(id=>{ if(top.length<4&&!top.includes(id)) top.push(id); }); return {ids:top,mine:Object.keys(u).length>0}; }
+function tile(g,by,id){ if(id==="start54"){ startCard(g); return; } const t=by[id]; if(!t) return; const [ ,i,name,sub,,c,attrs]=t; const b=document.createElement("button"); b.type="button"; b.dataset.hs=id; if(c) b.className=c;
+  if(attrs) Object.keys(attrs).forEach(k=>b.setAttribute(k,attrs[k]));
+  b.innerHTML=`<span class="i">${i}</span><span><b>${name}</b><br><small></small></span>`; b.querySelector("small").textContent=sub();
+  b.onclick=()=>{ used(id); try{ t[4](); }catch(e){ console.error(e); } }; g.appendChild(b); }
+function sec(g,title){ const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; g.appendChild(h); }
+function paint(){ const g=$("hsG"); if(!g) return; const by=Object.fromEntries(TILES.map(t=>[t[0],t])); g.textContent=""; g.dataset.tab=tab;
+  const sub=document.querySelector("#hs .hsSub"); if(sub) sub.textContent=tab==="home"?"Get better at chess with your own games.":tab;
+  if(tab==="home"){ HOME_TOP.forEach(id=>tile(g,by,id)); startCard(g);
+    const m=mostUsed(); sec(g,m.mine?"Your most used":"Good places to start"); m.ids.forEach(id=>tile(g,by,id));
+    const a=document.createElement("p"); a.className="hsAll"; a.textContent="Everything else is in the tabs below."; g.appendChild(a); }
+  else { const o=ORDER.find(x=>x[0]===tab); if(o) o[1].forEach(id=>tile(g,by,id)); }
+  /* other files add their own tile when their marker is missing; this hidden marker tells them the tile lives on another tab */
+  const mk=document.createElement("i"); mk.hidden=true; mk.setAttribute("data-v42t","x"); mk.setAttribute("data-v45t","x"); mk.setAttribute("data-v46t","x"); g.appendChild(mk);
+  paintNav(); }
+const NAVI={home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/>',
+ Review:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/><path d="m7.8 10.6 2 2 3.4-3.8"/>',
+ Play:'<path d="M9 20h8"/><path d="M10 20c0-3 1-4 1-7H9l-2-1.5L10 6l1-2 1 2c3 .5 5 3 5 7 0 3-1 4-1 7"/>',
+ Train:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
+ Progress:'<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V9"/><path d="M17 20V5"/>'};
+function paintNav(){ let n=$("hsNav"); if(!n){ n=document.createElement("nav"); n.id="hsNav"; n.setAttribute("aria-label","Sections");
+    n.innerHTML=TABS.map(t=>`<button type="button" data-tab="${t}"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAVI[t]}</svg><span>${t==="home"?"Home":t}</span></button>`).join("");
+    n.addEventListener("click",e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; setTab(b.dataset.tab); }); B.appendChild(n); }
+  n.querySelectorAll("[data-tab]").forEach(b=>{ const on=b.dataset.tab===tab; b.classList.toggle("on",on); if(on) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); }); }
+function setTab(t){ if(!TABS.includes(t)) t="home"; tab=t; try{ sessionStorage.setItem(TKEY,t); }catch(e){} if(mode!=="home"){ closeAll(); setMode("home"); } else { paint(); window.scrollTo(0,0); } }
 /* "Start here" for new players: Read guides -> Learn the basics -> Pip. Hidden once dismissed. */
 const SKEY="chessReview.v54.startHide";
 function startCard(g){ try{ if(localStorage.getItem(SKEY)) return; }catch(e){}
@@ -116,6 +150,6 @@ function nfa(){ const h=$("home"); if(!h||h.querySelector(".nfa40")) return; con
 function boot(){ build(); nfa(); hookLoad(); watch(); const deep=/ply=|try=|punish=/.test(location.hash); if(deep||window.__crWantReview){ chosen=true; setMode("review"); } else { try{ if(!B.classList.contains("nogame")&&window.ReviewApp&&ReviewApp.loadGames().length) chosen=true; }catch(e){} setMode("home"); }
   setTimeout(paint,1500); document.documentElement.classList.remove("hsboot"); window.addEventListener("crgoal",paint); }
 try{ const v=document.getElementById("verV"); if(v&&typeof VERSION!=="undefined") v.textContent=VERSION; }catch(e){}
-window.CRHome={setMode,goHome,mode:()=>mode,paint};
+window.CRHome={setMode,goHome,mode:()=>mode,paint,setTab,tab:()=>tab};
 try{ boot(); }catch(e){ console.error(e); }
 })();

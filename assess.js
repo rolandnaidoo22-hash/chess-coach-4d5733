@@ -153,7 +153,7 @@ const L={
  trap:["🪤 Trap Radar (openings)",go(()=>TrapRadar.open())],
  play:["🤖 Play the bot",go(()=>Trainer.open("sec","play"))],
  coach:["🧑‍🏫 My Coach",go(()=>Coach17.open("home"))],
- review:["📋 Review a game",()=>{ close(); try{ CRHome.goHome(); document.querySelector('#hsG [data-hs="review"]').click(); }catch(e){} }],
+ review:["📋 Review a game",()=>{ close(); try{ if(CRHome.setTab) CRHome.setTab("home"); else CRHome.goHome(); document.querySelector('#hsG [data-hs="review"]').click(); }catch(e){} }],
 };
 const th=(k,label)=>[label,go(()=>Trainer.open("lthemes",{k:TH[k]}))];
 const CATL={mate:th("mateIn1","♛ Mate in 1 set"),material:th("hangingPiece","🎁 Hanging pieces"),fork:th("fork","🍴 Fork puzzles"),pin:th("pin","📌 Pin puzzles"),skewer:th("skewer","🍢 Skewer puzzles"),
