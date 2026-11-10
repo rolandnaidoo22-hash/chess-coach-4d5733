@@ -1,6 +1,6 @@
 // Chess Review service worker: keeps the app usable offline.
 // Page: network first (so updates show up), falling back to the cached copy when offline.
-const CACHE = "chess-review-cc9e6ddf";
+const CACHE = "chess-review-98054a7b";
 // Big, rarely-changing files live in their own cache that updates do NOT wipe (bump ENGINE_CACHE only if the engine/3D files change).
 const ENGINE_CACHE = "chess-review-engine-1";
 const BIG = /\/(stockfish\.js|stockfish\.wasm|three\.module\.min\.js|pieces\.bin)$/;

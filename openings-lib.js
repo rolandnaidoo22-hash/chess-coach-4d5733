@@ -3,6 +3,7 @@
 const $=id=>document.getElementById(id);
 const E_=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const DATA_SRC="data-openings.js?v=3aee1d";
+const NAMES_SRC="openings-names.js?v=017d6e";
 const U=()=>window.CR52;
 const CH=()=> (U()&&U().CH&&U().CH()) || (window.ChessLib&&window.ChessLib.Chess) || window.Chess;
 
@@ -30,12 +31,13 @@ const CSS=`#olib{max-width:560px;margin-left:auto;margin-right:auto;padding-bott
 #olib .olCard ul{margin:4px 0 0;padding-left:1.15em}
 #olib .olHint{min-height:44px;margin:6px 0}
 #olib .olEmpty{color:var(--mute,#666);padding:12px 4px}
+#olib .olNote{margin:8px 0 0;color:var(--mute,#666);font-size:13px;line-height:1.4}
 html.dark-mode #olib .olFind,html.dark-mode #olib .olItem,html.dark-mode #olib .olCard{background:#262626;color:#eee;border-color:#3a3a3a}
 html.dark-mode #olib .olYou{background:#1d2633;color:#cde}
 html.dark-mode #olib .olLv.beg{background:#1e3320;color:#a8d5a8}
 html.dark-mode #olib .olLv.int{background:#3a3420;color:#f0d48a}`;
 
-let styled=false, data=null, lastQ="", lastId=null, loading=null;
+let styled=false, data=null, lastQ="", lastId=null, lastMore=null, loading=null, catalog=null, namesLoading=null, tFind=null, paintSeq=0;
 function css(){ if(styled) return; const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); styled=true; }
 
 function load(){
@@ -52,8 +54,79 @@ function load(){
   return loading;
 }
 
-function norm(s){ return String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9+']+/g," ").replace(/\b(the|defense|defence|game|opening|attack|system|gambit|declined|accepted)\b/g," ").replace(/\s+/g," ").trim(); }
+function fold(s){
+  return String(s||"").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[’'`ʻ]/g,"")
+    .replace(/[^a-z0-9]+/g," ")
+    .replace(/\s+/g," ").trim();
+}
+function norm(s){ return fold(s).replace(/\b(the|defense|defence|game|opening|attack|system|gambit|declined|accepted)\b/g," ").replace(/\s+/g," ").trim(); }
 function toks(s){ return norm(s).split(" ").filter(Boolean); }
+function cleanSan(s){ return String(s||"").replace(/[+#?!]+$/,"").replace(/0-0-0/ig,"O-O-O").replace(/0-0/ig,"O-O"); }
+function movesKey(m){ return (m||[]).map(cleanSan).join(" "); }
+function fmtMoves(moves){
+  let s="", n=1;
+  for(let i=0;i<(moves||[]).length;i++){
+    if(i%2===0){ s+=(s?" ":"")+n+". "+moves[i]; n++; }
+    else s+=" "+moves[i];
+  }
+  return s;
+}
+function hayHas(hay, q){
+  if(!q||!hay) return false;
+  if(hay.includes(q)) return true;
+  const qt=q.split(" ").filter(Boolean);
+  if(qt.length<2) return false;
+  return qt.every(t=>new RegExp("(^| )"+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).test(hay));
+}
+function parseMoveQuery(q){
+  const parts=String(q||"").trim().split(/\s+/);
+  if(!parts.length) return null;
+  const san=/^(?:O-O-O|O-O|0-0-0|0-0|[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?|[a-h]x[a-h][1-8](?:=[NBRQ])?|[a-h][1-8](?:=[NBRQ])?)[+#]?$/i;
+  const out=[];
+  for(let t of parts){
+    t=t.replace(/^[0-9]+\.(?:\.\.)?/,"").replace(/[?!]+$/,"");
+    if(!t || /^[0-9]+\.?$/.test(t)) continue;
+    if(!san.test(t)) return null;
+    out.push(cleanSan(t));
+  }
+  return out.length?out:null;
+}
+function ecoQuery(q){
+  const t=String(q||"").trim().replace(/\s+/g,"");
+  return /^[a-e]\d{2}[a-z]?$/i.test(t)?t.toLowerCase():"";
+}
+function movesPref(row, want){
+  if(!want||!want.length) return false;
+  const m=row||[];
+  return want.every((s,i)=>cleanSan(m[i]||"")===s);
+}
+
+function parseCatalog(raw){
+  const out=[];
+  String(raw||"").split("\n").forEach(l=>{
+    const [eco,name,mv]=l.split("\t");
+    if(!eco||!name||!mv) return;
+    const moves=mv.trim().split(/\s+/).map(cleanSan).filter(Boolean);
+    if(!moves.length) return;
+    out.push({eco:eco.trim(), name:name.trim(), moves, key:eco.trim()+"\t"+moves.join(" ")});
+  });
+  return out;
+}
+function loadCatalog(){
+  if(catalog) return Promise.resolve(catalog);
+  if(window.CROPENDATA){ catalog=parseCatalog(window.CROPENDATA); return Promise.resolve(catalog); }
+  if(namesLoading) return namesLoading;
+  namesLoading=new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=NAMES_SRC; s.async=true;
+    s.onload=()=>{ catalog=parseCatalog(window.CROPENDATA||""); resolve(catalog); };
+    s.onerror=()=>reject(new Error("Couldn't load the openings book."));
+    document.head.appendChild(s);
+  }).finally(()=>{ namesLoading=null; });
+  return namesLoading;
+}
 
 /* You play this: name match or move-prefix match, from saved games and the My Openings cache. */
 function playedMap(){
@@ -81,10 +154,10 @@ function playedMap(){
   }
   function byMoves(sans,side){
     if(!sans||sans.length<2) return;
-    const key=sans.map(s=>String(s).replace(/[+#]+$/,"").replace(/0-0-0/,"O-O-O").replace(/0-0/,"O-O"));
+    const key=sans.map(s=>cleanSan(s));
     openings.forEach(o=>{
       const m=o.moves||[]; if(m.length<2) return;
-      let i=0; while(i<m.length&&i<key.length&&m[i]===key[i]) i++;
+      let i=0; while(i<m.length&&i<key.length&&cleanSan(m[i])===key[i]) i++;
       const need=Math.min(m.length, 4);
       if(i>=need) mark(o.id,side);
     });
@@ -116,37 +189,129 @@ function youLabel(hit){
 function page(){ css(); return U().show("olib"); }
 
 function list(q){
-  const p=page(); lastQ=q||""; lastId=null;
+  const p=page(); lastQ=q||""; lastId=null; lastMore=null;
   p.innerHTML=`<button type="button" class="btn bk70" id="olBack" aria-label="Go back">‹ Back</button>
     <h2>📚 Openings library</h2>
-    <p class="mute">The main openings, grouped by the first moves, and how to play them. Tap one to step through the line.</p>
-    <input class="olFind" id="olFind" type="search" placeholder="Search, e.g. Sicilian or London" value="${E_(lastQ)}" aria-label="Search openings">
+    <p class="mute">The main openings, grouped by the first moves, and how to play them. Tap one to step through the line. Type a name, ECO code, or moves to also search every named opening.</p>
+    <input class="olFind" id="olFind" type="search" placeholder="Search, e.g. Stafford, B90, or 1.e4 e5" value="${E_(lastQ)}" aria-label="Search openings" autocomplete="off" spellcheck="false">
     <div id="olList"><p class="olEmpty">Loading the openings…</p></div>`;
   $("olBack").onclick=()=>{ try{ window.CRHome.goHome(); }catch(e){} };
-  const find=$("olFind"); find.oninput=()=>{ lastQ=find.value; paintList(); };
+  const find=$("olFind");
+  const kick=()=>{ lastQ=find.value; clearTimeout(tFind); tFind=setTimeout(()=>paintList(), find.value.trim()?200:0); };
+  find.oninput=kick; find.onsearch=kick;
   load().then(()=>{ paintList(); try{ find.focus(); }catch(e){} }).catch(err=>{
     $("olList").innerHTML=`<div class="olCard"><p>${E_(err.message||"Couldn't load the openings list.")} ${navigator.onLine===false?"You're offline — open this once while online, and it will be kept on the phone.":"Please try again."}</p></div>`;
   });
 }
+
+function curatedHit(o, qFold, ecoQ, moveQ){
+  if(moveQ) return movesPref(o.moves, moveQ);
+  if(ecoQ && String(o.eco||"").toLowerCase().startsWith(ecoQ)) return true;
+  const hay=fold([o.name,o.eco,o.level,(o.aka||[]).join(" ")].join(" "));
+  return hayHas(hay, qFold);
+}
+function scoreMore(r, qFold, ecoQ, moveQ){
+  let sc=0;
+  const nf=fold(r.name), eco=String(r.eco||"").toLowerCase();
+  if(ecoQ){
+    if(eco===ecoQ) sc=Math.max(sc,100);
+    else if(eco.startsWith(ecoQ)) sc=Math.max(sc,80);
+  }
+  if(qFold && !moveQ){
+    if(nf===qFold) sc=Math.max(sc,95);
+    else if(hayHas(nf, qFold)){
+      const idx=nf.indexOf(qFold);
+      sc=Math.max(sc, 70 - Math.min(20, idx<0?20:idx) + Math.min(10, qFold.length));
+      if(nf.startsWith(qFold)) sc+=8;
+      if(nf.startsWith(qFold+" defense")||nf.startsWith(qFold+" defence")) sc+=8;
+    }
+  }
+  if(moveQ && movesPref(r.moves, moveQ)){
+    sc=Math.max(sc, 85 + Math.min(10, moveQ.length));
+    if(r.moves.length===moveQ.length) sc+=15;
+  }
+  return sc;
+}
+function searchMore(cat, qFold, ecoQ, moveQ, skipKeys){
+  const hits=[];
+  for(let i=0;i<cat.length;i++){
+    const r=cat[i];
+    if(skipKeys.has(movesKey(r.moves))) continue;
+    const sc=scoreMore(r, qFold, ecoQ, moveQ);
+    if(sc>0) hits.push({sc, r, i});
+  }
+  hits.sort((a,b)=> b.sc-a.sc || a.r.moves.length-b.r.moves.length || a.i-b.i);
+  return hits;
+}
+
+function bindList(box){
+  box.querySelectorAll("[data-ol]").forEach(b=>b.onclick=()=>showOne(b.dataset.ol));
+  box.querySelectorAll("[data-more]").forEach(b=>b.onclick=()=>showMore(b.dataset.more));
+}
+
 function paintList(){
   const box=$("olList"); if(!box||!data) return;
-  const q=norm($("olFind")?$("olFind").value:lastQ);
+  const raw=($("olFind")?$("olFind").value:lastQ);
+  lastQ=raw;
+  const q=String(raw||"").trim();
+  const qFold=fold(q), ecoQ=ecoQuery(q), moveQ=q?parseMoveQuery(q):null;
   const you=playedMap();
   const groups=data.groups||[];
   let html="", shown=0;
+  const skip=new Set((data.openings||[]).map(o=>movesKey(o.moves)));
   groups.forEach(g=>{
-    const items=(data.openings||[]).filter(o=>o.group===g.id && (!q || [o.name,o.eco,o.level,(o.aka||[]).join(" "),(o.moves||[]).join(" ")].join(" ").toLowerCase().includes(q) || norm(o.name+" "+(o.aka||[]).join(" ")).includes(q)));
+    const items=(data.openings||[]).filter(o=>o.group===g.id && (!q || curatedHit(o, qFold, ecoQ, moveQ)));
     if(!items.length) return;
-    html+=`<h3 class="olSec">${E_(g.title)}</h3>${g.blurb?`<p class="olBlurb">${E_(g.blurb)}</p>`:""}`;
+    html+=`<h3 class="olSec">${E_(g.title)}</h3>${!q&&g.blurb?`<p class="olBlurb">${E_(g.blurb)}</p>`:""}`;
     items.forEach(o=>{
       shown++;
       const hit=you[o.id], lab=youLabel(hit);
-      const lv=o.level==="Intermediate"?"int":"beg";
       html+=`<button type="button" class="olItem" data-ol="${E_(o.id)}"><span class="olEco">${E_(o.eco)}</span><span><b>${E_(o.name)}</b><small>${E_(o.level)} · ${Math.ceil((o.moves||[]).length/2)} moves</small></span></button>`.replace("</small>", (lab?`</small><span class="olYou">${E_(lab)}</span>`:"</small>"));
     });
   });
-  box.innerHTML=html||`<p class="olEmpty">Nothing found for “${E_(($("olFind")&&$("olFind").value)||"")}”. Try another name, like Sicilian or London.</p>`;
-  box.querySelectorAll("[data-ol]").forEach(b=>b.onclick=()=>showOne(b.dataset.ol));
+  if(shown && q) html=`<h3 class="olSec">With a full guide</h3>`+html;
+  if(!q){
+    box.innerHTML=html||`<p class="olEmpty">Nothing found.</p>`;
+    bindList(box);
+    return;
+  }
+  function moreBlock(cat){
+    const all=searchMore(cat, qFold, ecoQ, moveQ, skip);
+    const cap=50;
+    const slice=all.slice(0, cap);
+    let more="";
+    if(slice.length){
+      more+=`<h3 class="olSec">More openings</h3>`;
+      more+=`<p class="olBlurb">Named lines from the openings book. A full guide isn't written yet — you can still step through the moves.</p>`;
+      slice.forEach(h=>{
+        const r=h.r;
+        more+=`<button type="button" class="olItem" data-more="${E_(r.key)}"><span class="olEco">${E_(r.eco)}</span><span><b>${E_(r.name)}</b><small>${E_(fmtMoves(r.moves))}</small></span></button>`;
+      });
+      if(all.length>cap) more+=`<p class="olNote">Showing the first ${cap}. Type more of the name to narrow it down.</p>`;
+      const cred=(window.CRECO&&CRECO.credit)||"Opening names come from a public-domain (CC0) list of openings, built into the app.";
+      more+=`<p class="olNote">${E_(cred)}</p>`;
+    }
+    const empty=!shown && !slice.length;
+    if(empty) return `<p class="olEmpty">Nothing found for “${E_(raw)}”. Try a name, an ECO code like B90, or moves like 1.e4 e5 2.Nf3 Nf6.</p>`;
+    return (html||"")+more;
+  }
+  if(catalog || window.CROPENDATA){
+    if(!catalog) catalog=parseCatalog(window.CROPENDATA);
+    box.innerHTML=moreBlock(catalog);
+    bindList(box);
+    return;
+  }
+  const seq=++paintSeq;
+  box.innerHTML=(html||"")+`<p class="olEmpty" id="olMoreWait">Looking up more openings…</p>`;
+  bindList(box);
+  loadCatalog().then(cat=>{
+    if(seq!==paintSeq || !$("olList")) return;
+    box.innerHTML=moreBlock(cat);
+    bindList(box);
+  }).catch(err=>{
+    if(seq!==paintSeq || !$("olMoreWait")) return;
+    $("olMoreWait").textContent=err.message+(navigator.onLine===false?" You're offline — open this once while online, and it will be kept on the phone.":"");
+  });
 }
 
 function build(moves){
@@ -156,18 +321,12 @@ function build(moves){
 }
 function moveLabel(m,i){ const n=Math.ceil((i+1)/2); return (m.color==="w"?`${n}. `:`${n}… `)+m.san; }
 
-function showOne(id){
-  const o=(data.openings||[]).find(x=>x.id===id); if(!o) return list(lastQ);
-  lastId=id;
+function wireBoard(o, b, back, extraHtml, practiseBack){
+  const N=(o.moves||[]).length;
   const p=page();
-  let b; try{ b=build(o.moves); }catch(e){ p.innerHTML=`<button type="button" class="btn bk70" id="olBack">‹ Back</button><h2>${E_(o.name)}</h2><div class="olCard"><p>${E_(e.message)}</p></div>`; $("olBack").onclick=()=>list(lastQ); return; }
-  const N=o.moves.length;
-  const hit=playedMap()[o.id], lab=youLabel(hit);
-  const prefer=hit&&hit.b&&!hit.w?"b":"w";
-  const lv=o.level==="Intermediate"?"int":"beg";
   p.innerHTML=`<button type="button" class="btn bk70" id="olBack" aria-label="Go back">‹ Back</button>
     <h2>${E_(o.name)}</h2>
-    <p class="mute">${E_(o.eco)} · <span class="olLv ${lv}">${E_(o.level)}</span>${lab?` <span class="olYou">${E_(lab)}</span>`:""}</p>
+    <p class="mute">${E_(o.eco)}${o.level?` · <span class="olLv ${o.level==="Intermediate"?"int":"beg"}">${E_(o.level)}</span>`:""}${o._you?` <span class="olYou">${E_(o._you)}</span>`:""}</p>
     <div class="olBdWrap"><div class="bd" id="olBd"></div></div>
     <p class="olHint mute" id="olHint"></p>
     <div class="olRow">
@@ -178,15 +337,13 @@ function showOne(id){
     <div class="olRow">
       <button type="button" class="bt" id="olFlip">Flip board</button>
     </div>
-    <div class="olCard"><h3>Ideas for White</h3><ul>${(o.white||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>
-    <div class="olCard"><h3>Ideas for Black</h3><ul>${(o.black||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>
-    <div class="olCard"><h3>Common traps and mistakes</h3><ul>${(o.traps||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>
+    ${extraHtml||""}
     <div class="olRow" style="flex-direction:column">
       <button type="button" class="bt go" id="olPrW">Practise it as White</button>
       <button type="button" class="bt go" id="olPrB">Practise it as Black</button>
     </div>`;
-  $("olBack").onclick=()=>list(lastQ);
-  const B=U().board($("olBd")); B.orient=prefer;
+  $("olBack").onclick=back;
+  const B=U().board($("olBd")); B.orient=o._prefer||"w";
   let k=0;
   const go=i=>{
     k=Math.max(0,Math.min(N,i));
@@ -201,19 +358,49 @@ function showOne(id){
   $("olNext").onclick=()=>go(k+1);
   $("olFlip").onclick=()=>{ B.orient=B.orient==="w"?"b":"w"; go(k); };
   const practise=side=>{
-    const line={id:"olib-"+o.id+"-"+side, name:o.name, side, seed:true,
+    const line={id:"olib-"+(o.id||o.key||o.eco)+"-"+side, name:o.name, side, seed:true,
       moves:o.moves.map((san,i)=>[san, b.mv[i]?((b.mv[i].color==="w"?"White":"Black")+" plays "+b.mv[i].san):san]),
-      onBack:()=>showOne(o.id)};
+      onBack:practiseBack};
     if(window.CROpenings&&CROpenings.practise) CROpenings.practise(line);
     else if(window.CROpenings&&CROpenings._drill) CROpenings._drill(line);
   };
-  $("olPrW").onclick=()=>practise("w");
-  $("olPrB").onclick=()=>practise("b");
-  if(prefer==="b"){ const w=$("olPrW"), bl=$("olPrB"); if(w&&bl) bl.parentNode.insertBefore(bl,w); }
+  if(N){ $("olPrW").onclick=()=>practise("w"); $("olPrB").onclick=()=>practise("b"); }
+  else { $("olPrW").disabled=true; $("olPrB").disabled=true; }
+  if((o._prefer||"w")==="b"){ const w=$("olPrW"), bl=$("olPrB"); if(w&&bl) bl.parentNode.insertBefore(bl,w); }
   go(0);
+}
+
+function showOne(id){
+  const o=(data.openings||[]).find(x=>x.id===id); if(!o) return list(lastQ);
+  lastId=id; lastMore=null;
+  const hit=playedMap()[o.id], lab=youLabel(hit);
+  const view=Object.assign({}, o, {_you:lab, _prefer:(hit&&hit.b&&!hit.w)?"b":"w"});
+  let b; try{ b=build(o.moves); }catch(e){ const p=page(); p.innerHTML=`<button type="button" class="btn bk70" id="olBack">‹ Back</button><h2>${E_(o.name)}</h2><div class="olCard"><p>${E_(e.message)}</p></div>`; $("olBack").onclick=()=>list(lastQ); return; }
+  const extra=`<div class="olCard"><h3>Ideas for White</h3><ul>${(o.white||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>
+    <div class="olCard"><h3>Ideas for Black</h3><ul>${(o.black||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>
+    <div class="olCard"><h3>Common traps and mistakes</h3><ul>${(o.traps||[]).map(x=>`<li>${E_(x)}</li>`).join("")}</ul></div>`;
+  wireBoard(view, b, ()=>list(lastQ), extra, ()=>showOne(o.id));
+}
+
+function showMore(key){
+  lastId=null; lastMore=key;
+  const findRec=()=>{
+    if(catalog) return catalog.find(r=>r.key===key);
+    return null;
+  };
+  const go=rec=>{
+    if(!rec) return list(lastQ);
+    lastMore=rec.key;
+    let b; try{ b=build(rec.moves); }catch(e){ const p=page(); p.innerHTML=`<button type="button" class="btn bk70" id="olBack">‹ Back</button><h2>${E_(rec.name)}</h2><div class="olCard"><p>${E_(e.message)}</p></div>`; $("olBack").onclick=()=>list(lastQ); return; }
+    const extra=`<div class="olCard"><p>A full guide for this line isn't written yet. You can still step through the moves and practise them.</p></div>`;
+    wireBoard(rec, b, ()=>list(lastQ), extra, ()=>showMore(rec.key));
+  };
+  const rec=findRec();
+  if(rec) return go(rec);
+  loadCatalog().then(()=>go(findRec())).catch(()=>list(lastQ));
 }
 
 function open(q){ try{ window.CRHome&&CRHome.setMode("app",true); }catch(e){} list(q||""); }
 
-window.CROpenLib={open, _load:load, _data:()=>data, _played:playedMap, _show:showOne};
+window.CROpenLib={open, _load:load, _data:()=>data, _played:playedMap, _show:showOne, _showMore:showMore, _loadCatalog:loadCatalog, _catalog:()=>catalog, _fold:fold};
 })();
