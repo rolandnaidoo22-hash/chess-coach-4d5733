@@ -5,7 +5,7 @@
 (function(){
 "use strict"; if(window.CRBrain) return;
 const KM="chessReview.brain.meta", KO="chessReview.brain.opponents", KB="chessReview.brain.botstats";
-const DAY=24*3600*1000, GAP=1100, PLY=8;
+const DAY=24*3600*1000, GAP=1100, PLY=8, MONTHS_BACK=3;
 const E=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const chess=()=>window.ChessLib&&ChessLib.Chess||window.Chess;
@@ -32,6 +32,29 @@ function feedOn(){ const p=document.getElementById("feed81"); return !!(p&&p.cla
 function touchToday(){ const m=meta(); if(!m.today||m.today.d!==dayKey()) m.today={d:dayKey(),mine:0,opps:[],archive:0}; return m.today; }
 function band(elo){ const e=+elo||0; if(e<400) return "0-399"; if(e<700) return "400-699"; if(e<1000) return "700-999"; if(e<1300) return "1000-1299"; if(e<1600) return "1300-1599"; return "1600+"; }
 const BANDS=["0-399","400-699","700-999","1000-1299","1300-1599","1600+"];
+function monthKeyFromDate(d,utc){ return utc?d.getUTCFullYear()+"/"+String(d.getUTCMonth()+1).padStart(2,"0"):d.getFullYear()+"/"+String(d.getMonth()+1).padStart(2,"0"); }
+function currentMonthKeys(now){ const d=new Date(now||Date.now()); return new Set([monthKeyFromDate(d,false), monthKeyFromDate(d,true)]); }
+function lastMonthKeys(n,now){ const d=new Date(now||Date.now()), out=new Set();
+  for(let i=0;i<n;i++){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); out.add(monthKeyFromDate(x,false)); }
+  out.add(monthKeyFromDate(d,true)); return out; }
+function monthsToRead(archiveUrls,storedMonths,now){ const allow=lastMonthKeys(MONTHS_BACK,now), current=currentMonthKeys(now);
+  const keys=(archiveUrls||[]).map(monthOf).filter(k=>k&&allow.has(k));
+  const done=new Set((storedMonths||[]).filter(k=>!current.has(k)));
+  return keys.filter(k=>!done.has(k)); }
+function ageWeight(t,now){ const days=Math.max(0,(sec(now||Date.now())-sec(t))/86400); return 1/(1+days/30); }
+function isChessComGame(g){ if(!g) return false; if(g.site==="l") return false; if(g.site==="c") return true;
+  const id=String(g.id||g.url||""); if(/lichess\.org/i.test(id)) return false; return true; }
+function forkWho(mover,meCol){ return mover===meCol?"them":"me"; }
+function forkTitle(p){ const who=p&&p.who==="me"?"You":"They"; return who+" walked into a fork with "+((p&&p.san)||"")+"."; }
+function askCopy(){ return connectionKind()==="cellular"
+  ?"You're on mobile data. Opponent Brain reads your rivals' public Chess.com games from the last 3 months and keeps a short summary on this phone. Download now?"
+  :"Opponent Brain will download your rivals' public Chess.com games from the last 3 months and keep a short summary on this phone. Is that OK?"; }
+function connectionKind(){ try{ const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection; if(!c) return "unknown";
+    if(c.saveData) return "cellular"; if(c.type==="cellular") return "cellular";
+    if(c.type==="wifi"||c.type==="ethernet"||c.type==="wimax") return "wifi"; return "unknown"; }catch(e){ return "unknown"; } }
+function mayDownload(manual){ if(meta().dataOk) return "yes"; const kind=connectionKind(); if(kind==="wifi") return "yes";
+  if(kind==="cellular") return "ask"; return manual?"ask":"no"; }
+function rememberDataOk(ok){ const m=meta(); m.dataOk=!!ok; m.dataAsked=true; m.dataOkAt=Date.now(); saveMeta(); }
 function headers(pgn){ const H={}; String(pgn||"").replace(/\[(\w+)\s+"([^"]*)"\]/g,(_,k,v)=>{ H[k]=v; }); return H; }
 function sansFrom(pgn){ const C=chess(); if(C&&pgn){ try{ const g=new C(); g.loadPgn(pgn); const h=g.history(); if(h&&h.length) return h; }catch(e){} }
   if(window.CRStudy&&CRStudy.parsePgn){ try{ return CRStudy.parsePgn(pgn).sans||[]; }catch(e){} }
@@ -43,13 +66,14 @@ function ensure(name){ const u=String(name||"").trim(); const id=u.toLowerCase()
   const all=opps(); if(!all[id]) all[id]={u:id,name:u,lastPulled:0,months:[],rating:null,openingsW:{},openingsB:{},lines:{},h2h:[],traps:[],puzzles:[],gamesSeen:0};
   else if(u&&u!==id&&(!all[id].name||all[id].name===id)) all[id].name=u;
   return all[id]; }
-function addOpen(bag,name,res){ const k=name||"Unknown"; const x=bag[k]||(bag[k]={n:0,sc:0}); x.n++; x.sc+=res; }
-function addLine(o,side,sans,res){ const seq=(sans||[]).slice(0,PLY); if(seq.length<4) return; const k=side+"|"+seq.join(" ");
-  const x=o.lines[k]||(o.lines[k]={n:0,sc:0,seq:seq,side:side}); x.n++; x.sc+=res;
-  const keys=Object.keys(o.lines); if(keys.length>36){ keys.sort((a,b)=>o.lines[b].n-o.lines[a].n); keys.slice(10).forEach(id=>delete o.lines[id]); } }
-function prune(o){ const top=(bag,n)=>{ const e=Object.entries(bag||{}).sort((a,b)=>b[1].n-a[1].n).slice(0,n); const out={}; e.forEach(([k,v])=>out[k]=v); return out; };
+function lineWeight(x){ return (x&&(x.w||x.n))||0; }
+function addOpen(bag,name,res,w){ w=w==null?1:+w; if(!(w>0)) return; const k=name||"Unknown"; const x=bag[k]||(bag[k]={n:0,w:0,sc:0}); x.n++; x.w+=w; x.sc+=res*w; }
+function addLine(o,side,sans,res,w){ w=w==null?1:+w; if(!(w>0)) return; const seq=(sans||[]).slice(0,PLY); if(seq.length<4) return; const k=side+"|"+seq.join(" ");
+  const x=o.lines[k]||(o.lines[k]={n:0,w:0,sc:0,seq:seq,side:side}); x.n++; x.w+=w; x.sc+=res*w;
+  const keys=Object.keys(o.lines); if(keys.length>36){ keys.sort((a,b)=>lineWeight(o.lines[b])-lineWeight(o.lines[a])); keys.slice(10).forEach(id=>delete o.lines[id]); } }
+function prune(o){ const top=(bag,n)=>{ const e=Object.entries(bag||{}).sort((a,b)=>lineWeight(b[1])-lineWeight(a[1])).slice(0,n); const out={}; e.forEach(([k,v])=>out[k]=v); return out; };
   o.openingsW=top(o.openingsW,12); o.openingsB=top(o.openingsB,12);
-  const ls=Object.entries(o.lines||{}).sort((a,b)=>b[1].n-a[1].n).slice(0,8); o.lines={}; ls.forEach(([k,v])=>o.lines[k]=v);
+  const ls=Object.entries(o.lines||{}).sort((a,b)=>lineWeight(b[1])-lineWeight(a[1])).slice(0,8); o.lines={}; ls.forEach(([k,v])=>o.lines[k]=v);
   o.h2h=(o.h2h||[]).sort((a,b)=>b.t-a.t).slice(0,16);
   o.puzzles=(o.puzzles||[]).slice(-8); o.traps=(o.traps||[]).slice(0,8); }
 function addBot(rating,sans,side){ const elo=+rating; if(!elo||!sans||!sans.length) return; const B=bots(); const b=band(elo); const bag=B.bands[b]||(B.bands[b]={n:0}); bag.n++;
@@ -58,7 +82,7 @@ function addBot(rating,sans,side){ const elo=+rating; if(!elo||!sans||!sans.leng
 function scanTactics(o,sans,row){ const C=chess(); if(!C||!window.CRGuard||!sans) return; const g=new C(); let n=0; const seenCap=new Set();
   for(let i=0;i<sans.length&&i<40;i++){ let m; try{ m=g.move(sans[i]); }catch(e){ break; } if(!m) break;
     if(m.piece==="n"){ const fk=CRGuard._fork(g,m.to,m.color==="w"?"b":"w");
-      if(fk&&n<3){ const who=m.color===row.me?"me":"them"; o.puzzles.push({id:row.url+"|f"+i,opp:o.u,kind:"fork",who:who,san:m.san,fen:g.fen(),t:row.t,ply:i,hit:(fk.hit||[]).slice(0,2).map(x=>x.type)}); n++; } }
+      if(fk&&n<3){ const who=forkWho(m.color,row.me); o.puzzles.push({id:row.url+"|f"+i,opp:o.u,kind:"fork",who:who,san:m.san,fen:g.fen(),t:row.t,ply:i,hit:(fk.hit||[]).slice(0,2).map(x=>x.type)}); n++; } }
     const cap=CRGuard._bestCap(g); const capKey=cap?cap.x.to+"|"+cap.x.san:"";
     if(cap&&cap.gain>=3&&capKey&&!seenCap.has(capKey)&&sans[i+1]!==cap.x.san&&n<3){ seenCap.add(capKey); const missed=g.turn()===row.me?"me":"them";
       o.puzzles.push({id:row.url+"|h"+i,opp:o.u,kind:"hang",who:missed,san:m.san,fen:g.fen(),reply:cap.x.san,from:cap.x.from,to:cap.x.to,t:row.t,ply:i,piece:cap.x.captured}); n++; } } }
@@ -73,15 +97,17 @@ function mergeH2H(o,row,sans){ if(!row||!row.url) return false; if((o.h2h||[]).s
   const td=touchToday(); td.mine++; if(o.name&&td.opps.indexOf(o.u)<0) td.opps.push(o.u); return true; }
 function sideRes(result){ if(result==="win") return 1; if(/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(result||"")) return 0.5; return 0; }
 function myResWord(meSide,g){ const mine=meSide==="w"?g.white:g.black; if(!mine) return "L"; if(mine.result==="win") return "W"; if(/agreed|repetition|stalemate|insufficient|50move|timevsinsufficient/.test(mine.result||"")) return "D"; return "L"; }
-function foldArchive(o,g){ if(!g||!g.pgn||(g.rules&&g.rules!=="chess")) return false; const wu=(g.white&&g.white.username||"").toLowerCase(), bu=(g.black&&g.black.username||"").toLowerCase();
+function foldArchive(o,g){ if(!g||(!g.pgn&&!(g.sans&&g.sans.length))||(g.rules&&g.rules!=="chess")) return false; const wu=(g.white&&g.white.username||"").toLowerCase(), bu=(g.black&&g.black.username||"").toLowerCase();
   const side=wu===o.u?"w":bu===o.u?"b":null; if(!side) return false;
   const url=g.url||""; if(url&&(seen().has(url)||(o.h2h||[]).some(h=>h.url===url))) return false;
-  const mine=side==="w"?g.white:g.black, other=side==="w"?g.black:g.white; const sans=sansFrom(g.pgn); if(sans.length<2) return false;
-  const H=headers(g.pgn), opn=openingName(sans,H), res=sideRes(mine&&mine.result); const bag=side==="w"?o.openingsW:o.openingsB;
-  addOpen(bag,opn,res); addLine(o,side,sans,res); if(mine&&mine.rating&&(g.time_class==="rapid"||!o.rating)){ o.rating=mine.rating; o.ratingAt=(g.end_time||0)*1000; }
+  const mine=side==="w"?g.white:g.black, other=side==="w"?g.black:g.white; const sans=(g.sans&&g.sans.length)?g.sans:sansFrom(g.pgn); if(sans.length<2) return false;
+  const H=g.opening?Object.assign(headers(g.pgn||""),{Opening:g.opening}):headers(g.pgn||""); const opn=openingName(sans,H), res=sideRes(mine&&mine.result); const bag=side==="w"?o.openingsW:o.openingsB;
+  const wt=ageWeight(g.end_time);
+  addOpen(bag,opn,res,wt); addLine(o,side,sans,res,wt); if(mine&&mine.rating&&(g.time_class==="rapid"||!o.rating)){ o.rating=mine.rating; o.ratingAt=(g.end_time||0)*1000; }
   addBot(mine&&mine.rating,sans,side); o.gamesSeen=(o.gamesSeen||0)+1;
+  if(url) seen().add(url);
   if(other&&other.username&&other.username.toLowerCase()===meId()){ const row={url:g.url||String(g.end_time),t:g.end_time||0,me:side==="w"?"b":"w",res:myResWord(side==="w"?"b":"w",g),tc:g.time_class||"",opn:opn,mr:other.rating||0,or:mine.rating||0};
-    if(!seen().has(row.url)){ seen().add(row.url); mergeH2H(o,row,sans); } }
+    mergeH2H(o,row,sans); }
   return true; }
 function ingestRow(row){ try{
   if(!row||!row.op) return; const url=String(row.url||""); if(url&&seen().has(url)) return; if(url) seen().add(url);
@@ -90,15 +116,16 @@ function ingestRow(row){ try{
   const o=ensure(row.op); if(!o){ if(url) seen().add(url); return; }
   const meCol=row.me==="b"?"b":"w"; const word=row.res==="W"||row.res==="Won"?"W":row.res==="D"||row.res==="Draw"?"D":"L";
   const their=meCol==="w"?"b":"w", oppRes=word==="L"?1:word==="D"?0.5:0, opnName=opn||openingName(sans,{});
-  addOpen(their==="w"?o.openingsW:o.openingsB,opnName,oppRes);
-  addLine(o,their,sans,oppRes);
+  const wt=ageWeight(row.t);
+  addOpen(their==="w"?o.openingsW:o.openingsB,opnName,oppRes,wt);
+  addLine(o,their,sans,oppRes,wt);
   addBot(row.or,sans,their);
   mergeH2H(o,{url:url||("local-"+o.u+"-"+sec(row.t)),t:row.t,me:meCol,res:word,tc:row.tc,opn:opn||openingName(sans,{}),mr:row.mr,or:row.or},sans);
   prune(o);
 }catch(e){} }
 function collect(){ const rows=[];
   try{ const list=window.CRSync&&CRSync.list?CRSync.list():[]; list.forEach(x=>{ if(x&&x.op) rows.push({url:x.url,t:x.t,me:x.me,op:x.op,or:x.or,res:x.res,tc:x.tc,pgn:x.pgn}); }); }catch(e){}
-  try{ const c=JSON.parse(localStorage.getItem("chessReview.v56.charts.games")||"null"); (c&&c.games||[]).forEach(g=>{ if(!g||!g.op||!g.m) return;
+  try{ const c=JSON.parse(localStorage.getItem("chessReview.v56.charts.games")||"null"); (c&&c.games||[]).forEach(g=>{ if(!g||!g.op||!g.m||!isChessComGame(g)) return;
     rows.push({url:g.id,t:sec(g.t),me:g.c,op:g.op,or:g.oe,mr:g.e,res:g.r===1?"W":g.r===0.5?"D":"L",tc:g.tc,sans:g.m,opn:g.name}); }); }catch(e){}
   return rows; }
 let ingesting=false, ingestAgain=false;
@@ -109,11 +136,12 @@ function ingestAsync(){ if(ingesting){ ingestAgain=true; return; } ingesting=tru
   step(); }
 function recOf(o){ let w=0,d=0,l=0; (o.h2h||[]).forEach(g=>{ if(g.res==="W") w++; else if(g.res==="D") d++; else l++; }); return {w:w,d:d,l:l,n:w+d+l,pts:w+d*0.5}; }
 function listOpps(){ return Object.keys(opps()).map(k=>opps()[k]); }
+function mapRate(r){ const d=r&&(r.w||r.n); return d?(r.pts!=null?r.pts:r.sc)/d:0; }
 function openingMap(){ const M={}; listOpps().forEach(o=>(o.h2h||[]).forEach(g=>{ const k=(g.me==="w"?"White":"Black")+" · "+(g.opn||"Unknown");
-  const x=M[k]||(M[k]={k:k,n:0,pts:0,me:g.me,opn:g.opn||"Unknown"}); x.n++; x.pts+=g.res==="W"?1:g.res==="D"?0.5:0; }));
-  const rows=Object.values(M).sort((a,b)=>b.n-a.n); const fix=rows.filter(r=>r.n>=2).sort((a,b)=>(a.pts/a.n)-(b.pts/b.n))[0]||rows[0]||null;
-  const crowd={}; listOpps().forEach(o=>["openingsW","openingsB"].forEach(s=>Object.entries(o[s]||{}).forEach(([name,v])=>{ const x=crowd[name]||(crowd[name]={name:name,n:0,sc:0}); x.n+=v.n; x.sc+=v.sc; })));
-  return {rows:rows,fix:fix,crowd:Object.values(crowd).sort((a,b)=>b.n-a.n).slice(0,6)}; }
+  const x=M[k]||(M[k]={k:k,n:0,w:0,pts:0,me:g.me,opn:g.opn||"Unknown"}); const wt=ageWeight(g.t); x.n++; x.w+=wt; x.pts+=(g.res==="W"?1:g.res==="D"?0.5:0)*wt; }));
+  const rows=Object.values(M).sort((a,b)=>(b.w||b.n)-(a.w||a.n)); const fix=rows.filter(r=>r.n>=2).sort((a,b)=>mapRate(a)-mapRate(b))[0]||rows[0]||null;
+  const crowd={}; listOpps().forEach(o=>["openingsW","openingsB"].forEach(s=>Object.entries(o[s]||{}).forEach(([name,v])=>{ const x=crowd[name]||(crowd[name]={name:name,n:0,w:0,sc:0}); x.n+=v.n; x.w+=(v.w||v.n); x.sc+=v.sc; })));
+  return {rows:rows,fix:fix,crowd:Object.values(crowd).sort((a,b)=>(b.w||b.n)-(a.w||a.n)).slice(0,6)}; }
 function rivals(){ const rows=listOpps().map(o=>({o:o,r:recOf(o)})).filter(x=>x.r.n).sort((a,b)=>b.r.n-a.r.n||a.r.pts-b.r.pts);
   const tough=rows.filter(x=>x.r.n>=2).slice().sort((a,b)=>(a.r.pts/a.r.n)-(b.r.pts/b.r.n)||b.r.l-a.r.l)[0]||null; return {rows:rows,tough:tough}; }
 function allTraps(){ const M={}; listOpps().forEach(o=>(o.traps||[]).forEach(t=>{ const x=M[t.id]||(M[t.id]={id:t.id,name:t.name,role:t.role,pun:t.pun,n:0,opp:o.name||o.u}); x.n+=t.n; }));
@@ -129,13 +157,13 @@ function weekly(){ const since=Math.floor(Date.now()/1000)-7*86400; const games=
   if(leak&&leak.pts/leak.n<0.5) train="Train "+leak.name+" first. That is where this week went wrong.";
   else if(worked) train="Keep "+worked.name+". It is working. Add one drill on the line you face most.";
   return {games:games,n:games.length,pts:pts,who:who,opens:opens,worked:worked,leak:leak,train:train}; }
-function topLine(o){ const ls=Object.values(o.lines||{}).sort((a,b)=>b.n-a.n); return ls[0]||null; }
+function topLine(o){ const ls=Object.values(o.lines||{}).sort((a,b)=>lineWeight(b)-lineWeight(a)); return ls[0]||null; }
 function ghosts(){ return listOpps().map(o=>{ const r=recOf(o); return {o:o,r:r,line:topLine(o)}; }).filter(x=>x.r.l>0||x.line).sort((a,b)=>b.r.l-a.r.l||b.r.n-a.r.n).slice(0,8); }
 function league(){ return listOpps().map(o=>({o:o,r:recOf(o)})).filter(x=>x.r.n>=3).sort((a,b)=>b.r.n-a.r.n||b.r.pts-a.r.pts); }
 function coachTip(){ if(!me()) return "Add your Chess.com name in Settings. After your games sync, this brain learns who you face.";
   const os=listOpps(); if(!os.length) return "Sync your games. The brain starts with the people you just played, then reads their public games once a day.";
   const traps=allTraps().filter(t=>t.role==="watch"&&t.pun); if(traps[0]) return "Watch for "+traps[0].name+". It showed up against "+traps[0].opp+". Drill the way out before the next game.";
-  const map=openingMap(); if(map.fix&&map.fix.n>=2&&map.fix.pts/map.fix.n<=0.45) return "Fix "+map.fix.opn+" as "+(map.fix.me==="w"?"White":"Black")+" first. You scored "+pct(map.fix.pts/map.fix.n)+" in "+map.fix.n+" games.";
+  const map=openingMap(); if(map.fix&&map.fix.n>=2&&mapRate(map.fix)<=0.45) return "Fix "+map.fix.opn+" as "+(map.fix.me==="w"?"White":"Black")+" first. You scored "+pct(mapRate(map.fix))+" in "+map.fix.n+" games.";
   const rv=rivals(); if(rv.tough&&rv.tough.r.pts/rv.tough.r.n<0.5) return (rv.tough.o.name||rv.tough.o.u)+" has the edge ("+rv.tough.r.l+" loss"+(rv.tough.r.l===1?"":"es")+"). Practise their first moves before you play again.";
   const w=weekly(); if(w.n) return "This week: "+w.n+" game"+(w.n>1?"s":"")+", "+w.pts+" point"+(w.pts===1?"":"s")+". "+w.train;
   return "Keep playing. Every game adds a little to your opponent brain."; }
@@ -149,13 +177,34 @@ function blurb(){ if(JOB.on) return JOB.text||"Updating…"; const n=listOpps().
 function snapshot(){ const t=touchToday(); return {opps:listOpps().length,games:listOpps().reduce((s,o)=>s+(o.h2h||[]).length,0),today:t,running:!!JOB.on,tip:coachTip()}; }
 
 /* ---------- daily archive pull (Chess.com public API only) ---------- */
-let JOB={on:false,cancel:false,manual:false,text:"",pct:0,err:""}, nextAt=0;
+let JOB={on:false,cancel:false,manual:false,text:"",pct:0,err:"",needAsk:false}, nextAt=0;
 const busyApp=()=>!!(window.ReviewApp&&ReviewApp.isRunning&&ReviewApp.isRunning()&&!(window.Coach17&&Coach17._imp&&Coach17._imp.running));
 function monthOf(url){ const m=/(\d{4})\/(\d{2})\/?$/.exec(String(url||"")); return m?m[1]+"/"+m[2]:""; }
+let W=undefined, Wseq=0, Wpend={};
+function worker(){ if(W===null) return null; if(W) return W; if(typeof Worker!=="function"){ W=null; return null; }
+  try{ W=new Worker("brain81-worker.js"); W.onmessage=e=>{ const m=e.data||{}, fn=Wpend[m.id]; if(fn){ delete Wpend[m.id]; fn(m); } }; W.onerror=()=>{ W=null; }; return W; }catch(e){ W=null; return null; } }
+function callWorker(payload,ms){ const w=worker(); if(!w) return Promise.reject(new Error("noworker"));
+  const id=++Wseq; payload=Object.assign({id:id},payload);
+  return new Promise((resolve,reject)=>{ const to=setTimeout(()=>{ delete Wpend[id]; reject(new Error("timeout")); },ms||25000);
+    Wpend[id]=m=>{ clearTimeout(to); resolve(m); }; try{ w.postMessage(payload); }catch(e){ clearTimeout(to); delete Wpend[id]; reject(e); } }); }
+async function fetchRaw(url){ const w=worker();
+  if(w){ try{ const m=await callWorker({type:"fetch",url:url},25000);
+      if(m&&m.error!=="network"&&(m.ok||m.status===404||m.status===429)){
+        if(m.status===404||m.status===429) return {status:m.status,data:null};
+        if(!m.ok) throw new Error("http "+(m.status||"")); return {status:m.status||200,data:m.data}; }
+    }catch(e){ if(String(e&&e.message)==="cancel") throw e; } }
+  let r; try{ r=await fetch(url,{cache:"no-store"}); }catch(e){ throw new Error("network"); }
+  if(r.status===404||r.status===429) return {status:r.status,data:null}; if(!r.ok) throw new Error("http "+r.status); return {status:r.status,data:await r.json()}; }
 async function getJson(url){ const wait=Math.max(0,nextAt-Date.now()); if(wait) await sleep(wait); if(JOB.cancel) throw new Error("cancel");
-  nextAt=Date.now()+GAP; let r; try{ r=await fetch(url,{cache:"no-store"}); }catch(e){ throw new Error("network"); }
-  if(r.status===429){ nextAt=Date.now()+8000; await sleep(8000); if(JOB.cancel) throw new Error("cancel"); r=await fetch(url,{cache:"no-store"}); nextAt=Date.now()+GAP; }
-  if(r.status===404) return null; if(!r.ok) throw new Error("http "+r.status); return r.json(); }
+  nextAt=Date.now()+GAP; let got=await fetchRaw(url);
+  if(got.status===429){ nextAt=Date.now()+8000; await sleep(8000); if(JOB.cancel) throw new Error("cancel"); got=await fetchRaw(url); nextAt=Date.now()+GAP; }
+  if(got.status===404) return null; return got.data; }
+async function parseMonthGames(games){ if(!games||!games.length||!worker()) return games||[];
+  try{ const m=await callWorker({type:"parse",games:games},20000); if(m&&m.games) return m.games; }catch(e){} return games; }
+function foldChunked(o,games){ return new Promise(resolve=>{ let i=0, added=0;
+  const step=()=>{ if(JOB.cancel){ resolve(added); return; } const end=Math.min(games.length,i+15);
+    for(;i<end;i++){ try{ if(foldArchive(o,games[i])) added++; }catch(e){} }
+    if(i<games.length) setTimeout(step,0); else resolve(added); }; step(); }); }
 function needPull(){ const now=Date.now(); return listOpps().filter(o=>{ if(o.missing&&o.lastPulled&&now-o.lastPulled<7*DAY) return false; if(!o.lastPulled) return true; return now-o.lastPulled>=20*3600*1000; }); }
 function paintProg(){ const el=document.getElementById("br81prog"); if(!el){ if(feedOn()&&view==="home") render(); return; }
   const n=document.createElement("div"); n.innerHTML=progHtml(); const node=n.firstElementChild; if(node) el.replaceWith(node); bindProg(); }
@@ -167,20 +216,26 @@ function pauseJob(msg){ JOB.on=false; JOB.text=msg; const m=meta(); m.lastPullNo
 async function pullOne(o,idx,total,t0,limit){ JOB.text="Rival "+(idx+1)+" of "+total+": "+(o.name||o.u); JOB.pct=Math.max(3,Math.round(100*idx/Math.max(1,total))); paintProg();
   const arch=await getJson("https://api.chess.com/pub/player/"+encodeURIComponent(o.u)+"/games/archives"); if(JOB.cancel) throw new Error("cancel");
   if(!arch){ o.missing=true; o.lastPulled=Date.now(); saveOpps(); return; }
-  const urls=arch.archives||[]; let keys=urls.map(monthOf).filter(Boolean);
-  if(o.lastPulled){ const d=new Date(o.lastPulled-3*DAY); const cut=d.getUTCFullYear()*12+d.getUTCMonth(); keys=keys.filter(k=>{ const p=k.split("/").map(Number); return p[0]*12+(p[1]-1)>=cut; }); }
-  const done=new Set(o.months||[]); const todo=keys.filter(k=>!done.has(k)); const by={}; urls.forEach(u=>{ const k=monthOf(u); if(k) by[k]=u; });
+  const urls=arch.archives||[]; const todo=monthsToRead(urls,o.months,Date.now()); const by={}; urls.forEach(u=>{ const k=monthOf(u); if(k) by[k]=u; });
   for(let j=0;j<todo.length;j++){ if(JOB.cancel) throw new Error("cancel"); if(Date.now()-t0>limit){ saveOpps(); pauseJob("Paused to be polite. Tap Update brain to continue."); return "pause"; }
     if(busyApp()){ saveOpps(); pauseJob("Paused while a review is running."); return "pause"; }
     const k=todo[j]; JOB.text=(o.name||o.u)+" · "+k+" · month "+(j+1)+" of "+todo.length; JOB.pct=Math.round(100*(idx+(j/Math.max(1,todo.length)))/Math.max(1,total)); paintProg();
     let jsn=null; try{ jsn=await getJson(by[k]); }catch(e){ if(String(e&&e.message)==="cancel") throw e; continue; }
-    let added=0; ((jsn&&jsn.games)||[]).forEach(g=>{ try{ if(foldArchive(o,g)) added++; }catch(err){} }); prune(o);
+    let games=(jsn&&jsn.games)||[]; try{ games=await parseMonthGames(games); }catch(e){}
+    const added=await foldChunked(o,games); prune(o);
     o.months=o.months||[]; if(o.months.indexOf(k)<0) o.months.push(k); const td=touchToday(); td.archive=(td.archive||0)+added; saveMeta(); saveOpps(); saveBots(); }
   o.lastPulled=Date.now(); o.missing=false; saveOpps(); }
-async function run(manual){ if(JOB.on) return; JOB.manual=!!manual; JOB.err="";
+function acceptData(){ rememberDataOk(true); JOB.needAsk=false; runStart(!!JOB.pendingManual); }
+function declineData(){ rememberDataOk(false); JOB.needAsk=false; JOB.text="OK. Nothing was downloaded."; paintProg(); }
+async function run(manual){ if(JOB.on) return; JOB.manual=!!manual; JOB.err=""; JOB.needAsk=false;
   if(navigator.onLine===false){ JOB.err="offline"; JOB.text="You're offline. The brain will try when you're back."; paintProg(); return; }
   if(!me()){ JOB.err="nouser"; JOB.text="Add your Chess.com name in Settings first."; paintProg(); return; }
   if(!manual){ const m=meta(); if(m.failAt&&Date.now()-m.failAt<30*60*1000) return; if(m.lastDaily&&Date.now()-m.lastDaily<DAY&&!(m.chunks&&m.chunksD===dayKey()&&m.chunks<3&&m.lastPullNote&&/Paused/.test(m.lastPullNote))) return; }
+  const gate=mayDownload(!!manual);
+  if(gate==="no"){ JOB.text="The brain is waiting until you allow a download."; paintProg(); return; }
+  if(gate==="ask"){ JOB.pendingManual=!!manual; JOB.needAsk=true; paintProg(); return; }
+  return runStart(manual); }
+async function runStart(manual){ if(JOB.on) return; JOB.manual=!!manual; JOB.needAsk=false; JOB.err="";
   JOB.on=true; JOB.cancel=false; JOB.text="Looking up rivals…"; JOB.pct=4; paintProg(); const t0=Date.now(); const limit=manual?12*60*1000:4*60*1000;
   try{ const list=needPull(); if(!list.length){ const m=meta(); m.lastDaily=Date.now(); saveMeta(); finishJob(listOpps().length?"Everyone is up to date.":"No rivals yet. Sync a few of your games first."); return; }
     for(let i=0;i<list.length;i++){ if(JOB.cancel) throw new Error("cancel"); if(Date.now()-t0>limit){ pauseJob("Paused to be polite. Tap Update brain to continue."); return; }
@@ -205,10 +260,11 @@ function css(){ if(styled) return; styled=true; const s=document.createElement("
 function shell(backLabel,back){ css(); const p=window.CR52.show("feed81");
   p.innerHTML=`<button type="button" class="btn bk70" id="br81back">‹ ${E(backLabel)}</button><div id="br81body"></div>`;
   p.querySelector("#br81back").onclick=back; return p.querySelector("#br81body"); }
-function progHtml(){ if(JOB.on) return `<div id="br81prog" class="card" aria-live="polite"><b>Updating brain…</b><div class="br81bar"><i style="width:${Math.max(4,JOB.pct||4)}%"></i></div><p class="mute" style="margin:0">${E(JOB.text||"Reading public games…")}</p><button type="button" class="bt" id="br81stop">Stop</button></div>`;
+function progHtml(){ if(JOB.needAsk) return `<div id="br81prog" class="card" aria-live="polite"><b>Before we download</b><p class="mute" style="margin:6px 0">${E(askCopy())}</p><div class="row"><button type="button" class="bt go" id="br81dataYes">Download</button><button type="button" class="bt" id="br81dataNo">Not now</button></div></div>`;
+  if(JOB.on) return `<div id="br81prog" class="card" aria-live="polite"><b>Updating brain…</b><div class="br81bar"><i style="width:${Math.max(4,JOB.pct||4)}%"></i></div><p class="mute" style="margin:0">${E(JOB.text||"Reading public games…")}</p><button type="button" class="bt" id="br81stop">Stop</button></div>`;
   const m=meta(); const note=JOB.text||m.lastPullNote||"Not updated yet. Tap Update brain, or leave the app open and it runs once a day.";
   return `<div id="br81prog" class="card"><button type="button" class="bt go" id="br81go">Update brain</button><p class="mute" style="margin:6px 0 0">${E(note)}${m.lastPullAt&&!JOB.text?" · "+E(when(m.lastPullAt)):""}</p></div>`; }
-function bindProg(){ const g=document.getElementById("br81go"), s=document.getElementById("br81stop"); if(g) g.onclick=()=>run(true); if(s) s.onclick=()=>cancel(); }
+function bindProg(){ const g=document.getElementById("br81go"), s=document.getElementById("br81stop"), y=document.getElementById("br81dataYes"), n=document.getElementById("br81dataNo"); if(g) g.onclick=()=>run(true); if(s) s.onclick=()=>cancel(); if(y) y.onclick=()=>acceptData(); if(n) n.onclick=()=>declineData(); }
 function learnedToday(){ const d=dayKey(); const names=new Set(); let mine=0; listOpps().forEach(o=>(o.h2h||[]).forEach(g=>{ if(g.added&&dayKey(g.added)===d){ mine++; names.add(o.u); } })); return {mine, opps:[...names], archive:(touchToday().archive)||0}; }
 function todayHtml(){ const t=learnedToday(); const n=listOpps().length; const games=listOpps().reduce((s,o)=>s+(o.h2h||[]).length,0);
   if(!me()) return `<div class="card"><b>Today</b><p style="margin:4px 0 0">Add your Chess.com name in Settings, then sync your games. The brain stays empty until then, and everything else still works.</p></div>`;
@@ -219,7 +275,7 @@ function todayHtml(){ const t=learnedToday(); const n=listOpps().length; const g
 function mini(id,icon,title,sub){ return `<button type="button" data-go="${id}"><b>${icon} ${E(title)}</b><small>${E(sub)}</small></button>`; }
 function renderHome(){ const body=shell("Home",()=>{ try{ CRHome.goHome(); }catch(e){ location.hash=""; } }); view="home";
   const map=openingMap(), rv=rivals(), tr=allTraps(), pz=allPuzzles(), w=weekly(), gh=ghosts(), lg=league(), bv=botView().filter(b=>b.n);
-  const mapSub=map.fix?(map.fix.opn+" · "+pct(map.fix.n?map.fix.pts/map.fix.n:0)+(map.fix.n>=2?" · fix this":"")):"Sync games to see your score";
+  const mapSub=map.fix?(map.fix.opn+" · "+pct(mapRate(map.fix))+(map.fix.n>=2?" · fix this":"")):"Sync games to see your score";
   const rvSub=rv.rows.length?(rv.rows.length+" people"+(rv.tough?" · toughest "+(rv.tough.o.name||rv.tough.o.u):"")):"People you play most";
   const trSub=tr[0]?tr[0].name:"Traps from your games";
   const pzSub=pz.length?pz.length+" moment"+(pz.length===1?"":"s")+" to try":"Hanging pieces and forks";
@@ -248,10 +304,10 @@ function bar(r){ const n=r.n||1; return `<div class="wdl"><i style="width:${100*
 function renderMap(){ const body=shell("Brain",backHome); const map=openingMap();
   let h=`<h2>🗺 Opening battle map</h2><p class="mute">Openings people played against you, your score, and what to fix first.</p>`;
   if(!map.rows.length) h+=`<div class="card">No games in the brain yet. Sync your games, then come back. Your other training still works.</div>`;
-  else { if(map.fix) h+=`<div class="card"><b>${map.fix.n>=2?"Fix first":"Most played"}</b><p style="margin:4px 0 0">${E(map.fix.opn)} as ${map.fix.me==="w"?"White":"Black"} · ${map.fix.pts} / ${map.fix.n} (${pct(map.fix.n?map.fix.pts/map.fix.n:0)}). ${map.fix.n>=2?"Learn that line before you play it again.":"One game so far. A second one makes the weak spot clearer."}</p></div>`;
-    h+=map.rows.slice(0,10).map(r=>`<div class="card"><b>${E(r.k)}</b><div>${r.pts} / ${r.n} · ${pct(r.n?r.pts/r.n:0)}</div><div class="br81bar"><i style="width:${r.n?Math.round(100*r.pts/r.n):0}%"></i></div></div>`).join("");
+  else { if(map.fix) h+=`<div class="card"><b>${map.fix.n>=2?"Fix first":"Most played"}</b><p style="margin:4px 0 0">${E(map.fix.opn)} as ${map.fix.me==="w"?"White":"Black"} · ${map.fix.n} game${map.fix.n===1?"":"s"} · ${pct(mapRate(map.fix))}. ${map.fix.n>=2?"Learn that line before you play it again.":"One game so far. A second one makes the weak spot clearer."}</p></div>`;
+    h+=map.rows.slice(0,10).map(r=>`<div class="card"><b>${E(r.k)}</b><div>${r.n} game${r.n===1?"":"s"} · ${pct(mapRate(r))}</div><div class="br81bar"><i style="width:${Math.round(100*mapRate(r))}%"></i></div></div>`).join("");
     const pulled=listOpps().reduce((s,o)=>s+(o.gamesSeen||0),0);
-    if(pulled&&map.crowd.length) h+=`<h3>What they play in their public games</h3><p class="mute">${pulled} games summarised on this phone, including games that were not against you.</p>`+map.crowd.map(c=>`<div class="card">${E(c.name)} · ${c.n} game${c.n===1?"":"s"} · they score ${pct(c.n?c.sc/c.n:0)}</div>`).join("");
+    if(pulled&&map.crowd.length) h+=`<h3>What they play in their public games</h3><p class="mute">${pulled} games summarised on this phone, including games that were not against you.</p>`+map.crowd.map(c=>`<div class="card">${E(c.name)} · ${c.n} game${c.n===1?"":"s"} · they score ${pct(mapRate(c))}</div>`).join("");
     else h+=`<p class="mute">Tap Update brain and it will read the openings they play against other people. Your score above is already from your own games.</p>`; }
   body.innerHTML=h; }
 function renderRivals(){ const body=shell("Brain",backHome); const rv=rivals();
@@ -287,7 +343,7 @@ function renderPuzzles(){ const body=shell("Brain",backHome); const pz=allPuzzle
   body.innerHTML=h; body.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>renderTry(pz[+b.dataset.i]));
   const bl=body.querySelector("#br81bl"); if(bl) bl.onclick=()=>{ try{ window.CRBlunders&&CRBlunders.open(); }catch(e){} }; }
 function renderTry(p){ const body=shell("Puzzles",()=>{ view="puzzles"; render(); }); if(!p){ body.innerHTML=`<div class="card">That moment is gone.</div>`; return; }
-  const who=p.who==="me"?"You":"They"; const title=p.kind==="fork"?`${who} walked into a fork with ${p.san}.`:`${who} missed a hanging ${NM[p.piece]||"piece"} after ${p.san}.`;
+  const who=p.who==="me"?"You":"They"; const title=p.kind==="fork"?forkTitle(p):`${who} missed a hanging ${NM[p.piece]||"piece"} after ${p.san}.`;
   body.innerHTML=`<h2>🧩 Try this moment</h2><div class="card"><p style="margin:0">${E(title)}</p>${p.reply?`<p class="mute">Play ${E(p.reply)} on the board.</p>`:`<p class="mute">Look at the knight fork, then try a blunder puzzle.</p>`}</div>
     <div class="bd" id="br81bd"></div><div class="msg" id="br81m"></div>
     <div class="row"><button type="button" class="bt" id="br81more">More blunder puzzles</button></div>`;
@@ -310,17 +366,27 @@ function renderWeekly(){ const body=shell("Brain",backHome); const w=weekly();
     h+=`<div class="card"><b>One thing to train</b><p style="margin:4px 0 0">${E(w.train)}</p></div>`; }
   body.innerHTML=h; }
 function lostColor(o){ const g=(o.h2h||[]).filter(x=>x.res==="L"); const c={w:0,b:0}; g.forEach(x=>{ c[x.me]=(c[x.me]||0)+1; }); if(c.b>c.w) return "b"; if(c.w) return "w"; return (o.h2h[0]&&o.h2h[0].me)||"w"; }
-function playGhost(o){ const line=topLine(o); const seq=line?line.seq.slice():((o.h2h[0]&&o.h2h[0].sans)||[]).slice();
+function ghostPlan(o){ if(!o) return null;
+  const userLost=lostColor(o), rivalFromLoss=userLost==="w"?"b":"w";
+  const lined=Object.values(o.lines||{}).filter(l=>l&&l.side===rivalFromLoss&&l.seq&&l.seq.length).sort((a,b)=>lineWeight(b)-lineWeight(a))[0]
+    || Object.values(o.lines||{}).filter(l=>l&&l.seq&&l.seq.length).sort((a,b)=>lineWeight(b)-lineWeight(a))[0];
+  if(lined){ const rivalSide=lined.side==="b"?"b":"w"; return {seq:lined.seq.slice(), rivalSide:rivalSide, userPlays:rivalSide==="w"?"b":"w"}; }
+  const pick=((o.h2h||[]).filter(g=>g.res==="L"&&g.sans&&g.sans.length)[0])||((o.h2h||[]).filter(g=>g.sans&&g.sans.length)[0])||null;
+  if(pick){ const userPlays=pick.me==="b"?"b":"w"; return {seq:pick.sans.slice(), rivalSide:userPlays==="w"?"b":"w", userPlays:userPlays}; }
+  return null; }
+function ghostBooks(plan){ const w=[],b=[]; (plan&&plan.seq||[]).forEach((san,i)=>{ (i%2?b:w).push(san); });
+  if(!plan) return [[],[]]; return plan.rivalSide==="w"?[w,[]]:[[],b]; }
+function playGhost(o){ const plan=ghostPlan(o);
   const src=(window.CRBotsData||[]).find(b=>b.id==="pip")||(window.CRBotsData||[])[0]; if(!src||!window.CRBots) return;
-  const w=[],b=[]; seq.forEach((san,i)=>{ (i%2?b:w).push(san); });
-  const bot=Object.assign({},src,{id:"ghost",name:"Practice ghost",style:"Opens like "+(o.name||o.u),openings:[w.length?w:src.openings[0],b.length?b:src.openings[1]],
+  const books=ghostBooks(plan);
+  const bot=Object.assign({},src,{id:"ghost",name:"Practice ghost",style:"Opens like "+(o.name||o.u),openings:[books[0].length?books[0]:[], books[1].length?books[1]:[]],
     chat:Object.assign({},src.chat,{start:["Let's practise this opening.","I'll start the way they do."]})});
-  try{ window.CRHome&&CRHome.setMode("app",true); }catch(e){} CRBots._startBot(bot,lostColor(o)); }
-function drillGhost(o){ const line=topLine(o); const seq=line?line.seq.slice():((o.h2h[0]&&o.h2h[0].sans)||[]); if(seq.length<2||!window.CROpenings||!window.CR52) { playGhost(o); return; }
+  try{ window.CRHome&&CRHome.setMode("app",true); }catch(e){} CRBots._startBot(bot,plan?plan.userPlays:lostColor(o)); }
+function drillGhost(o){ const plan=ghostPlan(o); const seq=plan?plan.seq:[]; if(seq.length<2||!window.CROpenings||!window.CR52) { playGhost(o); return; }
   const C=chess(); if(!C){ playGhost(o); return; } const g=new C(), moves=[];
   seq.forEach(san=>{ const before=g.fen(); let m; try{ m=g.move(san); }catch(e){} if(!m) return; let why=m.san; try{ why=CROpenings._explain(m,before,g.fen(),moves.length); }catch(e){} moves.push([m.san,why]); });
   if(!moves.length){ playGhost(o); return; }
-  const id="brain-ghost-"+o.u, side=lostColor(o); const item={id:id,name:"Prep vs "+(o.name||o.u),icon:"👻",side:side,sub:"Their first moves",tags:"ghost "+o.u,moves:moves};
+  const id="brain-ghost-"+o.u, side=plan?plan.userPlays:lostColor(o); const item={id:id,name:"Prep vs "+(o.name||o.u),icon:"👻",side:side,sub:"Their first moves",tags:"ghost "+o.u,moves:moves};
   const K="chessReview.v52.myLines", L=CR52.LS.get(K,[]).filter(x=>x.id!==id); L.push(item); CR52.LS.set(K,L); try{ CROpenings._drill(id); }catch(e){ playGhost(o); } }
 function renderGhost(){ const body=shell("Brain",backHome); const gh=ghosts();
   let h=`<h2>👻 Ghost prep</h2><p class="mute">Practise against an opening that beat you. The ghost is a bot, not the real player.</p>`;
@@ -369,6 +435,6 @@ document.addEventListener("cr69games",()=>{ try{ ingestAsync(); }catch(e){} });
 function boot(){ hookCoach(); watchStudy(); const start=()=>{ try{ ingestAsync(); }catch(e){} armDaily(); };
   if(window.requestIdleCallback) requestIdleCallback(start,{timeout:2500}); else setTimeout(start,500); }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
-window.CRBrain={snapshot,blurb,tip:coachTip,run,cancel,bookMove,openingMap,rivals,traps:allTraps,puzzles:allPuzzles,weekly,ghosts,league,coachTip,botStats:botView,ingest:ingestAsync,open};
+window.CRBrain={snapshot,blurb,tip:coachTip,run,cancel,bookMove,openingMap,rivals,traps:allTraps,puzzles:allPuzzles,weekly,ghosts,league,coachTip,botStats:botView,ingest:ingestAsync,open,monthsToRead,currentMonthKeys,ageWeight,forkWho,forkTitle,ghostPlan,ghostBooks,connectionKind,mayDownload,isChessComGame,collect,foldArchive,askCopy,mapRate};
 window.CRFeed={open};
 })();
