@@ -48,6 +48,12 @@ window.CRBotsData=[
  movetime:1200,mpv:3,temp:12,randomness:0,blunderRate:0,aggression:10,
  openings:[["e4","d4","c4"],["c5","e6","Nf6"]],
  chat:{start:["Welcome to my castle.","Show me what you have learned."],capture:["As expected."],check:["Check. Kneel."],lost:["Impressive. You may keep the crown, for now."],won:["The crown stays with me."],draw:["A draw against a queen is no small thing."]},
- avatar:ring(`<path d="M20 22l4-10 4 7 4-9 4 9 4-7 4 10z" fill="${G}"/><circle cx="32" cy="31" r="9" fill="${G}"/>${face(31)}<path d="M29 35q3 2 6 0" stroke="${D}" stroke-width="1.6" fill="none"/><path d="M18 58c0-10 6-16 14-16s14 6 14 16z" fill="${G}"/><circle cx="32" cy="48" r="2.5" fill="${L}"/>`)}
+ avatar:ring(`<path d="M20 22l4-10 4 7 4-9 4 9 4-7 4 10z" fill="${G}"/><circle cx="32" cy="31" r="9" fill="${G}"/>${face(31)}<path d="M29 35q3 2 6 0" stroke="${D}" stroke-width="1.6" fill="none"/><path d="M18 58c0-10 6-16 14-16s14 6 14 16z" fill="${G}"/><circle cx="32" cy="48" r="2.5" fill="${L}"/>`)},
+{id:"champion",name:"Champion",elo:2500,style:"Calm and positional",tag:"Squeezes the endgame",
+ story:"A quiet, top-level player who is happy to wait. Give Champion a small edge and the endgame becomes a slow, careful squeeze.",
+ movetime:1800,mpv:4,temp:8,randomness:0,blunderRate:0,aggression:-25,quietBias:28,tradeAhead:40,bookId:"champion",
+ openings:[[],[]],
+ chat:{start:["Take your time. I will.","A long game suits me."],capture:["A fair exchange.","Simplifying a little."],check:["Check. No rush."],lost:["Well played. You squeezed me this time."],won:["The endgame was kind to me."],draw:["A solid result."]},
+ avatar:ring(`<path d="M14 44q6-16 18-22" fill="none" stroke="${L}" stroke-width="2"/><path d="M50 44q-6-16-18-22" fill="none" stroke="${L}" stroke-width="2"/><path d="M16 38q4-3 6-10" fill="none" stroke="${G}" stroke-width="2"/><path d="M48 38q-4-3-6-10" fill="none" stroke="${G}" stroke-width="2"/><rect x="26" y="14" width="12" height="3" fill="${G}"/><rect x="30" y="10" width="4" height="8" fill="${G}"/><path d="M24 52l3-18h10l3 18z" fill="${G}"/><rect x="22" y="51" width="20" height="4" rx="1" fill="${L}"/>`)}
 ];
 })();

@@ -89,7 +89,8 @@ function pickSide(bot){ const p=show("bots52");
    <button class="play69" id="b69play">▶ Play ${E_(bot.name)}</button><div class="row"><button class="bt" id="b52back">‹ All bots</button></div>`;
   p.classList.add("pro69"); let side="w";
   p.querySelectorAll("[data-c]").forEach(x=>x.onclick=()=>{ side=x.dataset.c; p.querySelectorAll("[data-c]").forEach(y=>{ const on=y===x; y.classList.toggle("sel69",on); y.setAttribute("aria-pressed",String(on)); }); });
-  $("b69play").onclick=()=>{ let c=side; if(c==="r") c=Math.random()<.5?"w":"b"; start(bot,c); }; $("b52back").onclick=list; }
+  $("b69play").onclick=()=>{ let c=side; if(c==="r") c=Math.random()<.5?"w":"b"; start(bot,c); }; $("b52back").onclick=list;
+  try{ if(bot.bookId&&window.CRChampion&&CRChampion.prepare) CRChampion.prepare(p); }catch(e){} }
 function say(kind){ if(!G) return; const l=G.bot.chat[kind]; if(!l||!l.length) return; const el=$("b52say"); if(el) el.textContent=l[Math.floor(Math.random()*l.length)]; }
 function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.CRUltimate){ CRUltimate.clearInvite(); bot=CRUltimate.profile(); }
   p.classList.remove("pro69"); const RN=window.CRRating&&CRRating.now(), myN=(((window.CRUser&&CRUser.info())||{}).cc)||"You";

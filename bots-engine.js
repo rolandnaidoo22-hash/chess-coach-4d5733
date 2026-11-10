@@ -34,11 +34,13 @@ function hangingMoves(fen){ const C=CH(), g=new C(fen), me=g.turn(), op=me==="w"
 async function move(fen,bot,opt){ opt=opt||{}; const C=CH(), g=new C(fen), legal=g.moves({verbose:true}); if(!legal.length) return null;
   const t0=Date.now(), me=g.turn(), hist=opt.history||[];
   const done=async m=>{ const wait=Math.max(0,(opt.delay!=null?opt.delay:500+Math.random()*700)-(Date.now()-t0)); if(wait) await sleep(wait); return m; };
+  // 0. position book (Champion and any bot with bookId)
+  try{ if(bot.bookId&&window.CRChampion&&CRChampion.bookMove){ const bm=await CRChampion.bookMove(fen,legal); if(bm) return done(Object.assign({book:true},bm)); } }catch(e){}
   // 1. opening book from the bot's own list
   const book=bot.openings&&bot.openings[me==="w"?0:1]; const myPly=Math.floor(hist.length/2);
   if(book&&myPly<book.length&&Math.random()<0.85){ const m=legal.find(x=>x.san===book[myPly]); if(m) return done(Object.assign({book:true},m)); }
-  // 1b. Opponent Brain: anonymous first-move habits by rating band. No-op when the brain has no data.
-  try{ if(window.CRBrain&&CRBrain.bookMove){ const bm=CRBrain.bookMove(bot.elo,hist,legal); if(bm) return done(Object.assign({book:true},bm)); } }catch(e){}
+  // 1b. Opponent Brain: anonymous first-move habits by rating band. Skip bots that have their own book.
+  try{ if(!bot.bookId&&window.CRBrain&&CRBrain.bookMove){ const bm=CRBrain.bookMove(bot.elo,hist,legal); if(bm) return done(Object.assign({book:true},bm)); } }catch(e){}
   // 2. blunder: deliberately leave a piece hanging
   if(Math.random()<(bot.blunderRate||0)){ const h=hangingMoves(fen); if(h.length) return done(Object.assign({blunder:true},pick(h))); }
   // 3. randomness: any legal move
@@ -48,7 +50,9 @@ async function move(fen,bot,opt){ opt=opt||{}; const C=CH(), g=new C(fen), legal
   if(!list.length) return done(pick(legal));
   const best=list[0].score, T=Math.max(1,bot.temp||30);
   const scored=list.map(c=>{ const m=legal.find(x=>uciOf(x)===c.uci)||legal.find(x=>x.from+x.to===c.uci.slice(0,4)); if(!m) return null;
-    let s=c.score; if(Math.abs(best)<90000||Math.abs(s)<90000){ if(m.captured) s+=(bot.aggression||0)*(1+VAL[m.captured]/900); if(/\+|#/.test(m.san)) s+=(bot.aggression||0)/2; }
+    let s=c.score; if(Math.abs(best)<90000||Math.abs(s)<90000){ if(m.captured) s+=(bot.aggression||0)*(1+VAL[m.captured]/900); if(/\+|#/.test(m.san)) s+=(bot.aggression||0)/2;
+      if(bot.quietBias&&!m.captured&&!/\+|#/.test(m.san)) s+=bot.quietBias;
+      if(bot.tradeAhead&&best>=80&&m.captured) s+=bot.tradeAhead*(1+VAL[m.captured]/500); }
     return {m,s}; }).filter(Boolean);
   if(best>=90000) return done(scored[0].m); // never miss a forced mate
   const top=Math.max(...scored.map(x=>x.s)); const w=scored.map(x=>Math.exp((x.s-top)/T)); let r=Math.random()*w.reduce((a,b)=>a+b,0);
