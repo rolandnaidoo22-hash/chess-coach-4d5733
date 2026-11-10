@@ -37,6 +37,8 @@ async function move(fen,bot,opt){ opt=opt||{}; const C=CH(), g=new C(fen), legal
   // 1. opening book from the bot's own list
   const book=bot.openings&&bot.openings[me==="w"?0:1]; const myPly=Math.floor(hist.length/2);
   if(book&&myPly<book.length&&Math.random()<0.85){ const m=legal.find(x=>x.san===book[myPly]); if(m) return done(Object.assign({book:true},m)); }
+  // 1b. Opponent Brain: anonymous first-move habits by rating band. No-op when the brain has no data.
+  try{ if(window.CRBrain&&CRBrain.bookMove){ const bm=CRBrain.bookMove(bot.elo,hist,legal); if(bm) return done(Object.assign({book:true},bm)); } }catch(e){}
   // 2. blunder: deliberately leave a piece hanging
   if(Math.random()<(bot.blunderRate||0)){ const h=hangingMoves(fen); if(h.length) return done(Object.assign({blunder:true},pick(h))); }
   // 3. randomness: any legal move

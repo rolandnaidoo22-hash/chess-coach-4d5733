@@ -110,6 +110,7 @@ const TILES=[
  ["games","📚","My games",()=>"Games you already reviewed",()=>{ closeAll(); setMode("review",true); $("paste").classList.add("gopen"); try{ ReviewApp.renderGames(); }catch(e){} }],
  ["trap","🪤","Trap Radar",()=>"Opening traps you fall for",()=>{ setMode("app",true); window.TrapRadar&&TrapRadar.open(); },"",{"data-hs-only":"trap"}],
  ["study52","🔍","Study your opponent",()=>"Report from public games",()=>{ setMode("app",true); window.CRStudy&&CRStudy.open(); }],
+ ["brain81","🧠","Opponent Brain",()=>window.CRBrain&&CRBrain.blurb?CRBrain.blurb():"Learns the people you play",()=>{ setMode("app",true); window.CRBrain&&CRBrain.open?CRBrain.open():window.CRFeed&&CRFeed.open(); },"","", "brain rival rivals feed memory openings"],
  ["bots52","🤖","Play the bots",()=>window.CRUltimate&&CRUltimate.inviteDue()?"📬 1 new message":"Pick a bot, from easy to strong",()=>{ setMode("app",true); window.CRBots&&CRBots.open(); }],
  ["play","🤝","Play a friend",()=>"Or the computer",()=>{ setMode("app",true); T().open("sec","play"); }],
  ["puzzles","🧩","Puzzles",()=>"From your own mistakes",()=>{ setMode("app",true); T().open("sec","puzzles"); }],
@@ -142,7 +143,7 @@ const TILES=[
 const MORE_GROUPS=[
  ["Review",["coach","ask59","review","games","bs64","gc65","trap"]],
  ["Learn",["learn","open52","openlib","lessons","ls64","read52","tf54","kids68"]],
- ["Train",["puzzles","v42pod","bl57","drills","board","study52"]],
+ ["Train",["puzzles","v42pod","bl57","drills","board","study52","brain81"]],
  ["Play",["bots52","play","corban52","ultimo52"]],
  ["Progress",["progress","v42ch","v46mo","v45","goal","v42xp","td64","photo68"]],
  ["Settings",["set"]]];
@@ -185,7 +186,7 @@ function paintMore(query){ const root=$("hsMore"); if(!root) return; const by=by
   let body=root.querySelector(".hsMoreBody"); if(!body){ body=document.createElement("div"); body.className="hsMoreBody"; root.appendChild(body); }
   body.textContent="";
   MORE_GROUPS.forEach(([title,ids])=>{
-    const items=ids.map(id=>by[id]).filter(t=>t&&(!q||t[2].toLowerCase().includes(q)));
+    const items=ids.map(id=>by[id]).filter(t=>t&&(!q||(t[2]+" "+(t[7]||"")).toLowerCase().includes(q)));
     if(!items.length) return;
     const h=document.createElement("h3"); h.className="hsSec"; h.textContent=title; body.appendChild(h);
     const list=document.createElement("div"); list.className="hsList";
