@@ -6,8 +6,17 @@ Run from the repo root: python3 tools/bump-version.py   (idempotent: no changes 
 import hashlib, re, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 idx = root / "index.html"; sw = root / "sw.js"
-html = idx.read_text(encoding="utf-8")
 def h(path): return hashlib.sha1(path.read_bytes()).hexdigest()
+# stamp lazy-loaded data-openings.js?v= inside JS modules first, so script ?v= hashes are final
+dataf = root / "data-openings.js"
+if dataf.exists():
+    dv = h(dataf)[:6]
+    for js in sorted(root.glob("*.js")):
+        if js.name in ("sw.js", "data-openings.js"): continue
+        txt = js.read_text(encoding="utf-8")
+        txt2 = re.sub(r"data-openings\.js\?v=[0-9a-zA-Z]*", "data-openings.js?v=" + dv, txt)
+        if txt2 != txt: js.write_text(txt2, encoding="utf-8")
+html = idx.read_text(encoding="utf-8")
 def stamp(m):
     f = root / m.group(2)
     return f'{m.group(1)}{m.group(2)}?v={h(f)[:6]}"' if f.exists() else m.group(0)

@@ -48,12 +48,13 @@ function autoHook(line,b){ const g=new (U().CH())(b.pos[b.pos.length-1]), mv=b.m
 /* ---------- list ---------- */
 function list(q){ const p=U().show("open52"), E_=U().E_;
   p.innerHTML=`<h2>♞ Learn openings</h2><p class="mute">Pick a line or search. Then step through it, learn the idea and drill it.</p>
+   <button class="lt" id="o52lib"><span class="i">📚</span><span><b>Openings library</b><small>All the main openings, and how to play them</small></span></button>
    <input type="text" id="o52q" placeholder="Search, e.g. London or Scholar" value="${E_(q||"")}"><div id="o52l" style="margin-top:8px"></div>
    <button class="lt" id="o52add"><span class="i">🔗</span><span><b>Learn a line from a video</b><small>Paste a YouTube link and the moves</small></span></button>`;
   const paint=()=>{ const s=$("o52q").value.trim().toLowerCase(), L=all().filter(x=>!s||(x.name+" "+(x.tags||"")).toLowerCase().includes(s));
     $("o52l").innerHTML=L.map(x=>`<button class="lt" data-o="${E_(x.id)}"><span class="i">${x.icon||"🎬"}</span><span><b>${E_(x.name)}</b><small>${E_(x.sub||"")} · you play ${SIDE(x.side)}</small></span><span class="tk">${badge(x.id)}</span></button>`).join("")||`<p class="mute">Nothing found. Try another word, or add your own line below.</p>`;
     $("o52l").querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>view(all().find(x=>x.id===b.dataset.o),0)); };
-  $("o52q").oninput=paint; paint(); $("o52add").onclick=()=>videoForm(); }
+  $("o52q").oninput=paint; paint(); $("o52add").onclick=()=>videoForm(); if($("o52lib")) $("o52lib").onclick=()=>window.CROpenLib&&CROpenLib.open(); }
 
 /* ---------- step through ---------- */
 function view(line,k){ const p=U().show("open52"), E_=U().E_, b=build(line), N=line.moves.length;
@@ -83,7 +84,10 @@ function drill(line){ const p=U().show("open52"), E_=U().E_, C=U().CH(), b=build
   // start partway: first run from move 1, later runs start further in, but every run checks the rest of the line
   const pr=prog(line.id), startAt=asks.length>2&&pr.runs>0?asks[Math.min(asks.length-1,pr.runs%Math.ceil(asks.length/2))]:asks[0];
   let queue=asks.filter(i=>i>=startAt), retry=[], mistakes=0, cur=null, g=null, sel=null, lock=false;
-  p.innerHTML=`<h2>🎯 Drill: ${E_(line.name)}</h2><p class="mute">You play ${SIDE(line.side)}. Make the next move of the line on the board.</p>
+  const said=i=>(line.moves[i]&&line.moves[i][1])||(b.mv[i]&&b.mv[i].san)||"";
+  const backTo=()=>{ if(line&&typeof line.onBack==="function") line.onBack(); else view(line,0); };
+  p.innerHTML=`<button type="button" class="btn bk70" id="o52top">‹ Back</button>
+   <h2>🎯 Drill: ${E_(line.name)}</h2><p class="mute">You play ${SIDE(line.side)}. Make the next move of the line on the board.</p>
    <div class="card" id="o52q" style="font-weight:700"></div><div class="bd" id="o52bd"></div><div class="msg" id="o52m"></div>
    <div class="mute" id="o52p"></div><div class="row"><button class="bt" id="o52v">‹ Back to the line</button></div>`;
   const B=U().board($("o52bd"),tap); B.orient=line.side;
@@ -91,11 +95,11 @@ function drill(line){ const p=U().show("open52"), E_=U().E_, C=U().CH(), b=build
   function ask(){ sel=null; lock=false; if(!queue.length&&retry.length){ queue=retry; retry=[]; }
     if(!queue.length) return end(); cur=queue.shift(); g=new C(b.pos[cur]); const prev=b.mv[cur-1];
     B.draw(b.pos[cur],prev?{arrows:[{u:prev.from+prev.to,c:"blue"}],hl:[{sq:prev.to,c:"#f5c518",o:.4}]}:{});
-    $("o52q").textContent=prev?`${SIDE(prev.color)} just played: ${line.moves[cur-1][1]} What's your move?`:"What's the first move?"; status(); }
+    $("o52q").textContent=prev?`${SIDE(prev.color)} just played: ${said(cur-1)} What's your move?`:"What's the first move?"; status(); }
   function tap(sq){ if(lock||!g) return; const pc=g.get(sq); if(pc&&pc.color===g.turn()){ sel=sq; B.draw(g.fen(),{hl:[{sq,c:"#3b6fb6",o:.5}],dots:g.moves({square:sq,verbose:true}).map(m=>m.to)}); return; }
     if(!sel) return; const c=g.moves({square:sel,verbose:true}).filter(m=>m.to===sq); sel=null; if(!c.length){ B.draw(g.fen()); return; }
     const want=b.mv[cur], m=c.find(x=>x.promotion===want.promotion)||c[0], ok=m.from===want.from&&m.to===want.to; lock=true;
-    if(ok){ $("o52m").className="msg ok"; $("o52m").textContent="✅ Right! "+line.moves[cur][1];
+    if(ok){ $("o52m").className="msg ok"; $("o52m").textContent="✅ Right! "+(said(cur)||"");
       B.draw(b.pos[cur+1],{arrows:[{u:want.from+want.to,c:"green"}],hl:[{sq:want.to,c:"#2e9b4f",o:.5}]}); setTimeout(ask,1600); }
     else { mistakes++; retry.push(cur); queue.unshift(cur); $("o52m").className="msg no"; $("o52m").textContent=`❌ Not this time. The line plays the ${NM[want.piece]} here (green arrow). Try it now, and we'll ask again at the end.`;
       B.draw(b.pos[cur],{arrows:[{u:m.from+m.to,c:"red"},{u:want.from+want.to,c:"green"}]}); status(); setTimeout(()=>{ $("o52m").textContent=""; ask(); },2600); } }
@@ -104,7 +108,7 @@ function drill(line){ const p=U().show("open52"), E_=U().E_, C=U().CH(), b=build
     const known=q.clean>=NEED; $("o52q").textContent=known?"⭐ You know this line!":mistakes?"Run finished. Let's go again until it's clean.":"Clean run! 👏";
     $("o52m").className="msg "+(mistakes?"no":"ok"); $("o52m").textContent=known?`Come back in ${GAPS[Math.min(GAPS.length-1,q.clean-NEED)]} day(s) for a quick review.`:`${NEED-q.clean} more clean run(s) to go.`;
     B.draw(b.pos[N]); status(); const r=document.createElement("div"); r.className="row"; r.innerHTML=`<button class="bt go" id="o52again">🔁 Drill again</button>`; $("o52p").after(r); $("o52again").onclick=()=>drill(line); }
-  $("o52v").onclick=()=>view(line,0); ask(); }
+  $("o52v").onclick=backTo; if($("o52top")) $("o52top").onclick=backTo; ask(); }
 
 /* ---------- learn a line from a video ---------- */
 function ytOk(u){ try{ const x=new URL(u.trim()); return /^https?:$/.test(x.protocol)&&/(^|\.)(youtube\.com|youtu\.be)$/i.test(x.hostname); }catch(e){ return false; } }
@@ -140,5 +144,5 @@ function videoForm(pre){ pre=pre||{}; const p=U().show("open52"), E_=U().E_;
     const line={id:"u"+Date.now(),name:$("o52n").value.trim()||("Video line: "+r.sans.slice(0,4).join(" ")),side:x.dataset.s,icon:"🎬",sub:`${r.sans.length} moves from a video`,link,moves,tags:"video my line"};
     line.hook=autoHook(line,build(line)); const L=mine(); L.push(line); U().LS.set(KU,L); view(line,0); }); }
 U().onClose(()=>{});
-window.CROpenings={open:list,_view:id=>view(all().find(x=>x.id===id),0),_hook:id=>hook(all().find(x=>x.id===id)),_drill:id=>drill(all().find(x=>x.id===id)),_check:check,_explain:explain,_video:videoForm};
+window.CROpenings={open:list,_view:id=>view(all().find(x=>x.id===id),0),_hook:id=>hook(all().find(x=>x.id===id)),_drill:id=>drill(all().find(x=>x.id===id)),practise:line=>drill(line),_check:check,_explain:explain,_video:videoForm};
 })();

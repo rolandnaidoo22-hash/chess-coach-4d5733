@@ -118,6 +118,7 @@ const TILES=[
  ["lessons","🎓","Lessons",()=>"Checkmates, basics, thinking",()=>{ setMode("app",true); T().open("sec","lessons"); }],
  ["learn","📘","Learn the basics",()=>window.CRLearn?CRLearn.progressText():"Pieces, moves and rules",()=>{ closeAll(); setMode("app",true); window.CRLearn&&CRLearn.open(); }],
  ["open52","♞","Learn openings",()=>"Step by step, then drill",()=>{ setMode("app",true); window.CROpenings&&CROpenings.open(); }],
+ ["openlib","📚","Openings library",()=>"All the main openings, and how to play them",()=>{ setMode("app",true); window.CROpenLib&&CROpenLib.open(); }],
  ["read52","📖","Read",()=>"Illustrated guides",()=>{ setMode("app",true); window.CRRead&&CRRead.open(); }],
  ["ask59","💬","Ask coach",()=>"Pick a game, review them all, or ask a question",()=>{ setMode("app",true); window.CRAsk59&&CRAsk59.open(); }],
  ["bl57","🩹","My blunder puzzles",()=>"Big mistakes from your own games",()=>{ setMode("app",true); window.CRBlunders&&CRBlunders.open(); }],
@@ -140,7 +141,7 @@ const TILES=[
  ["set","⚙","Settings",()=>"Username, rating goal, board",()=>{ closeAll(); setMode("set",true); }]];
 const MORE_GROUPS=[
  ["Review",["coach","ask59","review","games","bs64","gc65","trap"]],
- ["Learn",["learn","open52","lessons","ls64","read52","tf54","kids68"]],
+ ["Learn",["learn","open52","openlib","lessons","ls64","read52","tf54","kids68"]],
  ["Train",["puzzles","v42pod","bl57","drills","board","study52"]],
  ["Play",["bots52","play","corban52","ultimo52"]],
  ["Progress",["progress","v42ch","v46mo","v45","goal","v42xp","td64","photo68"]],

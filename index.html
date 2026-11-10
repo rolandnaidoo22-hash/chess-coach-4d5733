@@ -10376,8 +10376,15 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 <div class="verlbl" id="verLbl">The Ultimate Chess App<span id="verV" hidden></span> · <a href="privacy.html">Privacy</a></div>
 <script>
 // v12b: hide the floating Home button while it would cover a board's squares
-(function(){const hb=document.getElementById("homeBtn");if(!hb)return;function chk(){const r0=hb.getBoundingClientRect();let hit=false;document.querySelectorAll("#board,#trBoard").forEach(b=>{const r=b.getBoundingClientRect();if(!r.width)return;const top=innerHeight-90;if(r.bottom>top&&r.top<innerHeight&&r.right>innerWidth-90)hit=true;});hb.classList.toggle("away",hit);}
-addEventListener("scroll",chk,{passive:true});addEventListener("resize",chk);setInterval(chk,700);chk();})();
+(function(){const hb=document.getElementById("homeBtn");if(!hb)return;
+const SEL="#board,#trBoard,.p52.on .bd,#olBd,#gmTalkSend,.gmTalkSend,.gmTalkFr";
+const overlap=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+function chk(){const r0=hb.getBoundingClientRect();if(!r0.width)return;let hit=false;
+  document.querySelectorAll(SEL).forEach(el=>{const r=el.getBoundingClientRect();if(r.width<2||r.height<2)return;
+    if(overlap(r0,r))hit=true;
+    if(el.matches("#board,#trBoard,.p52.on .bd,#olBd")){const top=innerHeight-90;if(r.bottom>top&&r.top<innerHeight&&r.right>innerWidth-90)hit=true;}
+  });hb.classList.toggle("away",hit);}
+addEventListener("scroll",chk,{passive:true});addEventListener("resize",chk);setInterval(chk,400);chk();})();
 // v12b: when a new version is installed, reload once so old and new code never mix
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let reloaded=false;
  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;let t=0;try{t=+sessionStorage.getItem("cr.swr")||0;}catch(e){}if(Date.now()-t<15000)return;try{sessionStorage.setItem("cr.swr",Date.now());}catch(e){}const go=()=>{ if(window.ReviewApp&&ReviewApp.isRunning()) return setTimeout(go,3000); try{ window.CRResume67&&CRResume67.save(); }catch(e){} location.reload(); }; go();});
@@ -10389,7 +10396,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="imp.js?v=6f94f0"></script>
 <script defer src="wish.js?v=49eeba"></script>
 <script defer src="learn.js?v=956c70"></script>
-<script defer src="home.js?v=30d795"></script>
+<script defer src="home.js?v=f33da4"></script>
 <script defer src="onboard.js?v=e3a18a"></script>
 <script defer src="v42.js?v=4e22ab"></script>
 <script defer src="assess.js?v=9a2862"></script>
@@ -10407,7 +10414,8 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="charts.js?v=83031a"></script>
 <script defer src="badges.js?v=faf6b8"></script>
 <script defer src="openings-data.js?v=040b36"></script>
-<script defer src="openings.js?v=1ee868"></script>
+<script defer src="openings.js?v=5e234b"></script>
+<script defer src="openings-lib.js?v=3dce4a"></script>
 <script defer src="read.js?v=d146a7"></script>
 <script defer src="thinkfirst-data.js?v=22344a"></script>
 <script defer src="thinkfirst.js?v=a4c7f8"></script>
@@ -10417,7 +10425,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="coach58.js?v=b141d5"></script>
 <script defer src="review59.js?v=27d45f"></script>
 <script defer src="coach59.js?v=517df0"></script>
-<script defer src="gmchat.js?v=37fa18"></script>
+<script defer src="gmchat.js?v=faaba2"></script>
 <script defer src="memory61.js?v=048acd"></script>
 <script defer src="opening62.js?v=85fce0"></script>
 <script defer src="pin63.js?v=493a3e"></script>

@@ -36,7 +36,7 @@ const CSS=`
 .gmTalkB.c{align-self:flex-start;background:#efece4;color:var(--ink,#262421);border-bottom-left-radius:4px}
 .gmTalkB p{margin:4px 0}
 .gmTalkForm textarea{width:100%;box-sizing:border-box;font:inherit;font-size:16px;border-radius:12px;border:1px solid var(--line,#ccc);padding:10px;min-height:52px;resize:vertical}
-.gmTalkFr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.gmTalkFr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-right:70px}
 .gmTalkNew{min-height:44px;padding:0 12px;border-radius:10px;border:1px solid #3b6fb6;background:#fff;color:#3b6fb6;font:inherit;font-weight:700}
 .gmTalkSend{min-height:44px;min-width:96px;border-radius:10px;border:0;background:#3b6fb6;color:#fff;font:inherit;font-weight:800}
 .gmTalkErr{color:#b3261e;font-size:14px;margin:4px 0}
