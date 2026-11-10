@@ -1,5 +1,4 @@
-/* Pick up where you left off: if the phone throws the page away while you're in another app, reopen the same screen, game, move and tab,
-   and carry on with an analysis that was still running. Also: make "Get my latest games" stand out when new games may be waiting. */
+/* The app always opens on the home screen. If the phone throws the page away while an analysis is running, that analysis carries on. Also: make "Get my latest games" stand out when new games may be waiting. */
 (function(){
 "use strict"; if(window.CRResume67) return;
 const $=id=>document.getElementById(id), KS="chessReview.v67.where", KR="chessReview.v67.run", KF="chessReview.v67.lastFetch", MAXAGE=12*3600e3, STALE=30*60e3;
@@ -10,13 +9,12 @@ function where(){ const H=window.CRHome; if(!H) return null; const w={at:Date.no
   try{ const p=$("paste"), pt=$("pat"); w.sub=pt&&pt.classList.contains("on")?"pat":p&&p.classList.contains("gopen")?"games":"game"; }catch(e){}
   return w; }
 function save(){ if(restoring) return; const w=where(); if(w) try{ localStorage.setItem(KS,JSON.stringify(w)); }catch(e){} }
-function restore(){ const w=LG(KS), run=LG(KR), H=window.CRHome, R=window.ReviewApp;
+function restore(){ const run=LG(KR), H=window.CRHome, R=window.ReviewApp;
   const fresh=x=>x&&Date.now()-(x.at||0)<MAXAGE;
   try{
-    if(fresh(w)&&w.mode&&w.mode!=="home"){ H.setMode(w.mode,true);
-      if(w.mode==="review"){
-        if(w.gid){ const g=R.loadGames().find(x=>x.data&&R.gameId(x.data)===w.gid); if(g){ loadData(R.upgrade(g.data)); const p=$("paste"); if(p) p.classList.remove("open","gopen"); if(w.tab&&w.tab!=="sum") try{ CRRev59.setTab(w.tab); }catch(e){} if(w.ply) try{ go(w.ply,false); }catch(e){} } }
-        if(w.sub&&w.sub!=="game"&&window.CRRev66) CRRev66.tab(w.sub); } }
+    /* Every launch opens on the home screen. (It used to reopen the last screen, which left a blank page when that screen
+       was one of the tools, such as Play the bots, because the tool itself is not reopened.) An analysis that was still
+       running is the one exception: it carries on below so the work is not lost. */
     if(fresh(run)&&run.pgn&&!R.isRunning()){ H.setMode("review",true);
       const u=$("uname"); if(u&&run.uname) u.value=run.uname; const sd=$("side"); if(sd&&run.side) sd.value=run.side;
       const m=document.querySelector(`input[name=mode][value=${run.mode==="quick"?"quick":"deep"}]`); if(m) m.checked=true;
