@@ -14,9 +14,9 @@ body.cr67m .boardcol .player{min-height:0!important;height:22px;padding:0 4px!im
 body.cr67m .boardcol .player .clock{font-size:12px;padding:0 6px!important;min-height:0}
 body.cr67m .boardrow{width:min(var(--cr67b,286px),100%);margin:0 auto}
 body.cr67m #mv63,body.cr67m .boardcol .controls,body.cr67m #gt65r:not(.cr67in){display:none!important}
-body.cr67m #rv59g{position:fixed;left:0;right:0;top:var(--cr67g,400px);z-index:61;background:var(--bg,#f4f0e8);height:30px;overflow:hidden;padding:0 6px;margin:0}
-body.cr67m #rv59g .graph{height:30px!important;margin:0!important;padding:0!important;border:0!important;background:none}
-body.cr67m #rv59g .graph svg{height:28px!important;width:100%!important}body.cr67m #rv59g .glbl{display:none}
+body.cr67m #rv59g{position:fixed;left:0;right:0;top:var(--cr67g,400px);z-index:61;background:var(--bg,#f4f0e8);height:var(--cr67gh,30px);overflow:hidden;padding:0 6px;margin:0 auto;max-width:1000px}
+body.cr67m #rv59g .graph{height:var(--cr67gh,30px)!important;margin:0!important;padding:0!important;border:0!important;background:none}
+body.cr67m #rv59g .graph svg{height:calc(var(--cr67gh,30px) - 2px)!important;width:100%!important}body.cr67m #rv59g .glbl{display:none}
 body.cr67m section.main .side{position:fixed!important;left:0;right:0;bottom:0;top:var(--cr67s,432px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 8px 24px;margin:0;z-index:55;background:var(--bg,#f4f0e8);overscroll-behavior:contain}
 #cr67card{display:none}body.cr67m #cr67card{display:block;border-radius:14px;padding:8px 10px;margin:0 0 6px;background:var(--card,#fff);border:1px solid var(--line,#ddd)}
 #cr67card .hd{display:flex;align-items:center;gap:6px}#cr67card .hd b{flex:1;font-size:15.5px;line-height:1.3}
@@ -61,13 +61,14 @@ function tick(){ const on=ON(); B.classList.toggle("cr67m",on); if(!on||!build()
   const side=document.querySelector("section.main .side");
   // the card holds the move, the coach's words, the Best move / Why / Threat buttons and the feelings row
   const card=$("cr67card"), q=$("v42rq"), g=$("gt65r");
-  if(q&&q.parentNode!==card) card.appendChild(q); if(g&&g.parentNode!==card){ g.classList.add("cr67in"); card.appendChild(g); }
+  if(q&&q.parentNode!==card) card.appendChild(q); if(g){ if(!g.classList.contains("cr67in")) g.classList.add("cr67in"); if(!window.CRMoves71&&g.parentNode!==card) card.appendChild(g); } /* v83: when moves71.js is loaded it owns the feelings panel (column beside the board); taking it back here made it jump every 250 ms */
   [...side.children].forEach(e=>{ if(e.id==="cr67card"||e.id==="cr67tabs") return; const p=pane(e); if(e.dataset.cr67p!==p) e.dataset.cr67p=p; });
   // fit: bar, board (about half the screen), eval strip, then the scrolling part
   const vh=innerHeight, bar=$("rv59").getBoundingClientRect().height||42; const bsz=Math.max(220,Math.min(window.CRMoves71?innerWidth-14-CRMoves71.col():innerWidth-30,Math.round(vh*0.42)-40));
   B.style.setProperty("--cr67b",bsz+"px"); B.style.setProperty("--cr67a",Math.round(bar)+"px");
   const bc=document.querySelector("section.main .boardcol"), bh=bc?bc.getBoundingClientRect().height:bsz+50;
-  B.style.setProperty("--cr67g",Math.round(bar+bh)+"px"); B.style.setProperty("--cr67s",Math.round(bar+bh+30)+"px");
+  const gh=innerWidth<600?30:Math.min(72,Math.max(30,Math.round(innerWidth/22))); B.style.setProperty("--cr67gh",gh+"px");
+  B.style.setProperty("--cr67g",Math.round(bar+bh)+"px"); B.style.setProperty("--cr67s",Math.round(bar+bh+gh)+"px");
   const an=card.querySelector(".v42ans"); if(an&&window.plainChess&&an.dataset.cr67!==an.textContent){ const w=document.createTreeWalker(an,NodeFilter.SHOW_TEXT); let n; while(n=w.nextNode()){ const t=plainChess(n.nodeValue); if(t!==n.nodeValue) n.nodeValue=t; } an.dataset.cr67=an.textContent; }
   const i=typeof cur!=="undefined"?cur:0, p=i>0&&typeof P!=="undefined"?P[i-1]:null, key=i+"|"+(p&&p.cls);
   if(key!==last){ last=key; $("cr67h").textContent=words(p)+(p&&p.cls&&GR[p.cls]?` · ${GR[p.cls]}`:"");
