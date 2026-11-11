@@ -26,7 +26,7 @@ function build(d){ const Pl=d&&d.plies, b=biggest(Pl); if(!b) return null; const
     white:M.white||"",black:M.black||"",gid:String(M.link||[M.white,M.black,M.date].join("|")),date:M.date||"",at:Date.now(),id:"m"+Date.now(),mine:true,shared:false};
   return L; }
 function saveMine(L){ const A=LG(KM,[]).filter(x=>x.gid!==L.gid||x.fen!==L.fen); A.unshift(L); LS(KM,A.slice(0,30)); }
-function fromReview(){ let d=null; try{ d=DATA; }catch(e){} const L=build(d); if(!L){ alert("This game needs a finished result and one clear mistake to make a lesson."); return; } saveMine(L); try{ CRHome.setMode("app",true); }catch(e){} view(L); }
+function fromReview(){ let d=null; try{ d=DATA; }catch(e){} const L=build(d); if(!L){ (window.CRDialog?CRDialog.alert({title:"No lesson from this game",text:"A lesson needs a finished game with one clear mistake."}):alert("This game needs a finished result and one clear mistake to make a lesson.")); return; } saveMine(L); try{ CRHome.setMode("app",true); }catch(e){} view(L); }
 /* ---- the silent 3-step lesson ---- */
 function view(L,step){ const p=CR52.show("ls64"); let s=step||1;
   const draw=()=>{ const ar=s>=2?[{u:L.played,c:"#d32f2f"}]:[]; if(s===3) ar.push({u:L.better,c:"#2f7d32"});
@@ -53,7 +53,7 @@ async function feed(){ try{ CRHome.setMode("app",true); }catch(e){} const p=CR52
   p.innerHTML=`<h2>🎓 Community lessons</h2><p class="mute">Short lessons from real games, newest first. Each one is a "find the better move" puzzle. Saved on this phone, so they work offline too.</p>
    <button type="button" class="bs64go" id="ls64new">➕ Make a lesson from my latest game</button>
    ${mine.length?`<h3>My lessons</h3><div class="ls64list">${mine.map((L,i)=>card(L,"m"+i)).join("")}</div>`:""}<h3>From other players</h3><div id="ls64feed" class="ls64list"><p class="mute">Loading…</p></div>`;
-  $("ls64new").onclick=()=>{ let G=[]; try{ G=Coach17._all(); }catch(e){} let L=null; for(const g of G){ L=build(g.d); if(L) break; } if(!L){ alert("Check a finished game first (Review a game or My Coach) and a lesson will be made from your biggest mistake."); return; } saveMine(L); view(L); };
+  $("ls64new").onclick=()=>{ let G=[]; try{ G=Coach17._all(); }catch(e){} let L=null; for(const g of G){ L=build(g.d); if(L) break; } if(!L){ (window.CRDialog?CRDialog.alert({title:"No game to learn from yet",text:"Check a finished game first in Review a game or My Coach. A lesson is then made from your biggest mistake."}):alert("Check a finished game first (Review a game or My Coach) and a lesson will be made from your biggest mistake.")); return; } saveMine(L); view(L); };
   wire(p,mine); let F=LG(KF,{at:0,lessons:[]}), off=false;
   try{ const r=await fetch(API()+"/lessons?limit=30",{cache:"no-store"}); const j=await r.json(); if(r.ok&&Array.isArray(j.lessons)){ F={at:Date.now(),lessons:j.lessons.filter(ok).slice(0,30)}; LS(KF,F); } else off=true; }catch(e){ off=true; }
   const el=$("ls64feed"); if(!el) return; const mineIds=new Set(mine.map(x=>x.rid).filter(Boolean)), list=F.lessons.filter(x=>!mineIds.has(x.id));

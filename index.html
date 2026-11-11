@@ -5168,7 +5168,9 @@ function renderGames(sel){
   $("mygames").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{ const k=b.dataset.open;
     if(k==="example"){ currentId="example"; loadData(ex); } else { const g=loadGames()[+k]; currentId=g.id; loadData(upgrade(g.data)); }
     renderGames(); $("paste").classList.remove("gopen"); window.scrollTo(0,0); });
-  $("mygames").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ const l=loadGames(); const g=l[+b.dataset.del]; if(!confirm(`Delete ${g.title}?`)) return; l.splice(+b.dataset.del,1); saveGames(l); renderGames(); });
+  $("mygames").querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ const g=loadGames()[+b.dataset.del]; if(!g) return; const gk=JSON.stringify(g);
+    if(!await (window.CRDialog?CRDialog.confirm({title:"Delete this game?",text:g.title+". Its review is removed from this phone.",ok:"Delete",cancel:"Cancel",danger:true}):Promise.resolve(confirm(`Delete ${g.title}?`)))) return;
+    const l=loadGames(), i=l.findIndex(x=>JSON.stringify(x)===gk); /* the list may have changed while the box was open */ if(i<0) return; l.splice(i,1); saveGames(l); renderGames(); });
 }
 
 /* ---------- progress ---------- */
@@ -10408,9 +10410,9 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="bots-engine.js?v=80f9da"></script>
 <script defer src="ideas.js?v=3d9eb0"></script>
 <script defer src="openings-names.js?v=017d6e"></script>
-<script defer src="bots.js?v=d9a30b"></script>
+<script defer src="dialog.js?v=5cca08"></script><script defer src="bots.js?v=e06383"></script>
 <script defer src="style-model.js?v=b9c492"></script>
-<script defer src="style.js?v=05900d"></script>
+<script defer src="style.js?v=b044b1"></script>
 <script defer src="study.js?v=f518f8"></script>
 <script defer src="charts.js?v=83031a"></script>
 <script defer src="badges.js?v=faf6b8"></script>
@@ -10442,7 +10444,7 @@ if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){let relo
 <script defer src="brain81.js?v=8764e8"></script>
 <script defer src="kids68.js?v=77c114"></script>
 <script defer src="photo68.js?v=637954"></script>
-<script defer src="lesson64.js?v=f82d93"></script><script defer src="a11y.js?v=2bef00"></script>
+<script defer src="lesson64.js?v=183727"></script><script defer src="a11y.js?v=2bef00"></script>
 <script defer src="learn60.js?v=b6ca2d"></script>
 </body>
 </html>
