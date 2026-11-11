@@ -53,7 +53,7 @@ function board(el,onTap){ const svg=document.createElementNS("http://www.w3.org/
   const B={orient:"w",svg,fen:null,o:{}};
   const sqAt=ev=>{ let fr=window.boardFrac?window.boardFrac(svg,ev):null; if(!fr){ const r=svg.getBoundingClientRect(); if(!r.width) return null; fr=[(ev.clientX-r.left)/r.width,(ev.clientY-r.top)/r.height]; }
     const x=Math.floor(8*fr[0]), y=Math.floor(8*fr[1]); if(x<0||x>7||y<0||y>7) return null; return B.orient==="w"?"abcdefgh"[x]+(8-y):"abcdefgh"[7-x]+(y+1); };
-  /* v75: pieces slide (180 ms), can be dragged, and a soft move sound plays */
+  /* v75: pieces slide (220 ms since v83), can be dragged, and a soft move sound plays */
   const XY=sq=>{ const f="abcdefgh".indexOf(sq[0]), r=+sq[1]-1; return B.orient==="w"?[f*45,(7-r)*45]:[(7-f)*45,r*45]; };
   B.pieceAt=sq=>{ const [x,y]=XY(sq); return [...svg.querySelectorAll('use[href^="#pc-"]')].find(u=>+u.getAttribute("x")===x&&+u.getAttribute("y")===y)||null; };
   let down=null, drag=null; if(onTap){ svg.addEventListener("pointerdown",ev=>{ if(ev.button>0) return; const s=sqAt(ev); if(!s) return; down=s; try{ svg.setPointerCapture(ev.pointerId); }catch(e){} onTap(s);
@@ -62,9 +62,12 @@ function board(el,onTap){ const svg=document.createElementNS("http://www.w3.org/
       if(!drag.moved&&Math.hypot(dx,dy)<6) return; drag.moved=true; if(!drag.u.isConnected){ drag.u=B.pieceAt(down); if(!drag.u) return; } drag.u.style.transform=`translate(${dx}px,${dy}px)`; drag.u.parentNode.appendChild(drag.u); });
     svg.addEventListener("pointerup",ev=>{ if(!down) return; const s=sqAt(ev), d=down, dr=drag; down=null; drag=null; if(dr&&dr.moved) B.dragged=true; if(dr&&dr.u.isConnected) dr.u.style.transform="";
       if(s&&s!==d) onTap(s); B.dragged=false; }); }
-  B.draw=(fen,o)=>{ B.fen=fen||B.fen; B.o=o||{}; svg.innerHTML=Trainer.boardSvg(B.fen,B.orient,Object.assign({loose:false},B.o),true);
+  /* v83: skip the rebuild when the picture is identical, so a slide that just started is not wiped (e.g. "Pip is thinking…" right after your move) */
+  let lastHtml=null;
+  B.draw=(fen,o)=>{ B.fen=fen||B.fen; B.o=o||{}; const html=Trainer.boardSvg(B.fen,B.orient,Object.assign({loose:false},B.o),true);
+    if(html!==lastHtml||!svg.firstChild){ svg.innerHTML=html; lastHtml=html; }
     const a=B.o.anim; if(a&&!B.dragged){ try{ const u=B.pieceAt(a.to); if(u&&u.animate){ const [x0,y0]=XY(a.from), [x1,y1]=XY(a.to); u.parentNode.appendChild(u);
-        u.animate([{transform:`translate(${x0-x1}px,${y0-y1}px)`},{transform:"translate(0,0)"}],{duration:180,easing:"ease-out"}); (window.CRPlay75=window.CRPlay75||{anims:0}).anims++; } }catch(e){} }
+        u.animate([{transform:`translate(${x0-x1}px,${y0-y1}px)`},{transform:"translate(0,0)"}],{duration:220,easing:"ease-out"}); (window.CRPlay75=window.CRPlay75||{anims:0}).anims++; } }catch(e){} }
     if(a) sound(a.cap); };
   return B; }
 /* small static picture of a position (for memory hooks / guides) */
