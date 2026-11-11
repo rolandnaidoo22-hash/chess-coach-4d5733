@@ -111,7 +111,9 @@ function start(bot,me){ const p=show("bots52"), C=CH(); if(bot.adaptive&&window.
   G.B=board($("b52bd"),tap); G.B.orient=me; say("start"); if(bot.adaptive&&window.CRUltimate&&CRUltimate.status().learned) $("b52say").textContent="📓 "+CRUltimate.status().learned; draw();
   gb(); $("b52grd").onclick=()=>{ G.guard=!G.guard; window.CRBlunders&&CRBlunders.setGuard(G.guard); gb(); draw(); }; window.CRMind64&&CRMind64.attach(G); $("b52undo").onclick=undo; $("b52flip").onclick=()=>{ G.B.orient=G.B.orient==="w"?"b":"w"; draw(); };
   $("b52new").onclick=()=>bot.open?bot.open():pickSide(bot);
-  $("b69res").onclick=()=>{ if(!G||G.over||G.g.isGameOver()) return; if(!confirm("Resign this game?")) return; G.token++; G.thinking=false; G.over=true; G.resigned=true; say("won"); if(G.bot.adaptive&&window.CRUltimate) CRUltimate.learn({moves:G.g.history(),me:G.me,result:"loss"}).catch(()=>{}); draw(); };
+  $("b69res").onclick=async()=>{ if(!G||G.over||G.g.isGameOver()) return; const game=G;
+    if(!await (window.CRDialog?CRDialog.confirm({title:"Resign this game?",text:G.bot.name+" will get the win.",ok:"Resign",cancel:"Keep playing",danger:true}):Promise.resolve(confirm("Resign this game?")))) return;
+    if(G!==game||G.over||G.g.isGameOver()) return; G.token++; G.thinking=false; G.over=true; G.resigned=true; say("won"); if(G.bot.adaptive&&window.CRUltimate) CRUltimate.learn({moves:G.g.history(),me:G.me,result:"loss"}).catch(()=>{}); draw(); };
   $("b69hint").onclick=hint; $("b52list").onclick=()=>{ G=null; list(); };
   try{ window.CRBotEngine&&CRBotEngine.boot().catch(()=>{}); }catch(e){}
   if(me==="b") botMove(); }
