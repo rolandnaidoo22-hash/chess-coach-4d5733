@@ -1,4 +1,4 @@
-/* v84: Free Board. You move the pieces for both sides (no bot, no clock): undo/redo, flip, move list you can jump through,
+/* v84: Practice board. You move the pieces for both sides (no bot, no clock): undo/redo, flip, move list you can jump through,
    set up any position, copy/paste FEN. The board is saved, so it is still there next time. Pure functions first (tested in node), then the screen.
    Nothing here opens over the board: promotion and setup choices appear in a row under it. */
 (function(W){ "use strict"; if(W.CRFree84) return;
@@ -88,7 +88,7 @@ function load(){ try{ return clean(JSON.parse(localStorage.getItem(KEY))); }catc
 function save(){ if(!G) return; try{ localStorage.setItem(KEY,JSON.stringify({v:1,start:G.st.start,moves:G.st.moves,idx:G.st.idx,orient:G.st.orient})); }catch(e){} }
 function rebuild(){ G.line=line(G.st); G.g=gameAt(G.st); }
 function open(){ css(); const p=U().show("fb84");
-  p.innerHTML=`<h2>♜ Free Board</h2><p class="mute">Move the pieces for both sides. Tap a piece, then a square, or drag it.</p>
+  p.innerHTML=`<h2>♜ Practice board</h2><p class="mute">Move the pieces for both sides. Tap a piece, then a square, or drag it.</p>
    <div class="fb84lay"><div>
     <div class="fb84msg" id="fb84msg" aria-live="polite"></div><div class="fb84note" id="fb84note"></div>
     <div class="bd" id="fb84bd"></div>
