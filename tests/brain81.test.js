@@ -16,7 +16,7 @@ assert.ok(/brain81\.js/.test(idx), "index.html loads brain81.js");
 assert.ok(/brain81\.js/.test(sw), "service worker precaches brain81.js");
 assert.ok(/CRBrain\.bookMove/.test(eng), "bots consult Opponent Brain bookMove");
 assert.ok(home.includes('"Opponent Brain"') || home.includes("'Opponent Brain'"), "More list names Opponent Brain");
-assert.ok(home.includes('["puzzles","v42pod","bl57","drills","board","study52","brain81"]'), "Opponent Brain sits with Study your opponent in Train");
+assert.ok(home.includes('["puzzles","v42pod","bl57","drills","board","free84","study52","brain81"]'), "Opponent Brain sits with Study your opponent in Train");
 assert.ok(home.includes("(t[2]+\" \"+(t[7]||\"\")).toLowerCase()"), "More search also matches keywords");
 assert.ok(/brain rival rivals feed memory openings/.test(home), "Opponent Brain has search keywords");
 assert.ok(!/Opponent Feed/.test(src), "user-visible name is Opponent Brain, not Opponent Feed");
