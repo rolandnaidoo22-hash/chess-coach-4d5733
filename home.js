@@ -126,6 +126,7 @@ const TILES=[
  ["tf54","🧠","Think First",()=>window.CRThink?CRThink.sub():"Four steps before every move",()=>{ setMode("app",true); window.CRThink&&CRThink.open(); }],
  ["corban52","🧢","Corban",()=>"Plays like a real friend",()=>{ setMode("app",true); const b=(window.CRBotsData||[]).find(x=>x.id==="corban"); b&&b.open?b.open():window.CRBots&&CRBots.open(); }],
  ["ultimo52","🦉","Ultimo",()=>"The bot that adapts to you",()=>{ setMode("app",true); window.CRBots&&CRBots._rematch(); }],
+ ["free84","♜","Practice board",()=>"Move both sides, set up any position",()=>{ setMode("app",true); window.CRFree84&&CRFree84.open(); },"","","free board analysis sandbox setup position fen move both sides"],
  ["board","♟","Board training",()=>"Squares and your real board",()=>{ setMode("app",true); T().open("sec","boardtrain"); }],
  ["v45","🎯","Find my level",levelSub,()=>{ setMode("app",true); window.CRAssess&&CRAssess.open(); },"",{"data-v45t":"1"}],
  ["v46mo","📖","My Openings",()=>"Which openings win you games",()=>{ setMode("app",true); window.CROpen&&CROpen.open(false); },"",{"data-v46t":"1"}],
@@ -143,7 +144,7 @@ const TILES=[
 const MORE_GROUPS=[
  ["Review",["coach","ask59","review","games","bs64","gc65","trap"]],
  ["Learn",["learn","open52","openlib","lessons","ls64","read52","tf54","kids68"]],
- ["Train",["puzzles","v42pod","bl57","drills","board","study52","brain81"]],
+ ["Train",["puzzles","v42pod","bl57","drills","board","free84","study52","brain81"]],
  ["Play",["bots52","play","corban52","ultimo52"]],
  ["Progress",["progress","v42ch","v46mo","v45","goal","v42xp","td64","photo68"]],
  ["Settings",["set"]]];
